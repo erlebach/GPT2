@@ -1,11 +1,31 @@
 import math
+import time
 from dataclasses import dataclass
 
 import lightning as pl
 import torch
+import torch._dynamo
 import torch.nn as nn
 from data_utils import TextDataModule
+from jaxtyping import Float
+from torch import Tensor
 from torch.nn import functional as F
+
+torch._dynamo.config.suppress_errors = True
+
+
+@dataclass
+class GPTConfig:
+    block_size: int = 1024  # max sequence length
+    vocab_size: int = 50257  # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
+    n_layer: int = 12  # number of layers
+    n_head: int = 12  # number of heads
+    n_embd: int = 768  # embedding dimension
+    # GE (2025-07-24)
+    block_size = 32  # max seq length
+    n_layer: int = 1  # number of layers
+    n_head: int = 4  # number of heads
+    n_embd: int = 16  # embedding dimension
 
 
 class CausalSelfAttention(nn.Module):
@@ -64,14 +84,17 @@ class CausalSelfAttention(nn.Module):
 
 
 class MLP(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config: GPTConfig) -> None:
         super().__init__()
         self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd)
         self.gelu = nn.GELU(approximate="tanh")
         self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd)
-        self.c_proj.NANOGPT_SCALE_INIT = 1
+        # self.c_proj.NANOGPT_SCALE_INIT = 1  # not used
 
-    def forward(self, x):
+    def forward(
+        self,
+        x: Float[Tensor, "b seq emb"],
+    ) -> Float[Tensor, "b seq emb"]:
         x = self.c_fc(x)
         x = self.gelu(x)
         x = self.c_proj(x)
@@ -79,55 +102,44 @@ class MLP(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config: GPTConfig):
         super().__init__()
-        self.ln_1 = nn.LayerNorm(config.n_embd)
-        self.attn = CausalSelfAttention(config)
-        self.ln_2 = nn.LayerNorm(config.n_embd)
-        self.mlp = MLP(config)
+        self.ln_1: nn.Module = nn.LayerNorm(config.n_embd)
+        self.attn: nn.Module = CausalSelfAttention(config)
+        self.ln_2: nn.Module = nn.LayerNorm(config.n_embd)
+        self.mlp: nn.Module = MLP(config)
 
-    def forward(self, x):
+    def forward(
+        self,
+        x: Float[Tensor, "b seq emb"],
+    ) -> Float[Tensor, "b seq emb"]:
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x
 
 
-@dataclass
-class GPTConfig:
-    block_size: int = 1024  # max sequence length
-    vocab_size: int = 50257  # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
-    n_layer: int = 12  # number of layers
-    n_head: int = 12  # number of heads
-    n_embd: int = 768  # embedding dimension
-    # GE (2025-07-24)
-    block_size = 32  # max seq length
-    n_layer: int = 1  # number of layers
-    n_head: int = 4  # number of heads
-    n_embd: int = 16  # embedding dimension
-
-
 class GPT(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config: GPTConfig) -> None:
         super().__init__()
         self.config = config
 
         self.transformer = nn.ModuleDict(
-            dict(
-                wte=nn.Embedding(config.vocab_size, config.n_embd),
-                wpe=nn.Embedding(config.block_size, config.n_embd),
-                h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-                ln_f=nn.LayerNorm(config.n_embd),
-            )
+            {
+                "wte": nn.Embedding(config.vocab_size, config.n_embd),
+                "wpe": nn.Embedding(config.block_size, config.n_embd),
+                "h": nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+                "ln_f": nn.LayerNorm(config.n_embd),
+            },
         )
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
         # weight sharing scheme
-        self.transformer.wte.weight = self.lm_head.weight
+        self.transformer["wte"].weight = self.lm_head.weight
 
         # initialize weights
         self.apply(self._init_weights)
 
-    def _init_weights(self, module):
+    def _init_weights(self, module: nn.Module) -> None:
         if isinstance(module, nn.Linear):
             std = 0.02
             if hasattr(module, "NANOGPT_SCALE_INIT"):
@@ -138,7 +150,7 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, idx, targets=None):
+    def forward(self, idx: int, targets=None):
         # idx is of shape (B, T)
         print(f"{idx.shape=}")  # 8, 1024
         B, T = idx.size()
@@ -147,14 +159,17 @@ class GPT(nn.Module):
         ), f"Cannot forward sequence of length {T}, block size is only {self.config.block_size}"
         # forward the token and posisition embeddings
         pos = torch.arange(0, T, dtype=torch.long, device=idx.device)  # shape (T)
-        pos_emb = self.transformer.wpe(pos)  # position embeddings of shape (T, n_embd)
-        tok_emb = self.transformer.wte(idx)  # token embeddings of shape (B, T, n_embd)
+        # position embeddings of shape (T, n_embd)
+        pos_emb = self.transformer["wpe"](pos)
+        # token embeddings of shape (B, T, n_embd)
+        tok_emb = self.transformer["wte"](idx)
         x = tok_emb + pos_emb
+
         # forward the blocks of the transformer
-        for block in self.transformer.h:
+        for block in self.transformer["h"]:  # <<< WHY THE ERROR?
             x = block(x)
         # forward the final layernorm and the classifier
-        x = self.transformer.ln_f(x)
+        x = self.transformer["ln_f"](x)
         logits = self.lm_head(x)  # (B, T, vocab_size)
         loss = None
         if targets is not None:
@@ -250,41 +265,6 @@ class GPT(nn.Module):
         return optimizer
 
 
-import tiktoken
-
-
-class DataLoaderLite:
-    def __init__(self, B, T):
-        self.B = B
-        self.T = T
-
-        with open("input.txt", "r") as f:
-            text = f.read()
-        enc = tiktoken.get_encoding("gpt2")
-        tokens = enc.encode(text)
-        self.tokens = torch.tensor(tokens)
-        self.current_position = 0
-
-    def next_batch(self):
-        B, T = self.B, self.T
-        buf = self.tokens[self.current_position : self.current_position + B * T + 1]
-        x = (buf[:-1]).view(B, T)
-        y = (buf[1:]).view(B, T)
-
-        self.current_position += B * T
-        # if loading next batch is oob, reset
-        if self.current_position + (B * T + 1) > len(self.tokens):
-            self.current_position = 0
-        return x, y
-
-
-import time
-
-import torch._dynamo
-
-torch._dynamo.config.suppress_errors = True
-
-
 def train():
     if torch.cuda.is_available():
         device = "cuda"
@@ -293,17 +273,15 @@ def train():
     if torch.cuda.is_available():
         torch.cuda.manual_seed(1337)
 
-    # GE
-    # print(torch.cuda.get_device_name())
-
-    total_batch_size = 524288  # 2^19
-    B = 8
-    T = 1024
-    T = 32  # GE
-
-    grad_accum_steps = total_batch_size // (B * T)
-
-    train_loader = DataLoaderLite(B=B, T=T)
+    # Use TextDataModule from data_utils.py
+    batch_size = 8
+    block_size = 32
+    data_path = "input.txt"
+    dm = TextDataModule(data_path, block_size=block_size, batch_size=batch_size)
+    dm.setup()
+    train_loader = dm.train_dataloader()
+    # Optionally, set grad_accum_steps if you want gradient accumulation
+    grad_accum_steps = 1
 
     torch.set_float32_matmul_precision("high")
 
@@ -333,7 +311,6 @@ def train():
         )  # coeff starts at 1 and then goes to 0 in a cosine like fashion
         return min_lr + coeff * (max_lr - min_lr)
 
-    # optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95), eps=1e-8)
     optimizer = model.configure_optimizers(
         weight_decay=0.1, learning_rate=6e-4, device=device
     )
@@ -344,14 +321,16 @@ def train():
         optimizer.zero_grad()
         loss_accum = 0.0
 
-        for _ in range(grad_accum_steps):
-            x, y = train_loader.next_batch()
+        for i, batch in enumerate(train_loader):
+            x, y = batch
             x, y = x.to(device), y.to(device)
             with torch.autocast(device_type=device, dtype=torch.bfloat16):
                 logits, loss = model(x, y)
             loss = loss / grad_accum_steps  # to normalize across grad accum steps
             loss_accum += loss.detach()
             loss.backward()  # accumulate grads
+            # Only one batch per step for simplicity; remove break for full epoch
+            break
 
         norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # grad clipping
 
@@ -360,7 +339,8 @@ def train():
             param_group["lr"] = lr
 
         optimizer.step()
-        torch.cuda.synchronize()
+        if device == "cuda":
+            torch.cuda.synchronize()
         t1 = time.time()
         dt = (t1 - t0) * 1000
         print(
