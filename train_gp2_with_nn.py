@@ -12,6 +12,7 @@ from beartype import beartype
 from data_utils import TextDataModule
 from jaxtyping import Float, Integer
 from torch import Tensor
+from torch.nn import MultiheadAttention, TransformerDecoderLayer
 from torch.nn import functional as F
 
 # torch._dynamo.config.suppress_errors = True
@@ -26,9 +27,10 @@ class GPTConfig:
     n_embd: int = 768  # embedding dimension
     # GE (2025-07-24)
     block_size = 32  # max seq length
-    n_layer: int = 4  # number of layers
+    n_layer: int = 2  # number of layers
     n_head: int = 4  # number of heads
     n_embd: int = 16  # embedding dimension
+    device: str = "cpu"
 
 
 @beartype
@@ -36,6 +38,7 @@ class CausalSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         assert config.n_embd % config.n_head == 0
+
         # key, query, value projections for all heads, but in a batch
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
         # output projection
@@ -52,15 +55,17 @@ class CausalSelfAttention(nn.Module):
                 1, 1, config.block_size, config.block_size
             ),
         )
+        self.key_padding_mask = None
+        self.attn_mask = None
 
     def forward(
         self,
         x: Float[Tensor, "b seq emb"],
     ) -> Float[Tensor, "b seq emb"]:
-        # print(f"==> forward causal, {x.shape=}")
         B, T, C = (
             x.size()
         )  # batch size, sequence length, embedding dimensionality (n_embd)
+
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         # nh is "number of heads", hs is "head size", and C (number of channels) = nh * hs
         # e.g. in GPT-2 (124M), n_head=12, hs=64, so nh*hs=C=768 channels in the Transformer
@@ -121,10 +126,58 @@ class Block(nn.Module):
         self,
         x: Float[Tensor, "b seq emb"],
     ) -> Float[Tensor, "b seq emb"]:
-        # print(f"==> {x.shape=}")
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x
+
+
+class SuperBlock(nn.Module):
+    def __init__(self, config: GPTConfig):
+        super().__init__()
+        self.block1 = Block(config)
+        self.block2 = Block(config)
+        self.concat_proj = nn.Linear(config.n_embd * 2, config.n_embd)
+
+        # MoE-style gating (optional enhancement)
+        self.gate = nn.Linear(config.n_embd, 2)  # Learn which path to prefer
+        self._init_moe_style()
+
+    def forward(self, x):
+        x1 = x + self.block1(x)
+        x2 = x + self.block2(x)
+
+        # Optional: Add gating mechanism
+        gate_weights = F.softmax(self.gate(x), dim=-1)  # [B, T, 2]
+        x1_weighted = x1 * gate_weights[:, :, 0:1]
+        x2_weighted = x2 * gate_weights[:, :, 1:2]
+
+        concat = torch.cat((x1_weighted, x2_weighted), dim=-1)
+        return self.concat_proj(concat)
+
+    def _init_moe_style(self):
+        """Initialize the SuperBlock using MoE principles.
+
+        This ensures:
+        1. Diverse initialization of parallel paths
+        2. Conservative initialization of combination layer
+        3. Balanced contribution from both paths
+        """
+        # Initialize the combination layer with smaller weights
+        # This prevents one path from dominating early in training
+        torch.nn.init.normal_(self.concat_proj.weight, mean=0.0, std=0.01)
+        if self.concat_proj.bias is not None:
+            torch.nn.init.zeros_(self.concat_proj.bias)
+
+        # Ensure both blocks start with different random states
+        # This promotes diversity in learned representations
+        for i, block in enumerate([self.block1, self.block2]):
+            for module in block.modules():
+                if isinstance(module, nn.Linear):
+                    # Use different initialization scales for diversity
+                    scale = 0.02 * (1.0 + 0.1 * i)  # Slightly different scales
+                    torch.nn.init.normal_(module.weight, mean=0.0, std=scale)
+                    if module.bias is not None:
+                        torch.nn.init.zeros_(module.bias)
 
 
 class GPT(nn.Module):
@@ -136,7 +189,7 @@ class GPT(nn.Module):
             {
                 "wte": nn.Embedding(config.vocab_size, config.n_embd),
                 "wpe": nn.Embedding(config.block_size, config.n_embd),
-                "h": nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+                "h": nn.ModuleList([SuperBlock(config) for _ in range(config.n_layer)]),
                 "ln_f": nn.LayerNorm(config.n_embd),
             },
         )
@@ -153,11 +206,14 @@ class GPT(nn.Module):
             std = 0.02
             if hasattr(module, "NANOGPT_SCALE_INIT"):
                 std *= (2 * self.config.n_layer) ** -0.5
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            torch.nn.init.normal_(module.weight, mean=0.0, std=std)
             if module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        elif isinstance(module, SuperBlock):
+            # Let SuperBlock handle its own MoE-style initialization
+            module._init_moe_style()
 
     def forward(
         self,
@@ -165,7 +221,6 @@ class GPT(nn.Module):
         targets: Tensor | None,
     ):
         # idx is of shape (B, T)
-        # print(f"{idx.shape=}")  # 8, 1024
         B, T = idx.size()
         assert (
             T <= self.config.block_size
@@ -338,7 +393,7 @@ def train():
         for i, batch in enumerate(train_loader):
             x, y = batch
             x, y = x.to(device), y.to(device)
-            with torch.autocast(device_type=device, dtype=torch.bfloat16):
+            with torch.autocast(device_type=device, dtype=torch.bfloat16):  # <<< ????
                 logits, loss = model(x, y)
             loss = loss / grad_accum_steps  # to normalize across grad accum steps
             loss_accum += loss.detach()
@@ -354,7 +409,7 @@ def train():
 
         optimizer.step()
         if device == "cuda":
-            torch.cuda.synchronize()
+            torch.cuda.synchronize()  # <<< ???
         t1 = time.time()
         dt = (t1 - t0) * 1000
         print(
