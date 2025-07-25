@@ -143,16 +143,18 @@ class SuperBlock(nn.Module):
         self._init_moe_style()
 
     def forward(self, x):
-        x1 = x + self.block1(x)
-        x2 = x + self.block2(x)
+        x1 = self.block1(x)
+        x2 = self.block2(x)
 
         # Optional: Add gating mechanism
         gate_weights = F.softmax(self.gate(x), dim=-1)  # [B, T, 2]
         x1_weighted = x1 * gate_weights[:, :, 0:1]
         x2_weighted = x2 * gate_weights[:, :, 1:2]
 
-        concat = torch.cat((x1_weighted, x2_weighted), dim=-1)
-        return self.concat_proj(concat)
+        return x1_weighted + x2_weighted
+
+        # concat = torch.cat((x1_weighted, x2_weighted), dim=-1)
+        # return self.concat_proj(concat)
 
     def _init_moe_style(self):
         """Initialize the SuperBlock using MoE principles.
