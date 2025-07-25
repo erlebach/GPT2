@@ -1,6 +1,7 @@
-import os
+"""Dataset and DataLoader with LightningDataModule."""
 
 import lightning as pl
+import tiktoken  # <-- Add this import
 import torch
 from beartype import beartype
 from jaxtyping import Int
@@ -9,39 +10,29 @@ from torch.utils.data import DataLoader, Dataset
 
 @beartype
 class TextDataset(Dataset):
-    """A dataset for loading and tokenizing text for GPT-2 training.
+    """A dataset for loading and tokenizing text for GPT-2 training using tiktoken.
 
     Args:
         file_path: Path to the input text file.
         block_size: Length of each sequence (context window).
-        vocab: Optional mapping from character to integer token.
         stride: Step size for moving the window (default: block_size).
 
     Attributes:
         data: List of tokenized integers.
         block_size: Length of each sequence.
         stride: Step size for moving the window.
-        vocab: Mapping from character to integer token.
-        inv_vocab: Mapping from integer token to character.
-
     """
 
     def __init__(
         self,
         file_path: str,
         block_size: int,
-        vocab: dict[str, int] = None,
         stride: int = None,
     ):
         with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
-        if vocab is None:
-            chars = sorted(list(set(text)))
-            self.vocab = {ch: i for i, ch in enumerate(chars)}
-        else:
-            self.vocab = vocab
-        self.inv_vocab = {i: ch for ch, i in self.vocab.items()}
-        self.data = [self.vocab[ch] for ch in text if ch in self.vocab]
+        enc = tiktoken.get_encoding("gpt2")
+        self.data = enc.encode(text)
         self.block_size = block_size
         self.stride = stride if stride is not None else block_size
 
@@ -112,7 +103,6 @@ class TextDataModule(pl.LightningDataModule):
 
 if __name__ == "__main__":
     # Test the dataset and datamodule
-    # Create a small test file
     test_file = "input.txt"
 
     # Test Dataset
@@ -122,7 +112,7 @@ if __name__ == "__main__":
     print(f"Test 1 passed: Dataset returns correct shapes.")
 
     # Test DataModule
-    batch_size = 12
+    batch_size = 4
     print("batch_size", batch_size)
     dm = TextDataModule(test_file, block_size=8, batch_size=batch_size)
     dm.setup()
@@ -137,18 +127,15 @@ if __name__ == "__main__":
     for i, batch in enumerate(all_batches):
         print("batch", i)
         current_batch_size = batch[0].shape[0]
-        print(f"{batch[0].shape=}, {batch[1].shape=}")
-        print(f"{batch[0]=}, {batch[1]=}")
+        # print(f"{batch[0].shape=}, {batch[1].shape=}")
+        # print(f"{batch[0]=}, {batch[1]=}")
         if i < len(all_batches) - 1:
             assert (
                 current_batch_size == batch_size
             ), f"Batch {i} size {current_batch_size} != {batch_size}"
         else:
-            # Last batch can be <= batch_size
             print("last batch size", current_batch_size)
             assert (
                 current_batch_size <= batch_size
             ), f"Last batch size {current_batch_size} > {batch_size}"
     print(f"Test 3 passed: All batch sizes are correct (last batch may be smaller).")
-
-    os.remove(test_file)

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import lightning as pl
 import torch
 import torch.nn as nn
+from data_utils import TextDataModule
 from torch.nn import functional as F
 
 
