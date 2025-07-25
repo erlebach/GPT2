@@ -1,0 +1,22 @@
+[project]
+name = "nanogpt"
+version = "0.1.0"
+description = "Experiments with NanoGPT from Karpathy"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "beartype>=0.21.0",
+    "datasets>=4.0.0",
+    "einops>=0.8.1",
+    "jaxtyping>=0.3.2",
+    "lightning>=2.5.2",
+    "matplotlib>=3.10.3",
+    "pandas>=2.3.1",
+    "pillow>=11.3.0",
+    "setuptools>=80.9.0",
+    "tiktoken>=0.9.0",
+    "torch>=2.7.1",
+    "tqdm>=4.67.1",
+    "transformers>=4.53.3",
+    "wandb>=0.21.0",
+]
