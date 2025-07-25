@@ -1,17 +1,20 @@
 import math
 import time
 from dataclasses import dataclass
+from typing import cast
 
 import lightning as pl
 import torch
-import torch._dynamo
+
+# import torch._dynamo
 import torch.nn as nn
+from beartype import beartype
 from data_utils import TextDataModule
-from jaxtyping import Float
+from jaxtyping import Float, Integer
 from torch import Tensor
 from torch.nn import functional as F
 
-torch._dynamo.config.suppress_errors = True
+# torch._dynamo.config.suppress_errors = True
 
 
 @dataclass
@@ -23,11 +26,12 @@ class GPTConfig:
     n_embd: int = 768  # embedding dimension
     # GE (2025-07-24)
     block_size = 32  # max seq length
-    n_layer: int = 1  # number of layers
+    n_layer: int = 2  # number of layers
     n_head: int = 4  # number of heads
     n_embd: int = 16  # embedding dimension
 
 
+@beartype
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -49,7 +53,11 @@ class CausalSelfAttention(nn.Module):
             ),
         )
 
-    def forward(self, x):
+    def forward(
+        self,
+        x: Float[Tensor, "b seq emb"],
+    ) -> Float[Tensor, "b seq emb"]:
+        # print(f"==> forward causal, {x.shape=}")
         B, T, C = (
             x.size()
         )  # batch size, sequence length, embedding dimensionality (n_embd)
@@ -113,6 +121,7 @@ class Block(nn.Module):
         self,
         x: Float[Tensor, "b seq emb"],
     ) -> Float[Tensor, "b seq emb"]:
+        # print(f"==> {x.shape=}")
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x
@@ -150,9 +159,13 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, idx: int, targets=None):
+    def forward(
+        self,
+        idx: Integer[Tensor, "b seq"],
+        targets: Tensor | None,
+    ):
         # idx is of shape (B, T)
-        print(f"{idx.shape=}")  # 8, 1024
+        # print(f"{idx.shape=}")  # 8, 1024
         B, T = idx.size()
         assert (
             T <= self.config.block_size
@@ -164,9 +177,9 @@ class GPT(nn.Module):
         # token embeddings of shape (B, T, n_embd)
         tok_emb = self.transformer["wte"](idx)
         x = tok_emb + pos_emb
-
+        mod_list = cast(nn.ModuleList, self.transformer["h"])
         # forward the blocks of the transformer
-        for block in self.transformer["h"]:  # <<< WHY THE ERROR?
+        for block in mod_list:
             x = block(x)
         # forward the final layernorm and the classifier
         x = self.transformer["ln_f"](x)
@@ -288,7 +301,8 @@ def train():
     model = GPT(GPTConfig(vocab_size=50304))
     device = "cpu"  # GE
     model.to(device)
-    model = torch.compile(model)
+    # Compilation creates beartype issues
+    # model = torch.compile(model)
 
     # lr scheduler
     max_lr = 3e-4
