@@ -1,15 +1,15 @@
 """Dataset and DataLoader with LightningDataModule."""
 
 import lightning as pl
-from tokenizers import Tokenizer
-from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import Whitespace
 
 # import tiktoken  # <-- Add this import
 import torch
 from beartype import beartype
 from jaxtyping import Int
+from tokenizers import Tokenizer
+from tokenizers.models import BPE
+from tokenizers.pre_tokenizers import Whitespace
+from tokenizers.trainers import BpeTrainer
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -38,11 +38,11 @@ class TextDataset(Dataset):
             text = f.read()
         # enc = tiktoken.get_encoding("gpt2")
         # Load from local files (assumes merges.txt and vocab.json are present)
-        enc = tokenizer = Tokenizer(BPE(merges="./merges.txt", vocab="./vocab.json"))
+        tokenizer = Tokenizer(BPE(merges="./merges.txt", vocab="./vocab.json"))
         tokenizer.pre_tokenizer = Whitespace()  # Basic pre-tokenization
 
-
-        self.data = enc.encode(text)
+        encoding = tokenizer.encode(text)
+        self.data = encoding.ids  # This gives you the list of token IDs
         self.block_size = block_size
         self.stride = stride if stride is not None else block_size
 
@@ -54,7 +54,6 @@ class TextDataset(Dataset):
     ) -> tuple[Int[torch.Tensor, "block_size"], Int[torch.Tensor, "block_size"]]:
         start = idx * self.stride
         end = start + self.block_size
-        print(f"{self.data=}")
         x = torch.tensor(self.data[start:end], dtype=torch.long)
         y = torch.tensor(self.data[start + 1 : end + 1], dtype=torch.long)
         return x, y
