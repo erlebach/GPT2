@@ -344,7 +344,7 @@ def train():
         torch.cuda.manual_seed(1337)
 
     # Use TextDataModule from data_utils.py
-    batch_size = 8
+    batch_size = 64
     block_size = 32
     data_path = "input.txt"
     dm = TextDataModule(data_path, block_size=block_size, batch_size=batch_size)
@@ -383,7 +383,7 @@ def train():
         return min_lr + coeff * (max_lr - min_lr)
 
     optimizer = model.configure_optimizers(
-        weight_decay=0.1, learning_rate=6e-3, device=device
+        weight_decay=0.1, learning_rate=6e-2, device=device
     )
 
     for step in range(max_steps):
