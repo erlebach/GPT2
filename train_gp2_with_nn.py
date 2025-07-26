@@ -26,10 +26,10 @@ class GPTConfig:
     n_head: int = 12  # number of heads
     n_embd: int = 768  # embedding dimension
     # GE (2025-07-24)
-    block_size = 32  # max seq length
+    block_size = 64  # max seq length
     n_layer: int = 2  # number of layers
     n_head: int = 4  # number of heads
-    n_embd: int = 16  # embedding dimension
+    n_embd: int = 128  # embedding dimension
     device: str = "cpu"
 
 
@@ -383,7 +383,7 @@ def train():
         return min_lr + coeff * (max_lr - min_lr)
 
     optimizer = model.configure_optimizers(
-        weight_decay=0.1, learning_rate=6e-4, device=device
+        weight_decay=0.1, learning_rate=6e-3, device=device
     )
 
     for step in range(max_steps):
