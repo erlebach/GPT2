@@ -22,7 +22,6 @@ class GPTConfig:
         n_layer: Number of transformer layers.
         n_head: Number of attention heads.
         n_embd: Embedding dimension.
-        device: Device to run the model on.
     """
 
     block_size: int = 64  # max sequence length
@@ -30,7 +29,7 @@ class GPTConfig:
     n_layer: int = 2  # number of layers
     n_head: int = 4  # number of heads
     n_embd: int = 128  # embedding dimension
-    device: str = "cpu"
+    # Remove device parameter - Lightning handles this
 
 
 @beartype
@@ -55,6 +54,7 @@ class CausalSelfAttention(nn.Module):
         self.n_head = config.n_head
         self.n_embd = config.n_embd
 
+        # Register bias buffer - will be moved to correct device automatically
         self.register_buffer(
             "bias",
             torch.tril(torch.ones(config.block_size, config.block_size)).view(
@@ -79,7 +79,6 @@ class CausalSelfAttention(nn.Module):
         B, T, C = x.size()  # batch size, sequence length, embedding dimensionality
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        # nh is "number of heads", hs is "head size", and C (number of channels) = nh * hs
         qkv = self.c_attn(x)
         q, k, v = qkv.split(self.n_embd, dim=2)
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(
@@ -292,7 +291,9 @@ class GPT(nn.Module):
         ), f"Cannot forward sequence of length {T}, block size is only {self.config.block_size}"
 
         # forward the token and position embeddings
-        pos = torch.arange(0, T, dtype=torch.long, device=idx.device)  # shape (T)
+        pos = torch.arange(
+            0, T, dtype=torch.long, device=idx.device
+        )  # Create on same device as idx
         # position embeddings of shape (T, n_embd)
         pos_emb = self.transformer["wpe"](pos)
         # token embeddings of shape (B, T, n_embd)
@@ -423,6 +424,7 @@ class GPT(nn.Module):
         return optimizer
 
 
+# ----------------------------------------------------------------------
 if __name__ == "__main__":
     # Test the model classes
     print("Testing model classes...")

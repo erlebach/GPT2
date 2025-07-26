@@ -2,7 +2,7 @@
 
 import math
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import lightning as pl
 import torch
@@ -76,19 +76,29 @@ class GPTLightningModule(pl.LightningModule):
 
     def training_step(
         self,
-        batch: tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]],
+        batch: Union[
+            tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]],
+            list[Integer[Tensor, "b seq"]],
+        ],
         batch_idx: int,
     ) -> Float[Tensor, ""]:
         """Training step for a single batch.
 
         Args:
-            batch: Tuple of (input_tokens, target_tokens).
+            batch: Tuple or list of (input_tokens, target_tokens).
             batch_idx: Index of the current batch.
 
         Returns:
             Training loss for the batch.
         """
-        x, y = batch
+        # Handle both tuple and list batch formats
+        if isinstance(batch, (tuple, list)) and len(batch) == 2:
+            x, y = batch
+        else:
+            raise ValueError(
+                f"Expected batch to be tuple or list of length 2, got {type(batch)} with length {len(batch) if hasattr(batch, '__len__') else 'unknown'}"
+            )
+
         logits, loss = self(x, y)
 
         # Log training loss
@@ -108,19 +118,29 @@ class GPTLightningModule(pl.LightningModule):
 
     def validation_step(
         self,
-        batch: tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]],
+        batch: Union[
+            tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]],
+            list[Integer[Tensor, "b seq"]],
+        ],
         batch_idx: int,
     ) -> Float[Tensor, ""]:
         """Validation step for a single batch.
 
         Args:
-            batch: Tuple of (input_tokens, target_tokens).
+            batch: Tuple or list of (input_tokens, target_tokens).
             batch_idx: Index of the current batch.
 
         Returns:
             Validation loss for the batch.
         """
-        x, y = batch
+        # Handle both tuple and list batch formats
+        if isinstance(batch, (tuple, list)) and len(batch) == 2:
+            x, y = batch
+        else:
+            raise ValueError(
+                f"Expected batch to be tuple or list of length 2, got {type(batch)} with length {len(batch) if hasattr(batch, '__len__') else 'unknown'}"
+            )
+
         logits, loss = self(x, y)
 
         # Log validation loss
@@ -155,12 +175,6 @@ class GPTLightningModule(pl.LightningModule):
             {"params": decay_params, "weight_decay": self.weight_decay},
             {"params": nodecay_params, "weight_decay": 0.0},
         ]
-
-        # Log parameter counts
-        num_decay_params = sum(p.numel() for p in decay_params)
-        num_nodecay_params = sum(p.numel() for p in nodecay_params)
-        self.log("num_decay_params", num_decay_params)
-        self.log("num_nodecay_params", num_nodecay_params)
 
         # Create optimizer
         optimizer = AdamW(
@@ -221,8 +235,21 @@ class GPTLightningModule(pl.LightningModule):
         self.log("total_params", total_params)
         self.log("trainable_params", trainable_params)
 
+        # Log optimizer parameter counts
+        param_dict = {pn: p for pn, p in self.named_parameters()}
+        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
+        decay_params = [p for n, p in param_dict.items() if p.ndim >= 2]
+        nodecay_params = [p for n, p in param_dict.items() if p.ndim < 2]
+        num_decay_params = sum(p.numel() for p in decay_params)
+        num_nodecay_params = sum(p.numel() for p in nodecay_params)
+        self.log("num_decay_params", num_decay_params)
+        self.log("num_nodecay_params", num_nodecay_params)
+
         print(f"Starting training with {total_params:,} total parameters")
         print(f"({trainable_params:,} trainable)")
+        print(
+            f"({num_decay_params:,} decay params, {num_nodecay_params:,} no-decay params)"
+        )
 
     def on_train_epoch_end(self) -> None:
         """Called at the end of each training epoch."""
@@ -252,11 +279,12 @@ def train_with_lightning(
     learning_rate: float = 6e-2,
     weight_decay: float = 0.1,
     warmup_steps: int = 10,
-    max_steps: int = 500,
+    max_steps: Optional[int] = None,
+    max_epochs: Optional[int] = None,
     val_split: float = 0.1,
     num_workers: int = 0,
-    accelerator: str = "auto",
-    devices: int = 1,
+    accelerator: str = "auto",  # Automatically detect CPU/GPU
+    devices: str = "auto",  # Automatically detect number of devices
     precision: str = "32-true",
 ) -> None:
     """Train GPT-2 model using Lightning.
@@ -272,11 +300,12 @@ def train_with_lightning(
         learning_rate: Initial learning rate.
         weight_decay: Weight decay for optimizer.
         warmup_steps: Number of warmup steps for learning rate.
-        max_steps: Maximum number of training steps.
+        max_steps: Maximum number of training steps (optional).
+        max_epochs: Maximum number of training epochs (optional).
         val_split: Fraction of data to use for validation.
         num_workers: Number of DataLoader workers.
-        accelerator: Lightning accelerator type.
-        devices: Number of devices to use.
+        accelerator: Lightning accelerator type ('auto', 'cpu', 'gpu').
+        devices: Number of devices to use ('auto' or integer).
         precision: Training precision.
     """
     # Set random seed for reproducibility
@@ -306,22 +335,29 @@ def train_with_lightning(
         weight_decay=weight_decay,
         learning_rate=learning_rate,
         warmup_steps=warmup_steps,
-        max_steps=max_steps,
+        max_steps=max_steps or 1000,
     )
 
-    # Create trainer
-    trainer = pl.Trainer(
-        max_steps=max_steps,
-        accelerator=accelerator,
-        devices=devices,
-        precision=precision,
-        log_every_n_steps=1,
-        val_check_interval=0.25,  # Validate every 25% of training
-        enable_progress_bar=True,
-        enable_model_summary=True,
-        enable_checkpointing=True,
-        logger=True,
-    )
+    # Create trainer with automatic device detection
+    trainer_kwargs = {
+        "accelerator": accelerator,
+        "devices": devices,
+        "precision": precision,
+        "log_every_n_steps": 1,
+        "val_check_interval": 0.25,
+        "enable_progress_bar": True,
+        "enable_model_summary": True,
+        "enable_checkpointing": True,
+        "logger": True,
+    }
+
+    # Add max_steps and max_epochs if specified
+    if max_steps is not None:
+        trainer_kwargs["max_steps"] = max_steps
+    if max_epochs is not None:
+        trainer_kwargs["max_epochs"] = max_epochs
+
+    trainer = pl.Trainer(**trainer_kwargs)
 
     # Train the model
     trainer.fit(model, data_module)
@@ -365,14 +401,24 @@ if __name__ == "__main__":
     assert "lr_scheduler" in optimizer_config
     print("Test 2 passed: Optimizer configuration works correctly.")
 
-    # Test training step
+    # Test training step with tuple
     loss = model.training_step((x, y), batch_idx=0)
     assert loss.shape == ()  # Scalar tensor
-    print("Test 3 passed: Training step works correctly.")
+    print("Test 3 passed: Training step with tuple works correctly.")
 
-    # Test validation step
+    # Test training step with list
+    loss = model.training_step([x, y], batch_idx=0)
+    assert loss.shape == ()  # Scalar tensor
+    print("Test 4 passed: Training step with list works correctly.")
+
+    # Test validation step with tuple
     loss = model.validation_step((x, y), batch_idx=0)
     assert loss.shape == ()  # Scalar tensor
-    print("Test 4 passed: Validation step works correctly.")
+    print("Test 5 passed: Validation step with tuple works correctly.")
+
+    # Test validation step with list
+    loss = model.validation_step([x, y], batch_idx=0)
+    assert loss.shape == ()  # Scalar tensor
+    print("Test 6 passed: Validation step with list works correctly.")
 
     print("All tests passed! GPTLightningModule is working correctly.")
