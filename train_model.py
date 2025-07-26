@@ -5,7 +5,8 @@ train_with_lightning(
     data_path="input.txt",
     block_size=64,
     batch_size=64,
-    max_epochs=10,
+    # max_epochs=10,
+    max_steps=50,
     accelerator="auto",  # Will use GPU if available, CPU otherwise
     devices="auto",  # Will use all available devices
 )
