@@ -65,11 +65,11 @@ config = GPTConfig(
 - Residual connections maintain stable training
 
 
-1. **Added four LayerNorm layers** instead of two:
-   - `ln_1_pre`: LayerNorm before attention
-   - `ln_1_post`: LayerNorm after attention residual
-   - `ln_2_pre`: LayerNorm before MLP
-   - `ln_2_post`: LayerNorm after MLP residual
+1. **Added four RMSNorm layers** instead of two:
+   - `ln_1_pre`: RMSNorm before attention
+   - `ln_1_post`: RMSNorm after attention residual
+   - `ln_2_pre`: RMSNorm before MLP
+   - `ln_2_post`: RMSNorm after MLP residual
 
 2. **Modified the forward pass** to follow the pre-norm architecture:
    - **Attention block**: `x → ln_1_pre → attn → +x → ln_1_post`
@@ -103,6 +103,38 @@ import torch.nn.functional as F
 from beartype import beartype
 from jaxtyping import Float, Integer
 from torch import Tensor
+
+
+class RMSNorm(nn.Module):
+    """RMSNorm implementation as used in modern transformer architectures.
+
+    RMSNorm is a simplified version of LayerNorm that only normalizes by RMS
+    without the affine transformation, making it more efficient.
+
+    Args:
+        hidden_size: The hidden size of the input tensor.
+        eps: Small value to avoid division by zero.
+    """
+
+    def __init__(self, hidden_size: int, eps: float = 1e-6):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.eps = eps
+
+    def forward(self, x: Float[Tensor, "b seq emb"]) -> Float[Tensor, "b seq emb"]:
+        """Forward pass through RMSNorm.
+
+        Args:
+            x: Input tensor of shape (batch_size, sequence_length, hidden_size).
+
+        Returns:
+            Normalized tensor of same shape as input.
+        """
+        # Calculate RMS
+        rms = torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+
+        # Normalize and scale
+        return x * rms * self.weight
 
 
 @dataclass
@@ -247,10 +279,10 @@ class MLP(nn.Module):
 
 
 class Block(nn.Module):
-    """Transformer block with attention and MLP using pre-norm architecture.
+    """Transformer block with attention and MLP using Gemma 3 style pre-post RMSNorm.
 
-    This implements the more recent transformer architecture with LayerNorm
-    before and after both attention and MLP layers inside the residual connections.
+    This implements the Gemma 3 architecture with RMSNorm before and after both
+    attention and MLP layers inside the residual connections.
 
     Args:
         block_config: Configuration for this specific block.
@@ -259,18 +291,18 @@ class Block(nn.Module):
 
     def __init__(self, block_config: BlockConfig, block_size: int):
         super().__init__()
-        # LayerNorm layers for attention
-        self.ln_1_pre: nn.Module = nn.LayerNorm(block_config.n_embd)
-        self.ln_1_post: nn.Module = nn.LayerNorm(block_config.n_embd)
+        # RMSNorm layers for attention (pre and post)
+        self.rms_norm_1_pre: nn.Module = RMSNorm(block_config.n_embd)
+        self.rms_norm_1_post: nn.Module = RMSNorm(block_config.n_embd)
 
         # Attention layer
         self.attn: nn.Module = CausalSelfAttention(
             block_config.n_embd, block_config.n_head, block_size, block_config.dropout
         )
 
-        # LayerNorm layers for MLP
-        self.ln_2_pre: nn.Module = nn.LayerNorm(block_config.n_embd)
-        self.ln_2_post: nn.Module = nn.LayerNorm(block_config.n_embd)
+        # RMSNorm layers for MLP (pre and post)
+        self.rms_norm_2_pre: nn.Module = RMSNorm(block_config.n_embd)
+        self.rms_norm_2_post: nn.Module = RMSNorm(block_config.n_embd)
 
         # MLP layer
         self.mlp: nn.Module = MLP(block_config.n_embd, block_config.dropout)
@@ -279,7 +311,7 @@ class Block(nn.Module):
         self,
         x: Float[Tensor, "b seq emb"],
     ) -> Float[Tensor, "b seq emb"]:
-        """Forward pass through transformer block with pre-norm architecture.
+        """Forward pass through transformer block with Gemma 3 style RMSNorm.
 
         Args:
             x: Input tensor of shape (batch_size, sequence_length, embedding_dim).
@@ -287,17 +319,17 @@ class Block(nn.Module):
         Returns:
             Output tensor of same shape as input.
         """
-        # Attention block with pre and post LayerNorm
-        attn_input = self.ln_1_pre(x)
+        # Attention block with pre and post RMSNorm
+        attn_input = self.rms_norm_1_pre(x)
         attn_output = self.attn(attn_input)
         attn_residual = x + attn_output
-        attn_output = self.ln_1_post(attn_residual)
+        attn_output = self.rms_norm_1_post(attn_residual)
 
-        # MLP block with pre and post LayerNorm
-        mlp_input = self.ln_2_pre(attn_output)
+        # MLP block with pre and post RMSNorm
+        mlp_input = self.rms_norm_2_pre(attn_output)
         mlp_output = self.mlp(mlp_input)
         mlp_residual = attn_output + mlp_output
-        mlp_output = self.ln_2_post(mlp_residual)
+        mlp_output = self.rms_norm_2_post(mlp_residual)
 
         return mlp_output
 
