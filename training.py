@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from beartype import beartype
 from data_utils import TextDataModule
 from jaxtyping import Float, Integer
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from model import GPT, GPTConfig  # Updated import
 from torch import Tensor
 from torch.optim import AdamW
@@ -337,7 +338,6 @@ def train_with_lightning(
         warmup_steps=warmup_steps,
         max_steps=max_steps or 1000,
     )
-
     # Create trainer with automatic device detection
     trainer_kwargs = {
         "accelerator": accelerator,
@@ -349,6 +349,13 @@ def train_with_lightning(
         "enable_model_summary": True,
         "enable_checkpointing": True,
         "logger": True,
+        "callbacks": [
+            EarlyStopping(
+                monitor="val_loss",
+                patience=20,
+                mode="min",
+            )
+        ],
     }
 
     # Add max_steps and max_epochs if specified

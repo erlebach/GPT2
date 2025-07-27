@@ -29,6 +29,7 @@ class GPTConfig:
     n_layer: int = 2  # number of layers
     n_head: int = 4  # number of heads
     n_embd: int = 128  # embedding dimension
+    dropout: float = 0.1  # help regularize
     # Remove device parameter - Lightning handles this
 
 
@@ -142,8 +143,10 @@ class Block(nn.Module):
         super().__init__()
         self.ln_1: nn.Module = nn.LayerNorm(config.n_embd)
         self.attn: nn.Module = CausalSelfAttention(config)
+        self.droptout1 = nn.Dropout(config.dropout)
         self.ln_2: nn.Module = nn.LayerNorm(config.n_embd)
         self.mlp: nn.Module = MLP(config)
+        self.droptout2 = nn.Dropout(config.dropout)
 
     def forward(
         self,
@@ -157,8 +160,8 @@ class Block(nn.Module):
         Returns:
             Output tensor of same shape as input.
         """
-        x = x + self.attn(self.ln_1(x))
-        x = x + self.mlp(self.ln_2(x))
+        x = x + self.droptout1(self.attn(self.ln_1(x)))
+        x = x + self.droptout2(self.mlp(self.ln_2(x)))
         return x
 
 
