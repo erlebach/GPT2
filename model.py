@@ -19,16 +19,19 @@ class GPTConfig:
     Args:
         block_size: Maximum sequence length.
         vocab_size: Size of the vocabulary.
-        n_layer: Number of transformer layers.
+        n_layer: Number of super-layers (SuperBlocks).
         n_head: Number of attention heads.
         n_embd: Embedding dimension.
+        n_blocks_per_super: Number of blocks within each SuperBlock.
+        dropout: Dropout rate for regularization.
     """
 
     block_size: int = 64  # max sequence length
     vocab_size: int = 50257  # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
-    n_layer: int = 2  # number of layers
+    n_layer: int = 2  # number of super-layers (SuperBlocks)
     n_head: int = 4  # number of heads
     n_embd: int = 128  # embedding dimension
+    n_blocks_per_super: int = 2  # number of blocks within each SuperBlock
     dropout: float = 0.1  # help regularize
     # Remove device parameter - Lightning handles this
 
@@ -166,7 +169,7 @@ class Block(nn.Module):
 
 
 class SuperBlock(nn.Module):
-    """SuperBlock with parallel transformer blocks and MoE-style gating.
+    """SuperBlock with variable number of parallel transformer blocks and MoE-style gating.
 
     Args:
         config: GPT configuration containing model parameters.
@@ -174,12 +177,22 @@ class SuperBlock(nn.Module):
 
     def __init__(self, config: GPTConfig):
         super().__init__()
-        self.block1 = Block(config)
-        self.block2 = Block(config)
-        self.concat_proj = nn.Linear(config.n_embd * 2, config.n_embd)
+        self.n_blocks = config.n_blocks_per_super
 
-        # MoE-style gating (optional enhancement)
-        self.gate = nn.Linear(config.n_embd, 2)  # Learn which path to prefer
+        # Create variable number of blocks
+        self.blocks = nn.ModuleList([Block(config) for _ in range(self.n_blocks)])
+
+        # Gating mechanism for multiple blocks
+        self.gate = nn.Linear(
+            config.n_embd, self.n_blocks
+        )  # Learn which path to prefer
+
+        # Optional: Add combination layer if needed
+        if self.n_blocks > 1:
+            self.combine_proj = nn.Linear(config.n_embd * self.n_blocks, config.n_embd)
+        else:
+            self.combine_proj = None
+
         self._init_moe_style()
 
     def forward(self, x: Float[Tensor, "b seq emb"]) -> Float[Tensor, "b seq emb"]:
@@ -191,15 +204,31 @@ class SuperBlock(nn.Module):
         Returns:
             Output tensor of same shape as input.
         """
-        x1 = self.block1(x)
-        x2 = self.block2(x)
+        if self.n_blocks == 1:
+            # Single block case - no gating needed
+            return self.blocks[0](x)
 
-        # Optional: Add gating mechanism
-        gate_weights = F.softmax(self.gate(x), dim=-1)  # [B, T, 2]
-        x1_weighted = x1 * gate_weights[:, :, 0:1]
-        x2_weighted = x2 * gate_weights[:, :, 1:2]
+        # Multiple blocks case
+        block_outputs = []
+        for block in self.blocks:
+            block_outputs.append(block(x))
 
-        return x1_weighted + x2_weighted
+        # Apply gating mechanism
+        gate_weights = F.softmax(self.gate(x), dim=-1)  # [B, T, n_blocks]
+
+        # Weight each block output
+        weighted_outputs = []
+        for i, block_out in enumerate(block_outputs):
+            weighted_outputs.append(block_out * gate_weights[:, :, i : i + 1])
+
+        # Combine weighted outputs
+        if self.combine_proj is not None:
+            # Concatenate and project
+            combined = torch.cat(weighted_outputs, dim=-1)
+            return self.combine_proj(combined)
+        else:
+            # Simple sum
+            return sum(weighted_outputs)
 
     def _init_moe_style(self):
         """Initialize the SuperBlock using MoE principles.
@@ -207,17 +236,16 @@ class SuperBlock(nn.Module):
         This ensures:
         1. Diverse initialization of parallel paths
         2. Conservative initialization of combination layer
-        3. Balanced contribution from both paths
+        3. Balanced contribution from all paths
         """
-        # Initialize the combination layer with smaller weights
-        # This prevents one path from dominating early in training
-        torch.nn.init.normal_(self.concat_proj.weight, mean=0.0, std=0.01)
-        if self.concat_proj.bias is not None:
-            torch.nn.init.zeros_(self.concat_proj.bias)
+        if self.combine_proj is not None:
+            # Initialize the combination layer with smaller weights
+            torch.nn.init.normal_(self.combine_proj.weight, mean=0.0, std=0.01)
+            if self.combine_proj.bias is not None:
+                torch.nn.init.zeros_(self.combine_proj.bias)
 
-        # Ensure both blocks start with different random states
-        # This promotes diversity in learned representations
-        for i, block in enumerate([self.block1, self.block2]):
+        # Ensure all blocks start with different random states
+        for i, block in enumerate(self.blocks):
             for module in block.modules():
                 if isinstance(module, nn.Linear):
                     # Use different initialization scales for diversity

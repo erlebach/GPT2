@@ -276,7 +276,7 @@ def train_with_lightning(
     n_layer: int = 2,
     n_head: int = 4,
     n_embd: int = 128,
-    dropout: float = 0.1,
+    n_blocks_per_super: int = 2,  # NEW: Number of blocks per SuperBlock
     vocab_size: int = 50304,
     learning_rate: float = 6e-2,
     weight_decay: float = 0.1,
@@ -285,8 +285,8 @@ def train_with_lightning(
     max_epochs: Optional[int] = None,
     val_split: float = 0.1,
     num_workers: int = 0,
-    accelerator: str = "auto",  # Automatically detect CPU/GPU
-    devices: str = "auto",  # Automatically detect number of devices
+    accelerator: str = "auto",
+    devices: str = "auto",
     precision: str = "32-true",
 ) -> None:
     """Train GPT-2 model using Lightning.
@@ -295,10 +295,10 @@ def train_with_lightning(
         data_path: Path to the input text file.
         block_size: Length of each sequence (context window).
         batch_size: Batch size for training.
-        n_layer: Number of transformer layers.
+        n_layer: Number of super-layers (SuperBlocks).
         n_head: Number of attention heads.
         n_embd: Embedding dimension.
-        droptout: Dropout rate.
+        n_blocks_per_super: Number of blocks within each SuperBlock.
         vocab_size: Size of the vocabulary.
         learning_rate: Initial learning rate.
         weight_decay: Weight decay for optimizer.
@@ -321,7 +321,7 @@ def train_with_lightning(
         n_layer=n_layer,
         n_head=n_head,
         n_embd=n_embd,
-        dropout=dropout,
+        n_blocks_per_super=n_blocks_per_super,  # NEW: Pass the new parameter
     )
 
     # Create data module
