@@ -80,10 +80,8 @@ class GPTLightningModule(pl.LightningModule):
 
     def training_step(
         self,
-        batch: Union[
-            tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]],
-            list[Integer[Tensor, "b seq"]],
-        ],
+        batch: tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]]
+        | list[Integer[Tensor, "b seq"]],
         batch_idx: int,
     ) -> Float[Tensor, ""]:
         """Training step for a single batch.
@@ -290,6 +288,7 @@ def train_with_lightning(
     accelerator: str = "auto",
     devices: str = "auto",
     precision: str = "32-true",
+    use_swiglu: bool = True,  # Enable SwiGLU by default
 ) -> None:
     """Train GPT-2 model with heterogeneous SuperBlocks using Lightning.
 
@@ -311,6 +310,7 @@ def train_with_lightning(
         accelerator: Lightning accelerator type ('auto', 'cpu', 'gpu').
         devices: Number of devices to use ('auto' or integer).
         precision: Training precision.
+        use_swiglu: Whether to use SwiGLU activation instead of GELU.
     """
     # Set random seed for reproducibility
     pl.seed_everything(1337)
@@ -330,7 +330,12 @@ def train_with_lightning(
                 1, embd_dim // 16
             )  # Ensure at least 1 head, roughly 16 dims per head
             superblock_config.append(
-                BlockConfig(n_embd=embd_dim, n_head=n_heads, dropout=0.1)
+                BlockConfig(
+                    n_embd=embd_dim,
+                    n_head=n_heads,
+                    dropout=0.1,
+                    use_swiglu=use_swiglu,  # Enable SwiGLU for all blocks
+                )
             )
         block_configs.append(superblock_config)
 
@@ -342,6 +347,7 @@ def train_with_lightning(
         n_blocks_per_super=n_blocks_per_super,
         base_embd=base_embd,
         dropout=0.1,
+        use_swiglu=use_swiglu,  # Enable SwiGLU globally
         block_configs=block_configs,
     )
 
@@ -390,6 +396,10 @@ def train_with_lightning(
         trainer_kwargs["max_epochs"] = max_epochs
 
     trainer = pl.Trainer(**trainer_kwargs)
+
+    # Log activation function choice
+    activation_name = "SwiGLU" if use_swiglu else "GELU"
+    print(f"Training with {activation_name} activation function")
 
     # Train the model
     trainer.fit(model, data_module)

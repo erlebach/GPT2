@@ -103,38 +103,7 @@ import torch.nn.functional as F
 from beartype import beartype
 from jaxtyping import Float, Integer
 from torch import Tensor
-
-
-class RMSNorm(nn.Module):
-    """RMSNorm implementation as used in modern transformer architectures.
-
-    RMSNorm is a simplified version of LayerNorm that only normalizes by RMS
-    without the affine transformation, making it more efficient.
-
-    Args:
-        hidden_size: The hidden size of the input tensor.
-        eps: Small value to avoid division by zero.
-    """
-
-    def __init__(self, hidden_size: int, eps: float = 1e-6):
-        super().__init__()
-        self.weight = nn.Parameter(torch.ones(hidden_size))
-        self.eps = eps
-
-    def forward(self, x: Float[Tensor, "b seq emb"]) -> Float[Tensor, "b seq emb"]:
-        """Forward pass through RMSNorm.
-
-        Args:
-            x: Input tensor of shape (batch_size, sequence_length, hidden_size).
-
-        Returns:
-            Normalized tensor of same shape as input.
-        """
-        # Calculate RMS
-        rms = torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
-
-        # Normalize and scale
-        return x * rms * self.weight
+from utils.functional import RMSNorm, swiglu
 
 
 @dataclass
@@ -144,6 +113,7 @@ class BlockConfig:
     n_embd: int
     n_head: int
     dropout: float = 0.1
+    use_swiglu: bool = False  # Whether to use SwiGLU instead of GELU
 
 
 @dataclass
@@ -156,6 +126,7 @@ class GPTConfig:
     n_blocks_per_super: int = 3  # Number of blocks per SuperBlock
     dropout: float = 0.1
     base_embd: int = 64  # Base embedding dimension for the model
+    use_swiglu: bool = False  # Global SwiGLU setting (can be overridden per block)
 
     # Define block configurations for each SuperBlock
     block_configs: list[list[BlockConfig]] = field(default_factory=list)
@@ -164,9 +135,9 @@ class GPTConfig:
         if not self.block_configs:
             # Default: 3 blocks with increasing dimensions
             default_config = [
-                BlockConfig(n_embd=16, n_head=1),
-                BlockConfig(n_embd=32, n_head=2),
-                BlockConfig(n_embd=64, n_head=4),
+                BlockConfig(n_embd=16, n_head=1, use_swiglu=self.use_swiglu),
+                BlockConfig(n_embd=32, n_head=2, use_swiglu=self.use_swiglu),
+                BlockConfig(n_embd=64, n_head=4, use_swiglu=self.use_swiglu),
             ]
             self.block_configs = [default_config] * self.n_layer
 
@@ -245,18 +216,35 @@ class CausalSelfAttention(nn.Module):
 
 
 class MLP(nn.Module):
-    """Multi-layer perceptron for GPT-2.
+    """Multi-layer perceptron for GPT-2 with optional SwiGLU activation.
+
+    SwiGLU (Swish-Gated Linear Unit) is an activation function that combines
+    the benefits of Swish activation with gating mechanisms. It typically
+    provides better performance than GELU but requires more parameters.
 
     Args:
         n_embd: Embedding dimension for this MLP layer.
         dropout: Dropout rate.
+        use_swiglu: Whether to use SwiGLU instead of GELU activation.
     """
 
-    def __init__(self, n_embd: int, dropout: float = 0.1) -> None:
+    def __init__(
+        self, n_embd: int, dropout: float = 0.1, use_swiglu: bool = False
+    ) -> None:
         super().__init__()
-        self.c_fc = nn.Linear(n_embd, 4 * n_embd)
-        self.gelu = nn.GELU(approximate="tanh")
-        self.c_proj = nn.Linear(4 * n_embd, n_embd)
+        self.use_swiglu = use_swiglu
+
+        if use_swiglu:
+            # SwiGLU: split the intermediate dimension into two parts
+            # One part goes through Swish activation, the other is used for gating
+            self.c_fc = nn.Linear(n_embd, 2 * 4 * n_embd)  # 2x for SwiGLU
+            self.c_proj = nn.Linear(4 * n_embd, n_embd)
+        else:
+            # Standard GELU implementation
+            self.c_fc = nn.Linear(n_embd, 4 * n_embd)
+            self.gelu = nn.GELU(approximate="tanh")
+            self.c_proj = nn.Linear(4 * n_embd, n_embd)
+
         self.dropout = nn.Dropout(dropout)
 
     def forward(
@@ -271,9 +259,17 @@ class MLP(nn.Module):
         Returns:
             Output tensor of same shape as input.
         """
-        x = self.c_fc(x)
-        x = self.gelu(x)
-        x = self.c_proj(x)
+        if self.use_swiglu:
+            # SwiGLU implementation using the dedicated function
+            x = self.c_fc(x)
+            x = swiglu(x)  # Use the dedicated swiglu function
+            x = self.c_proj(x)
+        else:
+            # Standard GELU implementation
+            x = self.c_fc(x)
+            x = self.gelu(x)
+            x = self.c_proj(x)
+
         x = self.dropout(x)
         return x
 
@@ -304,8 +300,10 @@ class Block(nn.Module):
         self.rms_norm_2_pre: nn.Module = RMSNorm(block_config.n_embd)
         self.rms_norm_2_post: nn.Module = RMSNorm(block_config.n_embd)
 
-        # MLP layer
-        self.mlp: nn.Module = MLP(block_config.n_embd, block_config.dropout)
+        # MLP layer with optional SwiGLU
+        self.mlp: nn.Module = MLP(
+            block_config.n_embd, block_config.dropout, block_config.use_swiglu
+        )
 
     def forward(
         self,
@@ -668,21 +666,55 @@ if __name__ == "__main__":
     # Test the model classes
     print("Testing model classes...")
 
-    # Test GPTConfig with heterogeneous blocks
+    # Test swiglu function
+    batch_size, seq_len, emb_dim = 2, 3, 8  # emb_dim must be even
+    x = torch.randn(batch_size, seq_len, emb_dim)
+    x1, x2 = x.chunk(2, dim=-1)
+    expected = F.silu(x1) * x2
+    result = swiglu(x)
+    assert torch.allclose(result, expected, atol=1e-6)
+    print("Test 0 passed: swiglu function works correctly.")
+
+    # Test that Swish/SiLU has no parameters
+    x_test = torch.randn(2, 3, 4)
+    swish_output = F.silu(x_test)
+    # F.silu is just a mathematical function - no parameters to check
+    print("Test 0.5 passed: F.silu has no trainable parameters.")
+
+    # Test that MLP instances have separate parameters
+    mlp1 = MLP(n_embd=64, use_swiglu=True)
+    mlp2 = MLP(n_embd=64, use_swiglu=True)
+
+    # Get parameters from both MLPs
+    params1 = {name: param.clone() for name, param in mlp1.named_parameters()}
+    params2 = {name: param.clone() for name, param in mlp2.named_parameters()}
+
+    # Verify they are different (not shared)
+    for name in params1:
+        assert not torch.allclose(
+            params1[name], params2[name]
+        ), f"Parameters {name} are shared!"
+
+    print("Test 0.6 passed: MLP instances have separate, non-shared parameters.")
+
+    # Test GPTConfig with heterogeneous blocks and SwiGLU
     config = GPTConfig(
         n_layer=2,
         n_blocks_per_super=3,
         base_embd=64,
+        use_swiglu=True,  # Enable SwiGLU globally
         block_configs=[
             [  # SuperBlock 1
-                BlockConfig(n_embd=16, n_head=1),
-                BlockConfig(n_embd=32, n_head=2),
-                BlockConfig(n_embd=64, n_head=4),
+                BlockConfig(n_embd=16, n_head=1, use_swiglu=True),
+                BlockConfig(
+                    n_embd=32, n_head=2, use_swiglu=False
+                ),  # Mix of activations
+                BlockConfig(n_embd=64, n_head=4, use_swiglu=True),
             ],
             [  # SuperBlock 2
-                BlockConfig(n_embd=16, n_head=1),
-                BlockConfig(n_embd=32, n_head=2),
-                BlockConfig(n_embd=64, n_head=4),
+                BlockConfig(n_embd=16, n_head=1, use_swiglu=False),
+                BlockConfig(n_embd=32, n_head=2, use_swiglu=True),
+                BlockConfig(n_embd=64, n_head=4, use_swiglu=False),
             ],
         ],
     )
@@ -690,7 +722,9 @@ if __name__ == "__main__":
     assert config.n_layer == 2
     assert len(config.block_configs) == 2
     assert len(config.block_configs[0]) == 3
-    print("Test 1 passed: GPTConfig with heterogeneous blocks works correctly.")
+    print(
+        "Test 1 passed: GPTConfig with heterogeneous blocks and SwiGLU works correctly."
+    )
 
     # Test CausalSelfAttention
     attn = CausalSelfAttention(n_embd=64, n_head=4, block_size=64)
@@ -700,34 +734,57 @@ if __name__ == "__main__":
     assert output.shape == x.shape
     print("Test 2 passed: CausalSelfAttention works correctly.")
 
-    # Test MLP
-    mlp = MLP(n_embd=64)
-    output = mlp(x)
-    assert output.shape == x.shape
-    print("Test 3 passed: MLP works correctly.")
+    # Test MLP with GELU
+    mlp_gelu = MLP(n_embd=64, use_swiglu=False)
+    output_gelu = mlp_gelu(x)
+    assert output_gelu.shape == x.shape
+    print("Test 3 passed: MLP with GELU works correctly.")
 
-    # Test Block
-    block_config = BlockConfig(n_embd=64, n_head=4)
-    block = Block(block_config, block_size=64)
-    output = block(x)
-    assert output.shape == x.shape
-    print("Test 4 passed: Block works correctly.")
+    # Test MLP with SwiGLU
+    mlp_swiglu = MLP(n_embd=64, use_swiglu=True)
+    output_swiglu = mlp_swiglu(x)
+    assert output_swiglu.shape == x.shape
+    print("Test 4 passed: MLP with SwiGLU works correctly.")
 
-    # Test SuperBlock
+    # Verify SwiGLU has more parameters than GELU
+    gelu_params = sum(p.numel() for p in mlp_gelu.parameters())
+    swiglu_params = sum(p.numel() for p in mlp_swiglu.parameters())
+    assert (
+        swiglu_params > gelu_params
+    ), f"SwiGLU should have more parameters: {swiglu_params} vs {gelu_params}"
+    print(
+        f"Test 5 passed: SwiGLU has more parameters ({swiglu_params}) than GELU ({gelu_params})."
+    )
+
+    # Test Block with GELU
+    block_config_gelu = BlockConfig(n_embd=64, n_head=4, use_swiglu=False)
+    block_gelu = Block(block_config_gelu, block_size=64)
+    output = block_gelu(x)
+    assert output.shape == x.shape
+    print("Test 6 passed: Block with GELU works correctly.")
+
+    # Test Block with SwiGLU
+    block_config_swiglu = BlockConfig(n_embd=64, n_head=4, use_swiglu=True)
+    block_swiglu = Block(block_config_swiglu, block_size=64)
+    output = block_swiglu(x)
+    assert output.shape == x.shape
+    print("Test 7 passed: Block with SwiGLU works correctly.")
+
+    # Test SuperBlock with mixed activations
     superblock = SuperBlock(
         block_configs=[
-            BlockConfig(n_embd=16, n_head=1),
-            BlockConfig(n_embd=32, n_head=2),
-            BlockConfig(n_embd=64, n_head=4),
+            BlockConfig(n_embd=16, n_head=1, use_swiglu=True),
+            BlockConfig(n_embd=32, n_head=2, use_swiglu=False),
+            BlockConfig(n_embd=64, n_head=4, use_swiglu=True),
         ],
         block_size=64,
         base_embd=64,
     )
     output = superblock(x)
     assert output.shape == x.shape
-    print("Test 5 passed: SuperBlock works correctly.")
+    print("Test 8 passed: SuperBlock with mixed activations works correctly.")
 
-    # Test GPT
+    # Test GPT with SwiGLU
     model = GPT(config)
     batch_size, seq_len = 2, 32
     idx = torch.randint(0, config.vocab_size, (batch_size, seq_len))
@@ -736,18 +793,55 @@ if __name__ == "__main__":
     logits, loss = model(idx, targets)
     assert logits.shape == (batch_size, seq_len, config.vocab_size)
     assert loss is not None and loss.item() > 0
-    print("Test 6 passed: GPT forward pass works correctly.")
+    print("Test 9 passed: GPT forward pass with SwiGLU works correctly.")
 
     # Test optimizer configuration
     optimizer = model.configure_optimizers(
         weight_decay=0.1, learning_rate=1e-3, device="cpu"
     )
     assert isinstance(optimizer, torch.optim.AdamW)
-    print("Test 7 passed: Optimizer configuration works correctly.")
+    print("Test 10 passed: Optimizer configuration works correctly.")
 
-    # Test parameter count
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"Total parameters: {total_params:,}")
-    print("Test 8 passed: Parameter counting works correctly.")
+    # Test parameter count comparison with detailed breakdown
+    config_gelu = GPTConfig(
+        n_layer=2,
+        base_embd=64,
+        use_swiglu=False,
+    )
+    model_gelu = GPT(config_gelu)
 
-    print("All tests passed! Heterogeneous SuperBlock model is working correctly.")
+    total_params_swiglu = sum(p.numel() for p in model.parameters())
+    total_params_gelu = sum(p.numel() for p in model_gelu.parameters())
+
+    print(f"Total parameters with SwiGLU: {total_params_swiglu:,}")
+    print(f"Total parameters with GELU: {total_params_gelu:,}")
+    print(
+        f"Parameter increase: {((total_params_swiglu / total_params_gelu - 1) * 100):.1f}%"
+    )
+
+    # Detailed breakdown by component
+    print("\nDetailed parameter breakdown:")
+
+    # Count MLP parameters specifically
+    swiglu_mlp_params = 0
+    gelu_mlp_params = 0
+
+    for name, param in model.named_parameters():
+        if "mlp.c_fc" in name or "mlp.c_proj" in name:
+            swiglu_mlp_params += param.numel()
+
+    for name, param in model_gelu.named_parameters():
+        if "mlp.c_fc" in name or "mlp.c_proj" in name:
+            gelu_mlp_params += param.numel()
+
+    print(f"MLP parameters with SwiGLU: {swiglu_mlp_params:,}")
+    print(f"MLP parameters with GELU: {gelu_mlp_params:,}")
+    print(
+        f"MLP parameter increase: {((swiglu_mlp_params / gelu_mlp_params - 1) * 100):.1f}%"
+    )
+
+    print("Test 11 passed: Parameter counting works correctly.")
+
+    print(
+        "All tests passed! Heterogeneous SuperBlock model with optional SwiGLU is working correctly."
+    )

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # Read the metrics CSV file
-df = pd.read_csv("lightning_logs/version_23/metrics.csv")
+df = pd.read_csv("lightning_logs/version_25/metrics.csv")
 
 # Extract training and validation loss data
 # Training loss is in 'train_loss_step' column
