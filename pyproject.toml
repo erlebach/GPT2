@@ -21,3 +21,19 @@ dependencies = [
     "transformers>=4.53.3",
     "wandb>=0.21.0",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+#[tool.setuptools.packages.find]
+#where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.json", "*.yaml", "*.yml"]
+
+[project.scripts]
+train-gpt2 = "scripts.train_gpt2:main"
+train-super-gpt2 = "scripts.train_super_gpt2:main"
+evaluate-models = "scripts.evaluate_models:main"
+

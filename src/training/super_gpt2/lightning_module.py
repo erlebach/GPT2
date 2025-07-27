@@ -1,4 +1,4 @@
-"""Lightning module for GPT-2 training with SuperBlocks."""
+"""Lightning module for GPT-2 training with heterogeneous SuperBlocks."""
 
 import math
 import time
@@ -9,18 +9,20 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from beartype import beartype
-from data_utils import TextDataModule
 from jaxtyping import Float, Integer
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
-from model import GPT, GPTConfig  # Updated import
+
+# Clean absolute imports
+from models.super_gpt2.model import GPT, BlockConfig, GPTConfig
 from torch import Tensor
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
+from utils.data_utils import TextDataModule
 
 
 @beartype
 class GPTLightningModule(pl.LightningModule):
-    """Lightning module for training GPT-2 with SuperBlocks.
+    """Lightning module for training GPT-2 with heterogeneous SuperBlocks.
 
     This module handles training and validation steps, optimizer configuration,
     and learning rate scheduling.
@@ -274,9 +276,8 @@ def train_with_lightning(
     block_size: int = 64,
     batch_size: int = 64,
     n_layer: int = 2,
-    n_head: int = 4,
-    n_embd: int = 128,
-    n_blocks_per_super: int = 2,  # NEW: Number of blocks per SuperBlock
+    n_blocks_per_super: int = 3,
+    base_embd: int = 64,
     vocab_size: int = 50304,
     learning_rate: float = 6e-2,
     weight_decay: float = 0.1,
@@ -289,16 +290,15 @@ def train_with_lightning(
     devices: str = "auto",
     precision: str = "32-true",
 ) -> None:
-    """Train GPT-2 model using Lightning.
+    """Train GPT-2 model with heterogeneous SuperBlocks using Lightning.
 
     Args:
         data_path: Path to the input text file.
         block_size: Length of each sequence (context window).
         batch_size: Batch size for training.
         n_layer: Number of super-layers (SuperBlocks).
-        n_head: Number of attention heads.
-        n_embd: Embedding dimension.
         n_blocks_per_super: Number of blocks within each SuperBlock.
+        base_embd: Base embedding dimension for the model.
         vocab_size: Size of the vocabulary.
         learning_rate: Initial learning rate.
         weight_decay: Weight decay for optimizer.
@@ -314,14 +314,31 @@ def train_with_lightning(
     # Set random seed for reproducibility
     pl.seed_everything(1337)
 
+    # Create heterogeneous block configurations
+    # Each SuperBlock will have blocks with increasing embedding dimensions
+    block_configs = []
+    for layer_idx in range(n_layer):
+        superblock_config = []
+        for block_idx in range(n_blocks_per_super):
+            # Create blocks with increasing dimensions: 16, 32, 64, etc.
+            embd_dim = base_embd // (2 ** (n_blocks_per_super - 1 - block_idx))
+            n_heads = max(
+                1, embd_dim // 16
+            )  # Ensure at least 1 head, roughly 16 dims per head
+            superblock_config.append(
+                BlockConfig(n_embd=embd_dim, n_head=n_heads, dropout=0.1)
+            )
+        block_configs.append(superblock_config)
+
     # Create configuration
     config = GPTConfig(
         block_size=block_size,
         vocab_size=vocab_size,
         n_layer=n_layer,
-        n_head=n_head,
-        n_embd=n_embd,
-        n_blocks_per_super=n_blocks_per_super,  # NEW: Pass the new parameter
+        n_blocks_per_super=n_blocks_per_super,
+        base_embd=base_embd,
+        dropout=0.1,
+        block_configs=block_configs,
     )
 
     # Create data module
@@ -341,6 +358,7 @@ def train_with_lightning(
         warmup_steps=warmup_steps,
         max_steps=max_steps or 1000,
     )
+
     # Create trainer with automatic device detection
     trainer_kwargs = {
         "accelerator": accelerator,
@@ -373,17 +391,26 @@ def train_with_lightning(
     trainer.fit(model, data_module)
 
 
+# ----------------------------------------------------------------------
 if __name__ == "__main__":
     # Test the Lightning module
-    print("Testing GPTLightningModule...")
+    print("Testing GPTLightningModule with heterogeneous SuperBlocks...")
 
     # Create a small test configuration
+    test_block_configs = [
+        [  # SuperBlock 1
+            BlockConfig(n_embd=16, n_head=1),
+            BlockConfig(n_embd=32, n_head=2),
+        ],
+    ]
+
     test_config = GPTConfig(
         block_size=32,
         vocab_size=1000,
         n_layer=1,
-        n_head=2,
-        n_embd=64,
+        n_blocks_per_super=2,
+        base_embd=64,
+        block_configs=test_block_configs,
     )
 
     # Create model
@@ -431,4 +458,6 @@ if __name__ == "__main__":
     assert loss.shape == ()  # Scalar tensor
     print("Test 6 passed: Validation step with list works correctly.")
 
-    print("All tests passed! GPTLightningModule is working correctly.")
+    print(
+        "All tests passed! GPTLightningModule with heterogeneous SuperBlocks is working correctly."
+    )
