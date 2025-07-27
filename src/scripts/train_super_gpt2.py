@@ -6,11 +6,11 @@ train_with_lightning(
     data_path=get_project_root() / "data" / "input.txt",
     block_size=64,
     batch_size=64,
-    max_steps=500,
+    max_steps=5000,
     n_layer=2,  # Number of super-layers
     n_blocks_per_super=3,  # Number of blocks per SuperBlock
     base_embd=64,  # Base embedding dimension
-    weight_decay=0.2,
+    weight_decay=0.1,
     accelerator="auto",
     devices="auto",
 )
