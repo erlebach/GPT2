@@ -276,6 +276,7 @@ def train_with_lightning(
     n_layer: int = 2,
     n_head: int = 4,
     n_embd: int = 128,
+    dropout: float = 0.1,
     vocab_size: int = 50304,
     learning_rate: float = 6e-2,
     weight_decay: float = 0.1,
@@ -297,6 +298,7 @@ def train_with_lightning(
         n_layer: Number of transformer layers.
         n_head: Number of attention heads.
         n_embd: Embedding dimension.
+        droptout: Dropout rate.
         vocab_size: Size of the vocabulary.
         learning_rate: Initial learning rate.
         weight_decay: Weight decay for optimizer.
@@ -319,6 +321,7 @@ def train_with_lightning(
         n_layer=n_layer,
         n_head=n_head,
         n_embd=n_embd,
+        dropout=dropout,
     )
 
     # Create data module
