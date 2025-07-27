@@ -2,6 +2,7 @@
 
 import math
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import lightning as pl
@@ -13,11 +14,12 @@ from jaxtyping import Float, Integer
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 # Clean absolute imports
-from src.models.gpt2.model import GPT, GPTConfig
+# Assumes that src/ is in sys.path, else need from src.models ...
+from models.gpt2.model import GPT, GPTConfig
 from torch import Tensor
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
-from utils.data_utils import TextDataModule
+from utils.data_utils import TextDataModule, get_project_root
 
 
 @beartype
@@ -272,7 +274,7 @@ class GPTLightningModule(pl.LightningModule):
 
 
 def train_with_lightning(
-    data_path: str = "input.txt",
+    data_path: Path | None = None,
     block_size: int = 64,
     batch_size: int = 64,
     n_layer: int = 2,
@@ -315,6 +317,9 @@ def train_with_lightning(
     """
     # Set random seed for reproducibility
     pl.seed_everything(1337)
+
+    if data_path is None:
+        data_path = get_project_root() / "data" / "input.txt"
 
     # Create configuration
     config = GPTConfig(

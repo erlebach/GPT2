@@ -1,8 +1,9 @@
-from training_supermodel import train_with_lightning
+from training.super_gpt2 import train_with_lightning
+from utils.data_utils import get_project_root
 
 # Automatic device detection (recommended)
 train_with_lightning(
-    data_path="input.txt",
+    data_path=get_project_root() / "data" / "input.txt",
     block_size=64,
     batch_size=64,
     max_steps=500,

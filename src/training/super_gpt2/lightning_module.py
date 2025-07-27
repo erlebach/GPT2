@@ -2,6 +2,7 @@
 
 import math
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import lightning as pl
@@ -272,7 +273,7 @@ class GPTLightningModule(pl.LightningModule):
 
 
 def train_with_lightning(
-    data_path: str = "input.txt",
+    data_path: Path | None = None,
     block_size: int = 64,
     batch_size: int = 64,
     n_layer: int = 2,
@@ -313,6 +314,9 @@ def train_with_lightning(
     """
     # Set random seed for reproducibility
     pl.seed_everything(1337)
+
+    if data_path is None:
+        data_path = Path(__file__).parent.parent / "data" / "input.txt"
 
     # Create heterogeneous block configurations
     # Each SuperBlock will have blocks with increasing embedding dimensions

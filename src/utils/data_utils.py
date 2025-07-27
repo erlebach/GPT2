@@ -1,8 +1,10 @@
 """Dataset and DataLoader with LightningDataModule."""
 
-import lightning as pl
+import os
+from functools import lru_cache
+from pathlib import Path
 
-# import tiktoken  # <-- Add this import
+import lightning as pl
 import torch
 from beartype import beartype
 from jaxtyping import Int
@@ -11,6 +13,25 @@ from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import Whitespace
 from tokenizers.trainers import BpeTrainer
 from torch.utils.data import DataLoader, Dataset
+
+
+@lru_cache(maxsize=1)
+def get_project_root() -> Path:
+    """Get the project root directory.
+
+    Returns:
+        Path to the project root directory.
+
+    Raises:
+        RuntimeError: If project root cannot be found.
+    """
+    # Look for pyproject.toml to identify project root
+    current = Path(__file__).resolve()
+    while current.parent != current:
+        if (current / "pyproject.toml").exists():
+            return current
+        current = current.parent
+    raise RuntimeError("Could not find project root (pyproject.toml)")
 
 
 @beartype
@@ -30,15 +51,21 @@ class TextDataset(Dataset):
 
     def __init__(
         self,
-        file_path: str,
+        file_path: Path,
         block_size: int,
         stride: int = None,
     ):
         with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
-        # enc = tiktoken.get_encoding("gpt2")
-        # Load from local files (assumes merges.txt and vocab.json are present)
-        tokenizer = Tokenizer(BPE(merges="./merges.txt", vocab="./vocab.json"))
+
+        # Use project root to find data files
+        project_root = get_project_root()
+        # merges_path = "data/merges.txt"
+        # print(f"{project_root=}")
+        merges_path = project_root / "data" / "merges.txt"
+        vocab_path = project_root / "data" / "vocab.json"
+
+        tokenizer = Tokenizer(BPE(merges=str(merges_path), vocab=str(vocab_path)))
         tokenizer.pre_tokenizer = Whitespace()  # Basic pre-tokenization
 
         encoding = tokenizer.encode(text)
@@ -73,7 +100,7 @@ class TextDataModule(pl.LightningDataModule):
 
     def __init__(
         self,
-        data_path: str,
+        data_path: Path,
         block_size: int,
         batch_size: int,
         num_workers: int = 0,
@@ -113,7 +140,7 @@ class TextDataModule(pl.LightningDataModule):
 
 if __name__ == "__main__":
     # Test the dataset and datamodule
-    test_file = "input.txt"
+    test_file = get_project_root() / "data" / "input.txt"
 
     # Test Dataset
     dataset = TextDataset(test_file, block_size=8)

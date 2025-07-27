@@ -1,14 +1,16 @@
 """Example script showing how to use evaluation metrics with GPT-2 model."""
 
+from pathlib import Path
+
 import tiktoken
 import torch
-from data_utils import TextDataModule
-from evaluation_metrics import (
+from models.gpt2.model import GPT, GPTConfig
+from utils.data_utils import TextDataModule, get_project_root
+from utils.evaluation import (
     evaluate_model_on_dataset,
     generate_text_for_evaluation,
     print_evaluation_summary,
 )
-from train_gpt2 import GPT, GPTConfig
 
 
 def main():
@@ -30,7 +32,7 @@ def main():
 
     # Create data module
     data_module = TextDataModule(
-        data_path="input.txt",
+        data_path=get_project_root() / "data" / "input.txt",
         block_size=32,
         batch_size=4,
         val_split=0.2,

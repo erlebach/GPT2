@@ -154,7 +154,7 @@ def calculate_top_k_accuracy(
     targets: Integer[torch.Tensor, "batch seq"],
     k_values: list[int] = [1, 3, 5],
     ignore_index: int = -100,
-) -> Dict[int, float]:
+) -> dict[int, float]:
     """Calculate top-k accuracy for multiple k values.
 
     Args:
