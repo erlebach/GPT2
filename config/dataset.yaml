@@ -1,0 +1,3 @@
+bpe_file: "vocab.json"
+merges_file: "merges.txt"
+data_root: "./data"
