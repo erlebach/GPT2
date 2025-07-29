@@ -66,7 +66,10 @@ def measure_performance(memory_enabled: bool = True, timing_enabled: bool = Fals
                     torch.cuda.reset_peak_memory_stats()
                     start_gpu_mem = torch.cuda.memory_allocated() / 1024**2
                 start_time = time.time()
+
+                # Call the function to monitor
                 result = func(self, *args, **kwargs)
+
                 end_time = time.time()
                 # CPU memory
                 if memory_enabled and psutil is not None:
@@ -76,6 +79,7 @@ def measure_performance(memory_enabled: bool = True, timing_enabled: bool = Fals
                 # GPU memory (use utility)
                 if memory_enabled and gpu_available:
                     gpu_metrics = get_gpu_memory_metrics()
+                    # update a dict
                     metrics.update(gpu_metrics)
                     metrics["gpu_memory_usage_mb"] = (
                         gpu_metrics["gpu_memory_current_mb"] - start_gpu_mem
