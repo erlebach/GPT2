@@ -8,7 +8,7 @@ from nemo.utils import logging
 @hydra_runner(config_path="config/nemo", config_name="gpt2_super")
 def main(cfg):
     """NeMo training using your existing models."""
-
+    print("enter main", flush=True)
     # Choose wrapper based on config
     if cfg.model.super_block_config.get("heterogeneous", False):
         model_class = NeMoSuperGPT2Wrapper
