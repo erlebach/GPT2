@@ -1,0 +1,76 @@
+# config/nemo/gpt2_super.yaml
+# Complete NeMo configuration for GPT-2 with SuperBlocks
+
+# Model configuration
+model:
+  # Standard NeMo GPT config
+  micro_batch_size: 4
+  global_batch_size: 8
+  tensor_model_parallel_size: 1
+  pipeline_model_parallel_size: 1
+  max_position_embeddings: 1024
+  encoder_seq_length: 1024
+  num_layers: 12
+  hidden_size: 768
+  ffn_hidden_size: 3072
+  num_attention_heads: 12
+  init_method_std: 0.02
+  layernorm_epsilon: 1e-5
+  hidden_dropout: 0.1
+  attention_dropout: 0.1
+  precision: 16
+  fp32_residual_connection: false
+  vocab_size: 50304  # Standard GPT-2 vocab size
+  
+  # Your SuperBlock specific configs
+  super_block_config:
+    n_blocks_per_super: 2
+    use_swiglu: true
+    use_rmsnorm: false  # Keep your existing LayerNorm
+    moe_gating: true
+    initialization_style: "moe"  # Use your _init_moe_style
+
+# Trainer configuration
+trainer:
+  devices: 1
+  accelerator: gpu
+  precision: 16-mixed
+  max_steps: 1000
+  val_check_interval: 100
+  log_every_n_steps: 10
+  enable_checkpointing: true
+  enable_progress_bar: true
+  enable_model_summary: true
+  logger: true
+
+# Data configuration
+data:
+  train_ds: null  # Will be set by your data module
+  validation_ds: null  # Will be set by your data module
+  test_ds: null  # Will be set by your data module
+
+# Optimizer configuration
+optim:
+  name: fused_adam
+  lr: 6e-4
+  weight_decay: 0.1
+  betas: [0.9, 0.95]
+
+# Scheduler configuration
+scheduler:
+  name: CosineAnnealing
+  warmup_steps: 100
+  constant_steps: 0
+  min_lr: 6e-5
+
+# Experiment manager configuration
+exp_manager:
+  exp_dir: null
+  name: gpt2_super_training
+  create_tensorboard_logger: true
+  create_wandb_logger: false
+  create_checkpoint_callback: true
+  checkpoint_callback_params:
+    monitor: val_loss
+    mode: min
+    save_top_k: 3
