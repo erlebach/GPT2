@@ -26,8 +26,8 @@ dependencies = [
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-#[tool.setuptools.packages.find]
-#where = ["src"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 "*" = ["*.txt", "*.json", "*.yaml", "*.yml"]
