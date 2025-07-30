@@ -354,3 +354,7 @@ def verify_model_performance(model, test_data):
                 return False
 
     return True
+
+# -----------------------------
+if __name__ == "__main__":
+    main()
