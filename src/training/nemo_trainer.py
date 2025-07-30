@@ -355,6 +355,8 @@ def verify_model_performance(model, test_data):
 
     return True
 
+
 # -----------------------------
+print("before if __name__", flush=True)
 if __name__ == "__main__":
     main()
