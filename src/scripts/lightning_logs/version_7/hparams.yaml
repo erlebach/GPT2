@@ -1,0 +1,5 @@
+learning_rate: 0.06
+max_steps: 20
+min_lr_ratio: 0.1
+warmup_steps: 10
+weight_decay: 0.2

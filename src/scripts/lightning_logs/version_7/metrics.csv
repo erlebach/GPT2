@@ -1,0 +1,6 @@
+epoch,epoch_train_loss,num_decay_params,num_nodecay_params,step,total_params,train_loss_epoch,train_loss_step,trainable_params
+0,,,,4,,,10.54720687866211,
+0,,,,9,,,9.404797554016113,
+0,,,,14,,,7.974555015563965,
+0,,,,19,,,7.525101661682129,
+0,9.19517707824707,3330176.0,1858.0,19,3332034.0,9.19517707824707,,3332034.0
