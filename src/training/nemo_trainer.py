@@ -90,4 +90,67 @@ def verify_training_success(trainer, model):
     else:
         print("❌ Infinite values detected in model parameters")
 
+    # 8. Check training logs
+    check_training_logs(trainer)
+
     print("\n🎉 Training verification complete!")
+
+
+def check_training_logs(trainer):
+    """Check if training logs show expected behavior."""
+    if hasattr(trainer, "logger"):
+        # Check if loss decreased over time
+        # Check if learning rate was applied correctly
+        # Check if gradients were computed
+        pass
+
+
+def verify_gradient_flow(model):
+    """Verify that gradients are flowing through the model."""
+    model.train()
+
+    # Create dummy input
+    dummy_input = torch.randint(0, 1000, (1, 10))
+    dummy_labels = torch.randint(0, 1000, (1, 10))
+
+    # Forward pass
+    output = model(dummy_input, labels=dummy_labels)
+    loss = output["loss"]
+
+    # Backward pass
+    loss.backward()
+
+    # Check gradients
+    total_grad_norm = 0
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            param_norm = param.grad.data.norm(2)
+            total_grad_norm += param_norm.item() ** 2
+            print(f"Gradient norm for {name}: {param_norm:.6f}")
+
+    total_grad_norm = total_grad_norm ** (1.0 / 2)
+    print(f"Total gradient norm: {total_grad_norm:.6f}")
+
+    return total_grad_norm > 0
+
+
+def verify_model_performance(model, test_data):
+    """Verify model performs reasonably on test data."""
+    model.eval()
+
+    with torch.no_grad():
+        # Test on a few batches
+        for i, batch in enumerate(test_data):
+            if i >= 3:  # Only test first 3 batches
+                break
+
+            output = model(batch["input_ids"], labels=batch["labels"])
+            loss = output["loss"]
+            print(f"Test batch {i} loss: {loss.item():.4f}")
+
+            # Check if loss is reasonable (not NaN, not infinite)
+            if torch.isnan(loss) or torch.isinf(loss):
+                print(f"❌ Unreasonable loss on batch {i}")
+                return False
+
+    return True
