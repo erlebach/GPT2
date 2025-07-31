@@ -16,7 +16,7 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 # Clean absolute imports
 # Assumes that src/ is in sys.path, else need from src.models ...
 # from models.gpt2.model import GPT, GPTConfig
-from gpt2_nemo.model import GPT, GPTConfig
+from gpt2_standalone.model import GPT, GPTConfig
 from torch import Tensor
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR

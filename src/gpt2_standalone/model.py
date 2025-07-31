@@ -3,8 +3,6 @@
 import math
 from dataclasses import dataclass
 from typing import cast
-from nemo.core import NeuralModule
-
 
 import torch
 import torch.nn as nn
@@ -39,8 +37,7 @@ class GPTConfig:
 
 
 @beartype
-# class CausalSelfAttention(nn.Module):
-class CausalSelfAttention(NeuralModule):
+class CausalSelfAttention(nn.Module):
     """Causal self-attention mechanism for GPT-2.
 
     Args:
@@ -107,7 +104,7 @@ class CausalSelfAttention(NeuralModule):
         return y
 
 
-class MLP(NeuralModule):
+class MLP(nn.Module):
     """Multi-layer perceptron for GPT-2.
 
     Args:
@@ -138,7 +135,7 @@ class MLP(NeuralModule):
         return x
 
 
-class Block(NeuralModule):
+class Block(nn.Module):
     """Transformer block with attention and MLP.
 
     Args:
@@ -171,7 +168,7 @@ class Block(NeuralModule):
         return x
 
 
-class SuperBlock(NeuralModule):
+class SuperBlock(nn.Module):
     """SuperBlock with variable number of parallel transformer blocks and MoE-style gating.
 
     Args:
@@ -258,7 +255,7 @@ class SuperBlock(NeuralModule):
                         torch.nn.init.zeros_(module.bias)
 
 
-class GPT(NeuralModule):
+class GPT(nn.Module):
     """GPT-2 model with SuperBlocks.
 
     Args:
