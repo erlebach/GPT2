@@ -27,11 +27,21 @@ def main():
     num_gpus = torch.cuda.device_count()
     print(f"🔍 Number of available GPUs: {num_gpus}")
 
-    # Get recommended strategy for multi-GPU training
-    strategy_name, strategy_config = gpu_parallelism_checker.get_recommended_strategy(
-        num_gpus=num_gpus
-    )
-    print(f"📋 Recommended strategy: {strategy_name}")
+    # Force DDP strategy for multi-GPU training
+    if num_gpus > 1:
+        strategy_name = "ddp"
+        strategy_config = {
+            "find_unused_parameters": False,
+            "static_graph": True,
+            "gradient_as_bucket_view": True,
+        }
+        print(f"🚀 Forcing DDP strategy for {num_gpus} GPUs")
+    else:
+        strategy_name, strategy_config = (
+            gpu_parallelism_checker.get_recommended_strategy(num_gpus=num_gpus)
+        )
+
+    print(f"📋 Strategy: {strategy_name}")
     print(f"⚙️  Strategy config: {strategy_config}")
 
     # Create the strategy
@@ -53,6 +63,13 @@ def main():
     print(f"   GPUs Available: {verification['total_gpus']}")
     print(f"   Expected to use: {num_gpus}")
 
+    # Force multi-GPU setup
+    print(f"\n🚀 Starting training with explicit multi-GPU configuration:")
+    print(f"   GPUs: {num_gpus}")
+    print(f"   Strategy: {type(strategy).__name__}")
+    print(f"   Devices: {num_gpus}")
+    print(f"   Accelerator: gpu")
+
     # Start training with proper strategy and monitoring
     train_with_lightning(
         data_path=get_project_root() / "data" / "input.txt",
@@ -64,7 +81,7 @@ def main():
         n_embd=512,  # Embedding dimension
         n_blocks_per_super=2,  # NEW: Number of blocks per SuperBlock
         weight_decay=0.2,
-        accelerator="auto",
+        accelerator="gpu",  # Explicitly set to GPU
         devices=num_gpus,  # Explicitly set number of devices
         strategy=strategy,  # Use the created strategy
         precision="32-true",
