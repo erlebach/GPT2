@@ -4,6 +4,7 @@ This script trains a GPT-2 model using PyTorch Lightning with proper
 GPU parallelism (DDP) and real-time GPU monitoring.
 """
 
+import os
 from pathlib import Path
 
 import torch
