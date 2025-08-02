@@ -328,7 +328,43 @@ class GPUMonitor:
             print(f"     GPU {device_id}: Avg {avg_gb:.2f}GB, Max {max_gb:.2f}GB")
 
 
-def create_gpu_monitor_callback(log_interval: float = 5.0) -> "GPUMonitorCallback":
+try:
+    from lightning.pytorch.callbacks import Callback
+except ImportError:
+    Callback = None
+
+
+class GPUMonitorCallback(Callback):
+    """Lightning callback for GPU monitoring."""
+
+    def __init__(self, log_interval: float = 5.0):
+        if Callback is None:
+            raise ImportError("Lightning not available, cannot create callback")
+        super().__init__()
+        self.monitor = GPUMonitor(log_interval=log_interval)
+        self.last_log_time = 0
+
+    def on_train_start(self, trainer, pl_module):
+        """Called when training starts."""
+        print("🚀 Training started - GPU monitoring active")
+        self.monitor.start_monitoring()
+
+    def on_train_end(self, trainer, pl_module):
+        """Called when training ends."""
+        self.monitor.stop_monitoring()
+        self.monitor.print_monitoring_summary()
+
+    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
+        """Called at the start of each training batch."""
+        current_time = time.time()
+        if current_time - self.last_log_time >= self.monitor.log_interval:
+            self.monitor.print_gpu_status()
+            self.last_log_time = current_time
+
+
+def create_gpu_monitor_callback(
+    log_interval: float = 5.0,
+) -> Optional[GPUMonitorCallback]:
     """Create a Lightning callback for GPU monitoring.
 
     Args:
@@ -338,35 +374,7 @@ def create_gpu_monitor_callback(log_interval: float = 5.0) -> "GPUMonitorCallbac
         GPU monitor callback for Lightning.
     """
     try:
-        from lightning.pytorch.callbacks import Callback
-
-        class GPUMonitorCallback(Callback):
-            """Lightning callback for GPU monitoring."""
-
-            def __init__(self, log_interval: float = 5.0):
-                super().__init__()
-                self.monitor = GPUMonitor(log_interval=log_interval)
-                self.last_log_time = 0
-
-            def on_train_start(self, trainer, pl_module):
-                """Called when training starts."""
-                print("🚀 Training started - GPU monitoring active")
-                self.monitor.start_monitoring()
-
-            def on_train_end(self, trainer, pl_module):
-                """Called when training ends."""
-                self.monitor.stop_monitoring()
-                self.monitor.print_monitoring_summary()
-
-            def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
-                """Called at the start of each training batch."""
-                current_time = time.time()
-                if current_time - self.last_log_time >= self.monitor.log_interval:
-                    self.monitor.print_gpu_status()
-                    self.last_log_time = current_time
-
         return GPUMonitorCallback(log_interval)
-
     except ImportError:
         print("⚠️  Lightning not available, cannot create callback")
         return None
