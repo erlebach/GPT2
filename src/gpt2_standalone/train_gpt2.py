@@ -4,10 +4,10 @@ This script trains a GPT-2 model using PyTorch Lightning with proper
 GPU parallelism (DDP) and real-time GPU monitoring.
 """
 
-import os
 from pathlib import Path
 
 import torch
+import torch.distributed as dist
 from gpt2_standalone.gpu_monitor import GPUMonitor, create_gpu_monitor_callback
 from gpt2_standalone.gpu_parallelism_checker import (
     GPUParallelismChecker,
