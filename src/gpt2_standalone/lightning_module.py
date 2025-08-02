@@ -413,14 +413,15 @@ def train_with_lightning(
     if max_epochs is not None:
         trainer_kwargs["max_epochs"] = max_epochs
 
+    print(f"   Final trainer kwargs: {trainer_kwargs}")
     trainer = pl.Trainer(**trainer_kwargs)
 
-    # Debug trainer after creation
+    # Debug trainer after creation - FIXED ATTRIBUTES
     print(f"\n🔧 TRAINER CREATED:")
     print(f"   Trainer strategy: {trainer.strategy}")
     print(f"   Trainer accelerator: {trainer.accelerator}")
-    print(f"   Trainer devices: {trainer.devices}")
-    print(f"   Trainer num_devices: {trainer.num_devices}")
+    print(f"   Trainer device_ids: {getattr(trainer, 'device_ids', 'Not available')}")
+    print(f"   Trainer num_devices: {getattr(trainer, 'num_devices', 'Not available')}")
 
     # Train the model
     trainer.fit(model, data_module, ckpt_path=ckpt_path)
