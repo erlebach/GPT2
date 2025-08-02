@@ -6,4 +6,4 @@
 #SBATCH --cpus-per-task=4
 module load cuda/12.1
 pip install torch pytorch-lightning
-srun python lightning_mwe_2gpu_slurm.py
+srun python mwe.py
