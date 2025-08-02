@@ -1,26 +1,28 @@
 """Lightning module for GPT-2 training with SuperBlocks."""
 
 import math
-import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import lightning.pytorch as pl
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from beartype import beartype
-from jaxtyping import Float, Integer
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 # Clean absolute imports
 # Assumes that src/ is in sys.path, else need from src.models ...
 # from models.gpt2.model import GPT, GPTConfig
 from gpt2_standalone.model import GPT, GPTConfig
+from jaxtyping import Float, Integer
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from torch import Tensor
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from utils.data_utils import TextDataModule, get_project_root
+from utils.metrics_extensions import (
+    MetricsModelCheckpoint,
+    get_metrics_collector,
+    measure_performance,
+)
 
 
 @beartype
@@ -80,6 +82,7 @@ class GPTLightningModule(pl.LightningModule):
         """
         return self.model(idx, targets)
 
+    @measure_performance(memory_enabled=True, timing_enabled=True)
     def training_step(
         self,
         batch: Union[
@@ -122,15 +125,14 @@ class GPTLightningModule(pl.LightningModule):
 
         return loss
 
+    @measure_performance(memory_enabled=True, timing_enabled=True)
     def validation_step(
         self,
-        batch: Union[
-            tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]],
-            list[Integer[Tensor, "b seq"]],
-        ],
+        batch: tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]]
+        | list[Integer[Tensor, "b seq"]],
         batch_idx: int,
     ) -> Float[Tensor, ""]:
-        """Validation step for a single batch.
+        """Validate step for a single batch.
 
         Args:
             batch: Tuple or list of (input_tokens, target_tokens).
@@ -140,7 +142,7 @@ class GPTLightningModule(pl.LightningModule):
             Validation loss for the batch.
         """
         # Handle both tuple and list batch formats
-        if isinstance(batch, (tuple, list)) and len(batch) == 2:
+        if isinstance(batch, tuple | list) and len(batch) == 2:
             x, y = batch
         else:
             raise ValueError(
@@ -274,6 +276,7 @@ class GPTLightningModule(pl.LightningModule):
             self.val_losses.clear()
 
 
+@measure_performance(memory_enabled=True, timing_enabled=True)
 def train_with_lightning(
     data_path: Path | None = None,
     block_size: int = 64,
@@ -286,13 +289,16 @@ def train_with_lightning(
     learning_rate: float = 6e-2,
     weight_decay: float = 0.1,
     warmup_steps: int = 10,
-    max_steps: Optional[int] = None,
-    max_epochs: Optional[int] = None,
+    max_steps: int | None = None,
+    max_epochs: int | None = None,
     val_split: float = 0.1,
     num_workers: int = 0,
     accelerator: str = "auto",
     devices: str = "auto",
     precision: str = "32-true",
+    # resume: bool = False,
+    checkpoint_path: Path = Path("src/gpt2_standalone/checkpoints/"),
+    checkpoint: str | None = None,
 ) -> None:
     """Train GPT-2 model using Lightning.
 
@@ -349,24 +355,41 @@ def train_with_lightning(
         warmup_steps=warmup_steps,
         max_steps=max_steps or 1000,
     )
+    checkpoint_callback = MetricsModelCheckpoint(
+        dirpath="checkpoints",
+        save_top_k=2,
+        mode="min",
+        monitor="val_loss",
+        filename="model-epoch{epoch:02d}-val_loss{val_loss:.2f}",
+    )
+
+    ckpt_path = None if checkpoint is None else checkpoint_path / checkpoint
+
     # Create trainer with automatic device detection
     trainer_kwargs = {
         "accelerator": accelerator,
         "devices": devices,
+        "strategy": "auto",
         "precision": precision,
         "log_every_n_steps": 5,
-        "val_check_interval": 25,
         "enable_progress_bar": True,
         "enable_model_summary": True,
         "enable_checkpointing": True,
+        "barebones": False,  # Default False
         "logger": True,
+        "default_root_dir": Path.cwd(),
         "callbacks": [
             EarlyStopping(
                 monitor="val_loss",
-                patience=20,
+                patience=2000,
                 mode="min",
-            )
+            ),
+            checkpoint_callback,
         ],
+        "max_epochs": 3,
+        "max_steps": max_steps or 100,
+        # "resume": resume,
+        # "ckpt_path": chkpt_path,
     }
 
     # Add max_steps and max_epochs if specified
@@ -378,7 +401,7 @@ def train_with_lightning(
     trainer = pl.Trainer(**trainer_kwargs)
 
     # Train the model
-    trainer.fit(model, data_module)
+    trainer.fit(model, data_module, ckpt_path=ckpt_path)
 
 
 if __name__ == "__main__":
