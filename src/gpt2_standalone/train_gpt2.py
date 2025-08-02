@@ -29,24 +29,16 @@ def main():
 
     # Force DDP strategy for multi-GPU training
     if num_gpus > 1:
-        strategy_name = "ddp"
-        strategy_config = {
-            "find_unused_parameters": False,
-            "static_graph": True,
-            "gradient_as_bucket_view": True,
-        }
-        print(f"🚀 Forcing DDP strategy for {num_gpus} GPUs")
+        # Use Lightning's built-in DDP strategy
+        strategy = "ddp"  # Use string instead of strategy object
+        print(f"🚀 Using Lightning's built-in DDP strategy for {num_gpus} GPUs")
     else:
         strategy_name, strategy_config = (
             gpu_parallelism_checker.get_recommended_strategy(num_gpus=num_gpus)
         )
+        strategy = create_strategy_from_config(strategy_name, strategy_config)
 
-    print(f"📋 Strategy: {strategy_name}")
-    print(f"⚙️  Strategy config: {strategy_config}")
-
-    # Create the strategy
-    strategy = create_strategy_from_config(strategy_name, strategy_config)
-    print(f"✅ Created strategy: {type(strategy).__name__}")
+    print(f"✅ Strategy: {strategy}")
 
     # Create GPU monitor callback
     gpu_monitor_callback = create_gpu_monitor_callback(log_interval=10.0)
