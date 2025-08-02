@@ -1,5 +1,5 @@
 # from training.gpt2 import train_with_lightning
-from gpt2_standalone import train_with_lightning
+from gpt2_standalone.lightning_module import train_with_lightning
 from utils.data_utils import get_project_root
 
 

@@ -4,6 +4,8 @@ import math
 from dataclasses import dataclass
 from typing import cast
 from nemo.core import NeuralModule
+from nemo.core import ModelPT
+from omegaconf import OmegaConf
 
 
 import torch
