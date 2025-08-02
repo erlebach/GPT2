@@ -32,6 +32,27 @@ def main():
 
     # Check if distributed is initialized
     print(f"Distributed initialized: {dist.is_initialized()}")
+
+    # MANUALLY INITIALIZE DISTRIBUTED IF NEEDED
+    if not dist.is_initialized() and os.environ.get("WORLD_SIZE", "1") != "1":
+        print("🚀 Manually initializing distributed process group...")
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        world_size = int(os.environ.get("WORLD_SIZE", 1))
+        master_addr = os.environ.get("MASTER_ADDR", "localhost")
+        master_port = os.environ.get("MASTER_PORT", "12355")
+
+        # Set device for this process
+        torch.cuda.set_device(local_rank)
+
+        # Initialize process group
+        dist.init_process_group(
+            backend="nccl",
+            init_method=f"tcp://{master_addr}:{master_port}",
+            world_size=world_size,
+            rank=local_rank,
+        )
+        print(f"✅ Distributed initialized - Rank {local_rank}/{world_size}")
+
     if dist.is_initialized():
         print(f"World size: {dist.get_world_size()}")
         print(f"Rank: {dist.get_rank()}")
@@ -76,7 +97,7 @@ def main():
     # Force multi-GPU setup
     print(f"\n🚀 Starting training with explicit multi-GPU configuration:")
     print(f"   GPUs: {num_gpus}")
-    print(f"   Strategy: {type(strategy).__name__}")
+    print(f"   Strategy: {strategy}")
     print(f"   Devices: {num_gpus}")
     print(f"   Accelerator: gpu")
 
