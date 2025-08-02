@@ -264,7 +264,7 @@ class GPTLightningModule(pl.LightningModule):
         # Log epoch-level metrics
         if self.train_losses:
             avg_train_loss = sum(self.train_losses) / len(self.train_losses)
-            self.log("epoch_train_loss", avg_train_loss)
+            self.log("epoch_train_loss", avg_train_loss, sync_dist=True)
             self.train_losses.clear()
 
     def on_validation_epoch_end(self) -> None:
@@ -272,7 +272,7 @@ class GPTLightningModule(pl.LightningModule):
         # Log epoch-level metrics
         if self.val_losses:
             avg_val_loss = sum(self.val_losses) / len(self.val_losses)
-            self.log("epoch_val_loss", avg_val_loss)
+            self.log("epoch_val_loss", avg_val_loss, sync_dist=True)
             self.val_losses.clear()
 
 

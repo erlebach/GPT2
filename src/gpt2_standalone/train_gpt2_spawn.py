@@ -5,6 +5,7 @@ GPU parallelism (DDP) and real-time GPU monitoring.
 """
 
 import os
+import socket
 from pathlib import Path
 
 import torch
@@ -19,8 +20,27 @@ from utils.data_utils import get_project_root
 from utils.metrics_extensions import get_metrics_collector, save_metrics_to_csv
 
 
+def find_free_port():
+    """Find a free port for distributed training."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
+
+
 def main():
     """Main function to run GPT-2 training with GPU monitoring."""
+    # Set up distributed training environment variables
+    if os.environ.get("MASTER_PORT") is None:
+        free_port = find_free_port()
+        os.environ["MASTER_PORT"] = str(free_port)
+        print(f"🔧 Set MASTER_PORT to {free_port}")
+
+    if os.environ.get("MASTER_ADDR") is None:
+        os.environ["MASTER_ADDR"] = "localhost"
+        print(f"🔧 Set MASTER_ADDR to localhost")
+
     # Debug distributed setup
     print(f"=== DISTRIBUTED SETUP DEBUG ===")
     print(f"LOCAL_RANK: {os.environ.get('LOCAL_RANK', 'Not set')}")
@@ -33,30 +53,9 @@ def main():
     # Check if distributed is initialized
     print(f"Distributed initialized: {dist.is_initialized()}")
 
-    # MANUALLY INITIALIZE DISTRIBUTED IF NEEDED
-    if not dist.is_initialized() and os.environ.get("WORLD_SIZE", "1") != "1":
-        print("🚀 Manually initializing distributed process group...")
-        local_rank = int(os.environ.get("LOCAL_RANK", 0))
-        world_size = int(os.environ.get("WORLD_SIZE", 1))
-        master_addr = os.environ.get("MASTER_ADDR", "localhost")
-        master_port = os.environ.get("MASTER_PORT", "12355")
-
-        # Set device for this process
-        torch.cuda.set_device(local_rank)
-
-        # Initialize process group
-        dist.init_process_group(
-            backend="nccl",
-            init_method=f"tcp://{master_addr}:{master_port}",
-            world_size=world_size,
-            rank=local_rank,
-        )
-        print(f"✅ Distributed initialized - Rank {local_rank}/{world_size}")
-
-    if dist.is_initialized():
-        print(f"World size: {dist.get_world_size()}")
-        print(f"Rank: {dist.get_rank()}")
-        print(f"Backend: {dist.get_backend()}")
+    # NOTE: Let Lightning handle distributed initialization automatically
+    # Do NOT manually initialize distributed when using Lightning's ddp_spawn strategy
+    # Lightning will handle all the distributed setup internally
 
     # Initialize GPU parallelism checker
     gpu_parallelism_checker = GPUParallelismChecker()
@@ -71,6 +70,7 @@ def main():
         # Use Lightning's DDP spawn strategy (more reliable)
         strategy = "ddp_spawn"  # Use DDP spawn instead of DDP
         print(f"🚀 Using Lightning's DDP spawn strategy for {num_gpus} GPUs")
+        print(f"   This will automatically handle distributed setup")
     else:
         strategy_name, strategy_config = (
             gpu_parallelism_checker.get_recommended_strategy(num_gpus=num_gpus)
