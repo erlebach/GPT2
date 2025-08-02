@@ -1,6 +1,13 @@
-# from training.gpt2 import train_with_lightning
+"""GPT-2 training script with GPU parallelism and monitoring.
+
+This script trains a GPT-2 model using PyTorch Lightning with proper
+GPU parallelism (DDP) and real-time GPU monitoring.
+"""
+
 from pathlib import Path
 
+import torch
+from gpt2_standalone.gpu_monitor import GPUMonitor, create_gpu_monitor_callback
 from gpt2_standalone.gpu_parallelism_checker import (
     GPUParallelismChecker,
     create_strategy_from_config,
@@ -11,19 +18,42 @@ from utils.metrics_extensions import get_metrics_collector, save_metrics_to_csv
 
 
 def main():
-    """Main function to run GPT-2 training."""
+    """Main function to run GPT-2 training with GPU monitoring."""
+    # Initialize GPU parallelism checker
     gpu_parallelism_checker = GPUParallelismChecker()
     gpu_parallelism_checker.print_comprehensive_report()
 
-    # Get recommended strategy
-    print("nb devices: ", torch.cuda.device_count())
+    # Get number of available GPUs
+    num_gpus = torch.cuda.device_count()
+    print(f"🔍 Number of available GPUs: {num_gpus}")
+
+    # Get recommended strategy for multi-GPU training
     strategy_name, strategy_config = gpu_parallelism_checker.get_recommended_strategy(
-        num_gpus=torch.cuda.device_count()
+        num_gpus=num_gpus
     )
+    print(f"📋 Recommended strategy: {strategy_name}")
+    print(f"⚙️  Strategy config: {strategy_config}")
 
-    # Use in your training
+    # Create the strategy
     strategy = create_strategy_from_config(strategy_name, strategy_config)
+    print(f"✅ Created strategy: {type(strategy).__name__}")
 
+    # Create GPU monitor callback
+    gpu_monitor_callback = create_gpu_monitor_callback(log_interval=10.0)
+    if gpu_monitor_callback:
+        print("✅ GPU monitor callback created")
+    else:
+        print("⚠️  Could not create GPU monitor callback")
+
+    # Verify multi-GPU setup before training
+    monitor = GPUMonitor()
+    verification = monitor.verify_multi_gpu_usage()
+    print(f"\n🔍 Pre-training GPU verification:")
+    print(f"   Status: {verification['status']}")
+    print(f"   GPUs Available: {verification['total_gpus']}")
+    print(f"   Expected to use: {num_gpus}")
+
+    # Start training with proper strategy and monitoring
     train_with_lightning(
         data_path=get_project_root() / "data" / "input.txt",
         block_size=1024,
@@ -35,15 +65,27 @@ def main():
         n_blocks_per_super=2,  # NEW: Number of blocks per SuperBlock
         weight_decay=0.2,
         accelerator="auto",
-        devices="auto",
-        # resume=True,  # True: resume from checkpoint
+        devices=num_gpus,  # Explicitly set number of devices
+        strategy=strategy,  # Use the created strategy
+        precision="32-true",
         checkpoint_path=Path("checkpoints/"),
-        # checkpoint="model-epochepoch=01-val_lossval_loss=6.54.ckpt",
         checkpoint=None,  # no restart
+        callbacks=[gpu_monitor_callback] if gpu_monitor_callback else None,
     )
 
+    # Post-training verification
+    print(f"\n🔍 Post-training GPU verification:")
+    post_verification = monitor.verify_multi_gpu_usage()
+    print(f"   Status: {post_verification['status']}")
+    print(
+        f"   GPUs Used: {post_verification['gpus_used']}/{post_verification['total_gpus']}"
+    )
+    print(f"   Memory Usage: {post_verification['memory_usage']}")
+
+    # Save metrics
     collector = get_metrics_collector()
     collector.save_all_metrics_to_csv("metrics.csv")
+    print("✅ Training completed and metrics saved")
 
 
 if __name__ == "__main__":

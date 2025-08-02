@@ -294,11 +294,12 @@ def train_with_lightning(
     val_split: float = 0.1,
     num_workers: int = 0,
     accelerator: str = "auto",
-    devices: str = "auto",
+    devices: str | int = "auto",
+    strategy: str | Any = "auto",
     precision: str = "32-true",
-    # resume: bool = False,
     checkpoint_path: Path = Path("src/gpt2_standalone/checkpoints/"),
     checkpoint: str | None = None,
+    callbacks: list | None = None,
 ) -> None:
     """Train GPT-2 model using Lightning.
 
@@ -365,11 +366,25 @@ def train_with_lightning(
 
     ckpt_path = None if checkpoint is None else checkpoint_path / checkpoint
 
+    # Prepare callbacks list
+    default_callbacks = [
+        EarlyStopping(
+            monitor="val_loss",
+            patience=2000,
+            mode="min",
+        ),
+        checkpoint_callback,
+    ]
+
+    # Add custom callbacks if provided
+    if callbacks:
+        default_callbacks.extend(callbacks)
+
     # Create trainer with automatic device detection
     trainer_kwargs = {
         "accelerator": accelerator,
         "devices": devices,
-        "strategy": "auto",
+        "strategy": strategy,
         "precision": precision,
         "log_every_n_steps": 50,
         "enable_progress_bar": True,
@@ -378,18 +393,9 @@ def train_with_lightning(
         "barebones": False,  # Default False
         "logger": True,
         "default_root_dir": Path.cwd(),
-        "callbacks": [
-            EarlyStopping(
-                monitor="val_loss",
-                patience=2000,
-                mode="min",
-            ),
-            checkpoint_callback,
-        ],
+        "callbacks": default_callbacks,
         "max_epochs": 10,
         "max_steps": max_steps or 100,
-        # "resume": resume,
-        # "ckpt_path": chkpt_path,
     }
 
     # Add max_steps and max_epochs if specified
