@@ -19,6 +19,22 @@ from utils.metrics_extensions import get_metrics_collector, save_metrics_to_csv
 
 def main():
     """Main function to run GPT-2 training with GPU monitoring."""
+    # Debug distributed setup
+    print(f"=== DISTRIBUTED SETUP DEBUG ===")
+    print(f"LOCAL_RANK: {os.environ.get('LOCAL_RANK', 'Not set')}")
+    print(f"RANK: {os.environ.get('RANK', 'Not set')}")
+    print(f"WORLD_SIZE: {os.environ.get('WORLD_SIZE', 'Not set')}")
+    print(f"MASTER_ADDR: {os.environ.get('MASTER_ADDR', 'Not set')}")
+    print(f"MASTER_PORT: {os.environ.get('MASTER_PORT', 'Not set')}")
+    print(f"CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'Not set')}")
+
+    # Check if distributed is initialized
+    print(f"Distributed initialized: {dist.is_initialized()}")
+    if dist.is_initialized():
+        print(f"World size: {dist.get_world_size()}")
+        print(f"Rank: {dist.get_rank()}")
+        print(f"Backend: {dist.get_backend()}")
+
     # Initialize GPU parallelism checker
     gpu_parallelism_checker = GPUParallelismChecker()
     gpu_parallelism_checker.print_comprehensive_report()

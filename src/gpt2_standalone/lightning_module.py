@@ -380,6 +380,15 @@ def train_with_lightning(
     if callbacks:
         default_callbacks.extend(callbacks)
 
+    # Debug trainer configuration
+    print(f"\n🔧 TRAINER CONFIGURATION:")
+    print(f"   Accelerator: {accelerator}")
+    print(f"   Devices: {devices}")
+    print(f"   Strategy: {strategy}")
+    print(f"   Strategy Type: {type(strategy).__name__}")
+    print(f"   Precision: {precision}")
+    print(f"   Callbacks: {len(default_callbacks)} callbacks")
+
     # Create trainer with automatic device detection
     trainer_kwargs = {
         "accelerator": accelerator,
@@ -405,6 +414,13 @@ def train_with_lightning(
         trainer_kwargs["max_epochs"] = max_epochs
 
     trainer = pl.Trainer(**trainer_kwargs)
+
+    # Debug trainer after creation
+    print(f"\n🔧 TRAINER CREATED:")
+    print(f"   Trainer strategy: {trainer.strategy}")
+    print(f"   Trainer accelerator: {trainer.accelerator}")
+    print(f"   Trainer devices: {trainer.devices}")
+    print(f"   Trainer num_devices: {trainer.num_devices}")
 
     # Train the model
     trainer.fit(model, data_module, ckpt_path=ckpt_path)
