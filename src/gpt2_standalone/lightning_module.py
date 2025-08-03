@@ -139,6 +139,11 @@ class GPTLightningModule(pl.LightningModule):
 
         logits, loss = self(x, y)  # Forward pass
 
+        # Add gradient debugging
+        if batch_idx == 0:  # Only on first step
+            print(f"[Rank {self.global_rank}] Loss: {loss.item()}")
+            print(f"[Rank {self.global_rank}] Loss requires grad: {loss.requires_grad}")
+
         # Log training loss
         self.log(
             "train_loss",
@@ -275,6 +280,15 @@ class GPTLightningModule(pl.LightningModule):
 
     def on_train_start(self) -> None:
         """Called when training starts."""
+        # Add DDP debugging
+        print(f"🔍 DDP DEBUG:")
+        print(f"   Trainer strategy: {self.trainer.strategy}")
+        print(f"   Trainer world_size: {self.trainer.world_size}")
+        print(f"   Trainer global_rank: {self.trainer.global_rank}")
+        print(f"   Trainer local_rank: {self.trainer.local_rank}")
+        print(f"   Trainer is_global_zero: {self.trainer.is_global_zero}")
+        print(f"   Trainer num_devices: {self.trainer.num_devices}")
+
         # Log model parameters
         total_params = sum(p.numel() for p in self.parameters())
         trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)

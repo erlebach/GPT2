@@ -8,6 +8,10 @@ Issue: DDP should lead to less memory per GPU on each processor since the
 batch data is sharded across GPUs. 
 ----------------------------------------------------------------------
 JOBID: 11189846: 2 GPUs
-Print the value of the batch shape to confirm whether or not the batch is sharded
+- Print the value of the batch shape to confirm whether or not the batch is sharded
 across GPUs. 
+- Result: there was no sharding. 
+----------------------------------------------------------------------
+JOBID: 11189849
+- modify dataloader to handle sharding (I must check docs and provide a link)
 ----------------------------------------------------------------------

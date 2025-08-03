@@ -82,6 +82,8 @@ def main():
             static_graph=True,
         )
         print(f"🚀 Using DDP strategy for {num_gpus} GPUs")
+        print(f"   Strategy type: {type(strategy)}")
+        print(f"   Strategy config: {strategy.__dict__}")
     else:
         strategy_name, strategy_config = (
             gpu_parallelism_checker.get_recommended_strategy(num_gpus=num_gpus)
