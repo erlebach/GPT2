@@ -63,11 +63,12 @@ class SimpleModel(LightningModule):
             device_info = f"Device: {self.device}"
             print(f"{rank_info} {device_info}", flush=True)
 
-            # Print allocation from each rank to see what's happening
-            allocs = check_gpu_allocation()
-            print(f"[Rank {self.global_rank}] GPU Allocation:")
-            for alloc in allocs:
-                print(f"[Rank {self.global_rank}] {alloc}")
+            # Only print allocation from rank 0 to avoid blocking
+            if self.global_rank == 0:
+                allocs = check_gpu_allocation()
+                print("[GPU Allocation]")
+                for alloc in allocs:
+                    print(alloc)
 
         return loss
 
@@ -96,8 +97,8 @@ if __name__ == "__main__":
     trainer = Trainer(
         accelerator="gpu",
         devices=2,
-        # strategy="ddp",  # DDP is simplest, standard parallelism
-        strategy="ddp_spawn",  # DDP is simplest, standard parallelism
+        strategy="ddp",  # DDP is simplest, standard parallelism
+        # strategy="ddp_spawn",  # DDP is simplest, standard parallelism
         max_epochs=1,
         logger=False,  # suppress logging
         enable_checkpointing=False,
