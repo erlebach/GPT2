@@ -88,12 +88,16 @@ def main():
         print("⚠️  Could not create GPU monitor callback")
 
     # Verify multi-GPU setup before training
-    monitor = GPUMonitor()
-    verification = monitor.verify_multi_gpu_usage()
-    print(f"\n🔍 Pre-training GPU verification:")
-    print(f"   Status: {verification['status']}")
-    print(f"   GPUs Available: {verification['total_gpus']}")
-    print(f"   Expected to use: {num_gpus}")
+    try:
+        monitor = GPUMonitor()
+        verification = monitor.verify_multi_gpu_usage()
+        print(f"\n🔍 Pre-training GPU verification:")
+        print(f"   Status: {verification['status']}")
+        print(f"   GPUs Available: {verification['total_gpus']}")
+        print(f"   Expected to use: {num_gpus}")
+    except Exception as e:
+        print(f"Error during pre-training GPU verification: {e}")
+        print("Continuing with training...")
 
     # Force multi-GPU setup
     print(f"\n🚀 Starting training with explicit multi-GPU configuration:")
@@ -123,13 +127,17 @@ def main():
     )
 
     # Post-training verification
-    print(f"\n🔍 Post-training GPU verification:")
-    post_verification = monitor.verify_multi_gpu_usage()
-    print(f"   Status: {post_verification['status']}")
-    print(
-        f"   GPUs Used: {post_verification['gpus_used']}/{post_verification['total_gpus']}"
-    )
-    print(f"   Memory Usage: {post_verification['memory_usage']}")
+    try:
+        print(f"\n🔍 Post-training GPU verification:")
+        post_verification = monitor.verify_multi_gpu_usage()
+        print(f"   Status: {post_verification['status']}")
+        print(
+            f"   GPUs Used: {post_verification['gpus_used']}/{post_verification['total_gpus']}"
+        )
+        print(f"   Memory Usage: {post_verification['memory_usage']}")
+    except Exception as e:
+        print(f"Error during post-training GPU verification: {e}")
+        print("Continuing with training...")
 
     # Save metrics
     collector = get_metrics_collector()
