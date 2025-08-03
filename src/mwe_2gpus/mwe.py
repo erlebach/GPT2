@@ -61,12 +61,12 @@ class SimpleModel(LightningModule):
         if batch_idx == 0:
             rank_info = f"[Rank {self.global_rank}/{self.trainer.world_size}]"
             device_info = f"Device: {self.device}"
-            print(f"{rank_info} {device_info}")
+            print(f"{rank_info} {device_info}", flush=True)
 
             # Only print allocation from rank 0 to avoid blocking
             if self.global_rank == 0:
                 allocs = check_gpu_allocation()
-                print("[GPU Allocation]")
+                print("[GPU Allocation]", flush=True)
                 for alloc in allocs:
                     print(alloc)
 
@@ -86,7 +86,9 @@ if __name__ == "__main__":
     X = torch.randn(1000, 10)
     y = torch.randn(1000, 1)
     ds = TensorDataset(X, y)
-    dl = DataLoader(ds, batch_size=64, shuffle=True)
+    
+    # Remove shuffle and reduce num_workers for faster execution
+    dl = DataLoader(ds, batch_size=64, shuffle=False, num_workers=0)
 
     model = SimpleModel()
 
@@ -99,6 +101,9 @@ if __name__ == "__main__":
         max_epochs=1,
         logger=False,  # suppress logging
         enable_checkpointing=False,
+        # Add these for faster execution
+        sync_batchnorm=False,
+        precision="32",  # Use 32-bit precision for speed
     )
 
     trainer.fit(model, dl)
