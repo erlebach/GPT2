@@ -77,6 +77,11 @@ class SimpleModel(LightningModule):
 
 
 if __name__ == "__main__":
+    # Print environment info for debugging
+    if os.environ.get("SLURM_PROCID", "0") == "0":
+        print_environment_info()
+        print()
+
     # Simulate small random dataset
     X = torch.randn(1000, 10)
     y = torch.randn(1000, 1)
