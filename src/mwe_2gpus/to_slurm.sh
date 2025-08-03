@@ -8,6 +8,9 @@
 #SBATCH --output=mwe_%j.out
 #SBATCH --error=mwe_%j.err
 
+# Ensure proper SLURM environment variables for PyTorch Lightning
+export SLURM_NTASKS_PER_NODE=2
+
 # Print cluster info for debugging
 echo "=== SLURM Job Info ==="
 echo "Job ID: $SLURM_JOB_ID"
