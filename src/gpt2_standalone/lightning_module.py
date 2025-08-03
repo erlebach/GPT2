@@ -25,6 +25,21 @@ from utils.metrics_extensions import (
 )
 
 
+# Might move to utils
+def check_gpu_allocation():
+    """Check GPU memory allocation across all available devices.
+
+    Returns:
+        list[str]: List of allocation status strings for each GPU.
+
+    """
+    results = []
+    for i in range(torch.cuda.device_count()):
+        allocated = torch.cuda.memory_allocated(i)
+        results.append(f"GPU {i}: {allocated/1e6:.2f} MB allocated")
+    return results
+
+
 @beartype
 class GPTLightningModule(pl.LightningModule):
     """Lightning module for training GPT-2 with SuperBlocks.
