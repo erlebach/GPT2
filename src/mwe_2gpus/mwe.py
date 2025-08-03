@@ -6,20 +6,43 @@ Minimum Working Example: PyTorch Lightning with Two GPUs
 - Intended for SLURM
 """
 
-import torch
-from torch import nn
-from torch.utils.data import DataLoader, TensorDataset
-import pytorch_lightning as pl
-from pytorch_lightning import LightningModule, Trainer
 import os
 
+import pytorch_lightning as pl
+import torch
+from pytorch_lightning import LightningModule, Trainer
+from torch import nn
+from torch.utils.data import DataLoader, TensorDataset
+
+
 def check_gpu_allocation():
+    """Check GPU memory allocation across all available devices.
+
+    Returns:
+        list[str]: List of allocation status strings for each GPU.
+
+    """
     results = []
     for i in range(torch.cuda.device_count()):
-        torch.cuda.set_device(i)
         allocated = torch.cuda.memory_allocated(i)
         results.append(f"GPU {i}: {allocated/1e6:.2f} MB allocated")
     return results
+
+
+def print_environment_info():
+    """Print relevant environment and device information for debugging."""
+    print(f"[Environment Info]")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    print(f"CUDA device count: {torch.cuda.device_count()}")
+    print(
+        f"Current device: {torch.cuda.current_device() if torch.cuda.is_available() else 'None'}"
+    )
+    print(f"SLURM_PROCID: {os.environ.get('SLURM_PROCID', 'Not set')}")
+    print(f"SLURM_LOCALID: {os.environ.get('SLURM_LOCALID', 'Not set')}")
+    print(f"LOCAL_RANK: {os.environ.get('LOCAL_RANK', 'Not set')}")
+    print(f"WORLD_SIZE: {os.environ.get('WORLD_SIZE', 'Not set')}")
+    print(f"RANK: {os.environ.get('RANK', 'Not set')}")
+
 
 class SimpleModel(LightningModule):
     def __init__(self):
@@ -33,14 +56,25 @@ class SimpleModel(LightningModule):
         x, y = batch
         y_hat = self(x)
         loss = nn.functional.mse_loss(y_hat, y)
+
         # Check and print GPU allocation (first step only)
-        if batch_idx == 0 and self.global_rank == 0:
-            allocs = check_gpu_allocation()
-            print("[GPU Allocation]", *allocs, sep='\n')
+        if batch_idx == 0:
+            rank_info = f"[Rank {self.global_rank}/{self.trainer.world_size}]"
+            device_info = f"Device: {self.device}"
+            print(f"{rank_info} {device_info}")
+
+            # Only print allocation from rank 0 to avoid duplicate output
+            if self.global_rank == 0:
+                allocs = check_gpu_allocation()
+                print("[GPU Allocation]")
+                for alloc in allocs:
+                    print(alloc)
+
         return loss
 
     def configure_optimizers(self):
         return torch.optim.SGD(self.parameters(), lr=0.01)
+
 
 if __name__ == "__main__":
     # Simulate small random dataset
@@ -59,7 +93,7 @@ if __name__ == "__main__":
         strategy="ddp",  # DDP is simplest, standard parallelism
         max_epochs=1,
         logger=False,  # suppress logging
-        enable_checkpointing=False
+        enable_checkpointing=False,
     )
 
     trainer.fit(model, dl)
@@ -78,4 +112,3 @@ if __name__ == "__main__":
     # module load cuda/12.x
     # pip install torch pytorch-lightning
     # srun python lightning_mwe_2gpu_slurm.py
-
