@@ -22,12 +22,11 @@ def check_gpu_allocation():
         list[str]: List of allocation status strings for each GPU.
 
     """
-    if torch.cuda.is_available():
-        device_id = torch.cuda.current_device()
-        allocated = torch.cuda.memory_allocated(device_id)
-        return f"GPU {device_id}: {allocated/1e6:.2f} MB allocated"
-
-    return ["No CUDA available"]
+    results = []
+    for i in range(torch.cuda.device_count()):
+        allocated = torch.cuda.memory_allocated(i)
+        results.append(f"GPU {i}: {allocated/1e6:.2f} MB allocated")
+    return results
 
 
 def print_environment_info():
