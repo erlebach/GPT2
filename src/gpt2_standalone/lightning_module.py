@@ -82,13 +82,20 @@ class GPTLightningModule(pl.LightningModule):
         """
         return self.model(idx, targets)
 
+    def print_gpu_allocation(self):
+        rank_info = f"[Rank {self.global_rank}/{self.trainer.world_size}]"
+        device_info = f"Device: {self.device}"
+        print(f"{rank_info} {device_info}", flush=True)
+        allocs = check_gpu_allocation()
+        print(f"[Rank {self.global_rank}] GPU Allocation:")
+        for alloc in allocs:
+            print(f"[Rank {self.global_rank}] {alloc}", flush=True)
+
     @measure_performance(memory_enabled=True, timing_enabled=True)
     def training_step(
         self,
-        batch: Union[
-            tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]],
-            list[Integer[Tensor, "b seq"]],
-        ],
+        batch: tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]]
+        | list[Integer[Tensor, "b seq"]],
         batch_idx: int,
     ) -> Float[Tensor, ""]:
         """Training step for a single batch.
@@ -100,8 +107,11 @@ class GPTLightningModule(pl.LightningModule):
         Returns:
             Training loss for the batch.
         """
+        if batch_idx == 0:
+            self.print_gpu_allocation()
+
         # Handle both tuple and list batch formats
-        if isinstance(batch, (tuple, list)) and len(batch) == 2:
+        if isinstance(batch, tuple | list) and len(batch) == 2:
             x, y = batch
         else:
             raise ValueError(
@@ -141,6 +151,9 @@ class GPTLightningModule(pl.LightningModule):
         Returns:
             Validation loss for the batch.
         """
+        if batch_idx == 0:
+            self.print_gpu_allocation()
+
         # Handle both tuple and list batch formats
         if isinstance(batch, tuple | list) and len(batch) == 2:
             x, y = batch
