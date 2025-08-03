@@ -96,7 +96,8 @@ if __name__ == "__main__":
     trainer = Trainer(
         accelerator="gpu",
         devices=2,
-        strategy="ddp",  # DDP is simplest, standard parallelism
+        # strategy="ddp",  # DDP is simplest, standard parallelism
+        strategy="ddp_spawn",  # DDP is simplest, standard parallelism
         max_epochs=1,
         logger=False,  # suppress logging
         enable_checkpointing=False,
