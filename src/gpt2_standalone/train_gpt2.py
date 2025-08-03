@@ -69,9 +69,13 @@ def main():
 
     # Force DDP strategy for multi-GPU training
     if num_gpus > 1:
-        # Use Lightning's built-in DDP strategy
-        strategy = "ddp"  # Use string instead of strategy object
-        print(f"🚀 Using Lightning's built-in DDP strategy for {num_gpus} GPUs")
+        from lightning.pytorch.strategies import DDPStrategy
+
+        strategy = DDPStrategy(
+            find_unused_parameters=False,
+            static_graph=True,
+        )
+        print(f"🚀 Using DDP strategy for {num_gpus} GPUs")
     else:
         strategy_name, strategy_config = (
             gpu_parallelism_checker.get_recommended_strategy(num_gpus=num_gpus)
