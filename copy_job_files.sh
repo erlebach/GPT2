@@ -4,7 +4,7 @@
 # Usage: ./copy_job_files.sh <JOBID>
 
 # Check if JOBID is provided
-f [ $# -eq 0 ]; then
+if [ $# -eq 0 ]; then
     echo "Error: JOBID is required"
     echo "Usage: $0 <JOBID>"
     exit 1
