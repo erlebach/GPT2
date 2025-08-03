@@ -29,6 +29,12 @@ cp run_srun_job.slurm "${DEST_FOLDER}/"
 cp run_torchrun_job.slurm "${DEST_FOLDER}/"
 cp run_python_job.slurm "${DEST_FOLDER}/"
 
+if [ -f "metrics.csv" ]; then
+        mv metrics.csv "${DEST_FOLDER}/"
+else
+    echo "Warning: metrics.csv not found"
+fi
+
 # Copy submit script
 echo "Copying submit script..."
 cp submit_script.sh "${DEST_FOLDER}/"
