@@ -47,12 +47,12 @@ else
     echo "Warning: slurm-nemo_python_job-${JOBID}.out not found"
 fi
 
-echo "Files copied successfully to ${DEST_FOLDER}"
-echo "Contents of ${DEST_FOLDER}:"
-ls -la "${DEST_FOLDER}/"
-
 if [ -f "README.md" ]; then
     cp README.md "${DEST_FOLDER}/"
 else
     echo "Warning: README.md not found"
 fi
+
+echo "Files copied successfully to ${DEST_FOLDER}"
+echo "Contents of ${DEST_FOLDER}:"
+ls -la "${DEST_FOLDER}/"
