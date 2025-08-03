@@ -7,3 +7,7 @@ JOBID: 11189840: 2 GPUs
 Issue: DDP should lead to less memory per GPU on each processor since the 
 batch data is sharded across GPUs. 
 ----------------------------------------------------------------------
+JOBID: 11189846: 2 GPUs
+Print the value of the batch shape to confirm whether or not the batch is sharded
+across GPUs. 
+----------------------------------------------------------------------
