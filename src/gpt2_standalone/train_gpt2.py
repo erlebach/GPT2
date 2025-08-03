@@ -66,6 +66,12 @@ def main():
     # Get number of available GPUs
     num_gpus = torch.cuda.device_count()
     print(f"🔍 Number of available GPUs: {num_gpus}")
+    print(
+        f"🔍 CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'Not set')}"
+    )
+    print(f"🔍 WORLD_SIZE: {os.environ.get('WORLD_SIZE', 'Not set')}")
+    print(f"🔍 RANK: {os.environ.get('RANK', 'Not set')}")
+    print(f"🔍 LOCAL_RANK: {os.environ.get('LOCAL_RANK', 'Not set')}")
 
     # Force DDP strategy for multi-GPU training
     if num_gpus > 1:
