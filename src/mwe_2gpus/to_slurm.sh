@@ -3,7 +3,7 @@
 #SBATCH --output=mwe-%x-%j.out
 #SBATCH --error=mwe-%x-%j.err
 #SBATCH --nodes=1
-#SBATCH --ntasks=2
+#SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=2
 #SBATCH --gres=gpu:2
 #SBATCH --mem=60GB
