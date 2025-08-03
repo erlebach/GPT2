@@ -52,6 +52,15 @@ class SimpleModel(LightningModule):
     def forward(self, x):
         return self.layer(x)
 
+    def print_gpu_allocation(self):
+        rank_info = f"[Rank {self.global_rank}/{self.trainer.world_size}]"
+        device_info = f"Device: {self.device}"
+        print(f"{rank_info} {device_info}", flush=True)
+        allocs = check_gpu_allocation()
+        print(f"[Rank {self.global_rank}] GPU Allocation:")
+        for alloc in allocs:
+            print(f"[Rank {self.global_rank}] {alloc}", flush=True)
+
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
@@ -59,18 +68,16 @@ class SimpleModel(LightningModule):
 
         # Check and print GPU allocation (first step only)
         if batch_idx == 0:
-            rank_info = f"[Rank {self.global_rank}/{self.trainer.world_size}]"
-            device_info = f"Device: {self.device}"
-            print(f"{rank_info} {device_info}", flush=True)
+            self.print_gpu_allocation()
+            # rank_info = f"[Rank {self.global_rank}/{self.trainer.world_size}]"
+            # device_info = f"Device: {self.device}"
+            # print(f"{rank_info} {device_info}", flush=True)
 
-            # Only print allocation from rank 0 to avoid blocking
-            # if self.global_rank == 0:
-            allocs = check_gpu_allocation()
-            print(f"[Rank {self.global_rank}] GPU Allocation:")
-            # print("[GPU Allocation]")
-            for alloc in allocs:
-                print(f"[Rank {self.global_rank}] {alloc}", flush=True)
-                # print(alloc)
+            # # Only print allocation from rank 0 to avoid blocking
+            # allocs = check_gpu_allocation()
+            # print(f"[Rank {self.global_rank}] GPU Allocation:")
+            # for alloc in allocs:
+            #     print(f"[Rank {self.global_rank}] {alloc}", flush=True)
 
         return loss
 
