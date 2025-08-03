@@ -87,6 +87,7 @@ def main():
             gpu_parallelism_checker.get_recommended_strategy(num_gpus=num_gpus)
         )
         strategy = create_strategy_from_config(strategy_name, strategy_config)
+        print(f"Stragegy for {num_gpus} GPUs.")
 
     print(f"✅ Strategy: {strategy}")
 

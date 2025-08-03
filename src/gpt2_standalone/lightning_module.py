@@ -124,6 +124,9 @@ class GPTLightningModule(pl.LightningModule):
         """
         if batch_idx >= 0:
             print(f"Training step: Batch {batch_idx}")
+            print(
+                f"[Rank {self.global_rank}] Batch shape: {batch[0].shape}"
+            )  # Add this
             self.print_gpu_allocation()  # Memory BEFORE forward/backward
 
         # Handle both tuple and list batch formats
