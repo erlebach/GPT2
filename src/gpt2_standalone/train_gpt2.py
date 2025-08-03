@@ -109,11 +109,11 @@ def main():
     # Start training with proper strategy and monitoring
     train_with_lightning(
         data_path=get_project_root() / "data" / "input.txt",
-        block_size=4096,
-        batch_size=128,
-        max_steps=1000,
-        n_layer=8,  # Number of super-layers
-        n_head=8,  # Number of attention heads
+        block_size=1024,
+        batch_size=32,
+        max_steps=100,
+        n_layer=4,  # Number of super-layers
+        n_head=4,  # Number of attention heads
         n_embd=1024,  # Embedding dimension
         n_blocks_per_super=2,  # NEW: Number of blocks per SuperBlock
         weight_decay=0.2,

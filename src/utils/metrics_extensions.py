@@ -163,18 +163,21 @@ def get_metrics_collector() -> MetricsCollector:
 
 
 def get_gpu_memory_metrics() -> dict:
-    """Get current and peak GPU memory usage in MB.
+    """Get current and peak GPU memory usage in MB for current device only.
 
     Returns:
         A dictionary with current and peak GPU memory usage in MB.
-
     """
     import torch
 
     if not torch.cuda.is_available():
         return {}
-    current = torch.cuda.memory_allocated() / 1024**2
-    peak = torch.cuda.max_memory_allocated() / 1024**2
+
+    # Get current device to measure only this GPU's memory
+    current_device = torch.cuda.current_device()
+    current = torch.cuda.memory_allocated(current_device) / 1024**2
+    peak = torch.cuda.max_memory_allocated(current_device) / 1024**2
+
     return {
         "gpu_memory_current_mb": current,
         "gpu_memory_peak_mb": peak,
@@ -191,7 +194,6 @@ def measure_performance(memory_enabled: bool = True, timing_enabled: bool = Fals
 
     Returns:
         Decorated function with timing and memory metrics attached as an attribute.
-
     """
 
     def decorator(func):
@@ -204,31 +206,38 @@ def measure_performance(memory_enabled: bool = True, timing_enabled: bool = Fals
                 if memory_enabled and psutil is not None:
                     process = psutil.Process(os.getpid())
                     start_cpu_mem = process.memory_info().rss / 1024**2
-                # GPU memory
+
+                # GPU memory - FIXED: Only measure current device
                 if memory_enabled and gpu_available:
+                    current_device = torch.cuda.current_device()
                     torch.cuda.empty_cache()
-                    torch.cuda.reset_peak_memory_stats()
-                    start_gpu_mem = torch.cuda.memory_allocated() / 1024**2
+                    # Only reset peak stats for current device
+                    torch.cuda.reset_peak_memory_stats(current_device)
+                    start_gpu_mem = (
+                        torch.cuda.memory_allocated(current_device) / 1024**2
+                    )
+
                 start_time = time.time()
 
                 # Call the function to monitor
                 result = func(*args, **kwargs)
 
                 end_time = time.time()
+
                 # CPU memory
                 if memory_enabled and psutil is not None:
                     end_cpu_mem = process.memory_info().rss / 1024**2
-                    # print(f"**** {end_cpu_mem=}")
                     metrics["cpu_memory_usage_mb"] = end_cpu_mem - start_cpu_mem
                     metrics["cpu_memory_rss_mb"] = end_cpu_mem
+
                 # GPU memory (use utility)
                 if memory_enabled and gpu_available:
                     gpu_metrics = get_gpu_memory_metrics()
-                    # update a dict
                     metrics.update(gpu_metrics)
                     metrics["gpu_memory_usage_mb"] = (
                         gpu_metrics["gpu_memory_current_mb"] - start_gpu_mem
                     )
+
                 if timing_enabled:
                     metrics["step_time_sec"] = end_time - start_time
             else:
@@ -242,8 +251,6 @@ def measure_performance(memory_enabled: bool = True, timing_enabled: bool = Fals
             func_name = f"{func.__module__}.{func.__qualname__}"
             _metrics_collector.add_metrics(func_name, metrics)
 
-            # print("==> ", wrapper.metrics)
-            # print("  ==> ", wrapper.last_metrics)
             return result
 
         wrapper.last_metrics = {}

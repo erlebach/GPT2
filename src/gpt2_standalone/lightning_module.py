@@ -124,7 +124,7 @@ class GPTLightningModule(pl.LightningModule):
         """
         if batch_idx >= 0:
             print(f"Training step: Batch {batch_idx}")
-            self.print_gpu_allocation()
+            self.print_gpu_allocation()  # Memory BEFORE forward/backward
 
         # Handle both tuple and list batch formats
         if isinstance(batch, tuple | list) and len(batch) == 2:
@@ -134,7 +134,7 @@ class GPTLightningModule(pl.LightningModule):
                 f"Expected batch to be tuple or list of length 2, got {type(batch)} with length {len(batch) if hasattr(batch, '__len__') else 'unknown'}"
             )
 
-        logits, loss = self(x, y)
+        logits, loss = self(x, y)  # Forward pass
 
         # Log training loss
         self.log(
@@ -148,6 +148,11 @@ class GPTLightningModule(pl.LightningModule):
 
         # Store loss for potential custom logging
         self.train_losses.append(loss.detach().cpu().item())
+
+        # ADD THIS: Print memory AFTER forward/backward
+        if batch_idx >= 0:
+            print(f"After forward/backward - Batch {batch_idx}")
+            self.print_gpu_allocation()
 
         return loss
 
