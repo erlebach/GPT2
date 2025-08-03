@@ -63,12 +63,11 @@ class SimpleModel(LightningModule):
             device_info = f"Device: {self.device}"
             print(f"{rank_info} {device_info}", flush=True)
 
-            # Only print allocation from rank 0 to avoid blocking
-            if self.global_rank == 0:
-                allocs = check_gpu_allocation()
-                print("[GPU Allocation]", flush=True)
-                for alloc in allocs:
-                    print(alloc)
+            # Print allocation from each rank to see what's happening
+            allocs = check_gpu_allocation()
+            print(f"[Rank {self.global_rank}] GPU Allocation:")
+            for alloc in allocs:
+                print(f"[Rank {self.global_rank}] {alloc}")
 
         return loss
 
