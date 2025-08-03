@@ -15,6 +15,7 @@ from gpt2_standalone.gpu_parallelism_checker import (
     create_strategy_from_config,
 )
 from gpt2_standalone.lightning_module import train_with_lightning
+from lightning.pytorch.strategies import DDPStrategy
 from utils.data_utils import get_project_root
 from utils.metrics_extensions import get_metrics_collector, save_metrics_to_csv
 
@@ -104,12 +105,12 @@ def main():
     # Start training with proper strategy and monitoring
     train_with_lightning(
         data_path=get_project_root() / "data" / "input.txt",
-        block_size=1024,
-        batch_size=64,
-        max_steps=10000,
-        n_layer=4,  # Number of super-layers
+        block_size=4096,
+        batch_size=128,
+        max_steps=1000,
+        n_layer=8,  # Number of super-layers
         n_head=8,  # Number of attention heads
-        n_embd=512,  # Embedding dimension
+        n_embd=1024,  # Embedding dimension
         n_blocks_per_super=2,  # NEW: Number of blocks per SuperBlock
         weight_decay=0.2,
         accelerator="gpu",  # Explicitly set to GPU
