@@ -122,7 +122,8 @@ class GPTLightningModule(pl.LightningModule):
         Returns:
             Training loss for the batch.
         """
-        if batch_idx == 0:
+        if batch_idx >= 0:
+            print(f"Training step: Batch {batch_idx}")
             self.print_gpu_allocation()
 
         # Handle both tuple and list batch formats
@@ -166,7 +167,8 @@ class GPTLightningModule(pl.LightningModule):
         Returns:
             Validation loss for the batch.
         """
-        if batch_idx == 0:
+        if batch_idx >= 0:
+            print(f"Validation step: Batch {batch_idx}")
             self.print_gpu_allocation()
 
         # Handle both tuple and list batch formats
