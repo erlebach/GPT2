@@ -1,12 +1,15 @@
 #!/bin/bash
 #SBATCH --job-name=mwe_2gpu
+#SBATCH --output=mwe-%x-%j.out
+#SBATCH --error=mwe-%x-%j.err
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
+#SBATCH --ntasks=2
 #SBATCH --cpus-per-task=2
 #SBATCH --gres=gpu:2
-#SBATCH --time=00:10:00
-#SBATCH --output=mwe_%j.out
-#SBATCH --error=mwe_%j.err
+#SBATCH --mem=60GB
+#SBATCH --time=01:00:00
+#SBATCH -A pilotgpu
+
 
 # Print cluster info for debugging
 echo "=== SLURM Job Info ==="
@@ -20,7 +23,9 @@ echo "======================="
 
 # Load modules and setup environment
 module load cuda/12.1 || echo "Warning: Could not load CUDA module"
+module load webproxy
 pip install torch pytorch-lightning
 
 # Run with srun to properly launch distributed processes
-srun python mwe.py
+python mwe.py
+
