@@ -27,8 +27,7 @@ def check_gpu_allocation():
         allocated = torch.cuda.memory_allocated(device_id)
         return f"GPU {device_id}: {allocated/1e6:.2f} MB allocated"
 
-
-return "No CUDA available"
+    return ["No CUDA available"]
 
 
 def print_environment_info():
