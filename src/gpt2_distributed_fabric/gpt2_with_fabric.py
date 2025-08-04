@@ -415,12 +415,13 @@ def main():
         max_steps=max_steps,
     )
 
+    print(f"--------------------------------")
     print(f"🔍 Fabric device: {fabric.is_global_zero}")
     print(f"🔍 Fabric global_rank: {fabric.global_rank}")
     print(f"🔍 Fabric world_size: {fabric.world_size}")
 
     # Start training
-    if fabric.is_global_zero:
+    if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
         print(f"\n🚀 Starting training with Lightning Fabric:")
         print(f"   GPUs: {num_gpus}")
         print(f"   Device: {fabric.device}")
@@ -432,12 +433,12 @@ def main():
     trainer.train(save_interval=50, val_interval=25)
 
     # Add debug print to see if we reach here
-    if fabric.is_global_zero:
+    if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
         print("🔍 Reached post-training section")
 
     # Post-training verification
     try:
-        if fabric.is_global_zero:
+        if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
             print(f"\n🔍 Post-training GPU verification:")
             post_verification = monitor.verify_multi_gpu_usage()
             print(f"   Status: {post_verification['status']}")
@@ -446,11 +447,11 @@ def main():
             )
             print(f"   Memory Usage: {post_verification['memory_usage']}")
     except Exception as e:
-        if fabric.is_global_zero:
+        if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
             print(f"Error during post-training GPU verification: {e}")
 
     # Save metrics
-    if fabric.is_global_zero:
+    if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
         collector = get_metrics_collector()
         collector.save_all_metrics_to_csv("metrics.csv")
         print("✅ Training completed and metrics saved")
