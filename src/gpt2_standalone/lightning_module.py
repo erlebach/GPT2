@@ -52,6 +52,7 @@ class GPTLightningModule(pl.LightningModule):
         weight_decay: Weight decay for optimizer.
         learning_rate: Initial learning rate.
         warmup_steps: Number of warmup steps for learning rate.
+        max_steps: Maximum number of training steps.
         min_lr_ratio: Ratio of minimum learning rate to maximum learning rate.
     """
 
@@ -61,6 +62,7 @@ class GPTLightningModule(pl.LightningModule):
         weight_decay: float = 0.1,
         learning_rate: float = 6e-2,
         warmup_steps: int = 10,
+        max_steps: int = 500,
         min_lr_ratio: float = 0.1,
     ):
         super().__init__()
@@ -69,6 +71,7 @@ class GPTLightningModule(pl.LightningModule):
         self.weight_decay = weight_decay
         self.learning_rate = learning_rate
         self.warmup_steps = warmup_steps
+        self.max_steps = max_steps
         self.min_lr_ratio = min_lr_ratio
 
         # Initialize the GPT model
@@ -213,11 +216,8 @@ class GPTLightningModule(pl.LightningModule):
 
         return loss
 
-    def configure_optimizers(self, max_steps: int = 500) -> Dict[str, Any]:
+    def configure_optimizers(self) -> Dict[str, Any]:
         """Configure optimizer and learning rate scheduler.
-
-        Args:
-            max_steps: Maximum number of training steps for LR scheduling.
 
         Returns:
             Dictionary containing optimizer and scheduler configuration.
@@ -245,7 +245,7 @@ class GPTLightningModule(pl.LightningModule):
         # Create learning rate scheduler
         scheduler = LambdaLR(
             optimizer,
-            lr_lambda=self._get_lr_lambda(self.warmup_steps, max_steps),
+            lr_lambda=self._get_lr_lambda(),
         )
 
         return {
@@ -257,12 +257,8 @@ class GPTLightningModule(pl.LightningModule):
             },
         }
 
-    def _get_lr_lambda(self, warmup_steps: int, max_steps: int):
+    def _get_lr_lambda(self):
         """Create learning rate lambda function for scheduler.
-
-        Args:
-            warmup_steps: Number of steps for linear warmup.
-            max_steps: Maximum number of training steps.
 
         Returns:
             Lambda function that computes learning rate based on current step.
@@ -272,16 +268,16 @@ class GPTLightningModule(pl.LightningModule):
 
         def lr_lambda(step: int) -> float:
             # Linear warmup for warmup_steps
-            if step < warmup_steps:
-                return max_lr * (step + 1) / warmup_steps
+            if step < self.warmup_steps:
+                return max_lr * (step + 1) / self.warmup_steps
 
             # Return min lr if step > max_steps
-            if step > max_steps:
+            if step > self.max_steps:
                 return min_lr
 
             # Use cosine decay if in between
-            decay_ratio = (step - warmup_steps) / (
-                max_steps - warmup_steps
+            decay_ratio = (step - self.warmup_steps) / (
+                self.max_steps - self.warmup_steps
             )
             assert 0 <= decay_ratio <= 1
             coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
@@ -298,7 +294,7 @@ class GPTLightningModule(pl.LightningModule):
         print(f"   Trainer global_rank: {self.trainer.global_rank}")
         print(f"   Trainer local_rank: {self.trainer.local_rank}")
         print(f"   Trainer is_global_zero: {self.trainer.is_global_zero}")
-        
+
         # Handle Fabric vs Trainer differences
         try:
             num_devices = self.trainer.num_devices
@@ -306,7 +302,7 @@ class GPTLightningModule(pl.LightningModule):
         except AttributeError:
             # When using Fabric, num_devices might not be available
             # Use world_size as a fallback
-            num_devices = getattr(self.trainer, 'world_size', 'unknown')
+            num_devices = getattr(self.trainer, "world_size", "unknown")
             print(f"   Trainer num_devices: {num_devices} (from world_size)")
 
         # Log model parameters
@@ -447,6 +443,7 @@ def train_with_lightning(
         weight_decay=weight_decay,
         learning_rate=learning_rate,
         warmup_steps=warmup_steps,
+        max_steps=max_steps or 1000,
     )
     checkpoint_callback = MetricsModelCheckpoint(
         dirpath="checkpoints",

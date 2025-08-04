@@ -276,8 +276,8 @@ class FabricTrainer:
             if self.step % save_interval == 0 and self.fabric.is_global_zero:
                 self.save_checkpoint(f"checkpoint_step_{self.step}.pt")
 
-            # GPU memory monitoring
-            if self.fabric.is_global_zero and self.step % 50 == 0:
+            # GPU memory monitoring (only for first 2 steps)
+            if self.fabric.is_global_zero and self.step < 2:
                 print_gpu_allocation(self.fabric.global_rank)
 
         # Call on_train_epoch_end hook
