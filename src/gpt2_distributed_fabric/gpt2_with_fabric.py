@@ -379,7 +379,7 @@ def main():
     )
 
     max_steps = 20
-    batch_size = 64
+    batch_size = 32
 
     # Create LightningModule
     lightning_module = GPTLightningModule(
