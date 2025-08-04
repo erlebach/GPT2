@@ -122,8 +122,8 @@ class GPTLightningModule(pl.LightningModule):
         Returns:
             Training loss for the batch.
         """
-        if batch_idx >= 0:
-            print(f"Training step: Batch {batch_idx}")
+        print(f"Training step: Batch {batch_idx}")
+        if batch_idx <= 2:
             print(
                 f"[Rank {self.global_rank}] Batch shape: {batch[0].shape}"
             )  # Add this back!
@@ -139,17 +139,17 @@ class GPTLightningModule(pl.LightningModule):
 
         logits, loss = self(x, y)  # Forward pass
 
-        # Debug loss and gradients
-        if batch_idx == 0:
-            print(f"[Rank {self.global_rank}] Loss: {loss.item()}")
-            print(f"[Rank {self.global_rank}] Loss requires grad: {loss.requires_grad}")
-            print(f"[Rank {self.global_rank}] Loss grad_fn: {loss.grad_fn}")
+        # # Debug loss and gradients
+        # if batch_idx == 0:
+        #     print(f"[Rank {self.global_rank}] Loss: {loss.item()}")
+        #     print(f"[Rank {self.global_rank}] Loss requires grad: {loss.requires_grad}")
+        #     print(f"[Rank {self.global_rank}] Loss grad_fn: {loss.grad_fn}")
 
-            # Check if model parameters require grad
-            for name, param in self.named_parameters():
-                print(
-                    f"[Rank {self.global_rank}] {name} requires_grad: {param.requires_grad}"
-                )
+        #     # Check if model parameters require grad
+        #     for name, param in self.named_parameters():
+        #         print(
+        #             f"[Rank {self.global_rank}] {name} requires_grad: {param.requires_grad}"
+        #         )
 
         # Log training loss
         self.log(
@@ -165,8 +165,8 @@ class GPTLightningModule(pl.LightningModule):
         self.train_losses.append(loss.detach().cpu().item())
 
         # ADD THIS: Print memory AFTER forward/backward
-        if batch_idx >= 0:
-            print(f"After forward/backward - Batch {batch_idx}")
+        if batch_idx <= 2:
+            # print(f"After forward/backward - Batch {batch_idx}")
             self.print_gpu_allocation()
 
         return loss
@@ -349,12 +349,12 @@ class GPTLightningModule(pl.LightningModule):
             self.log("epoch_train_loss", avg_train_loss, sync_dist=True)
             self.train_losses.clear()
 
-        # Check if models are synchronized
-        if torch.distributed.is_initialized():
-            for name, param in self.named_parameters():
-                torch.distributed.broadcast(param.data, src=0)
-                if self.global_rank == 0:
-                    print(f"Parameter {name} synchronized across GPUs")
+        # # Check if models are synchronized
+        # if torch.distributed.is_initialized():
+        #     for name, param in self.named_parameters():
+        #         torch.distributed.broadcast(param.data, src=0)
+        #         if self.global_rank == 0:
+        #             print(f"Parameter {name} synchronized across GPUs")
 
     def on_validation_epoch_end(self) -> None:
         """Called at the end of each validation epoch."""

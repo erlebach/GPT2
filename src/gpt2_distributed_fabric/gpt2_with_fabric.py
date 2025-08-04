@@ -332,6 +332,18 @@ def setup_fabric(
     return fabric
 
 
+def barrier():
+    if torch.distributed.is_initialized():
+        torch.distributed.barrier()
+
+
+def save_metrics(fabric, file_name: str) -> None:
+    if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
+        collector = get_metrics_collector()
+        collector.save_all_metrics_to_csv(file_name)
+        print("✅ Training completed and metrics saved")
+
+
 def main():
     """Main function to run GPT-2 training using Lightning Fabric."""
     # Initialize GPU parallelism checker
@@ -426,9 +438,9 @@ def main():
     )
 
     print(f"--------------------------------")
-    print(f"🔍 Fabric device: {fabric.is_global_zero}")
-    print(f"🔍 Fabric global_rank: {fabric.global_rank}")
-    print(f"🔍 Fabric world_size: {fabric.world_size}")
+    print(f"🔍 Fabric device: {fabric.is_global_zero}", flush=True)
+    print(f"🔍 Fabric global_rank: {fabric.global_rank}", flush=True)
+    print(f"🔍 Fabric world_size: {fabric.world_size}", flush=True)
 
     # Start training
     if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
@@ -443,38 +455,30 @@ def main():
     trainer.train(save_interval=50, val_interval=25)
 
     # Add synchronization barrier to ensure all processes complete training
-    if torch.distributed.is_initialized():
-        torch.distributed.barrier()
-
-    print(f"exit trainer.train, {fabric.global_rank=}")
+    barrier()
 
     # Add debug print to see if we reach here
     if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
         print("🔍 Reached post-training section")
 
-    # Post-training verification
-    try:
-        if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
-            print(f"\n🔍 Post-training GPU verification:")
-            post_verification = monitor.verify_multi_gpu_usage()
-            print(f"   Status: {post_verification['status']}")
-            print(
-                f"   GPUs Used: {post_verification['gpus_used']}/{post_verification['total_gpus']}"
-            )
-            print(f"   Memory Usage: {post_verification['memory_usage']}")
-    except Exception as e:
-        if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
-            print(f"Error during post-training GPU verification: {e}")
+    # # Post-training verification
+    # try:
+    #     if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
+    #         print(f"\n🔍 Post-training GPU verification:")
+    #         post_verification = monitor.verify_multi_gpu_usage()
+    #         print(f"   Status: {post_verification['status']}")
+    #         print(
+    #             f"   GPUs Used: {post_verification['gpus_used']}/{post_verification['total_gpus']}"
+    #         )
+    #         print(f"   Memory Usage: {post_verification['memory_usage']}")
+    # except Exception as e:
+    #     if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
+    #         print(f"Error during post-training GPU verification: {e}")
 
-    # Save metrics
-    if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
-        collector = get_metrics_collector()
-        collector.save_all_metrics_to_csv("metrics.csv")
-        print("✅ Training completed and metrics saved")
+    save_metrics(fabric, "metrics.csv"))
 
     # Final synchronization barrier
-    if torch.distributed.is_initialized():
-        torch.distributed.barrier()
+    barrier()
 
 
 if __name__ == "__main__":
