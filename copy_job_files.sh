@@ -30,7 +30,7 @@ cp run_torchrun_job.slurm "${DEST_FOLDER}/"
 cp run_python_job.slurm "${DEST_FOLDER}/"
 
 if [ -f "metrics.csv" ]; then
-        mv metrics.csv "${DEST_FOLDER}/"
+        cp metrics.csv "${DEST_FOLDER}/"
 else
     echo "Warning: metrics.csv not found"
 fi

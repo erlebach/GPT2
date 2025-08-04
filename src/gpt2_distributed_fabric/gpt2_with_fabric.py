@@ -94,18 +94,14 @@ class FabricTrainer:
         # Setup model, optimizer, and dataloaders with Fabric
         self.lightning_module, self.optimizer = self.fabric.setup(
             self.lightning_module,
-            self.lightning_module.configure_optimizers(max_steps=self.max_steps)[
-                "optimizer"
-            ],
+            self.lightning_module.configure_optimizers()["optimizer"],
         )
         self.train_dataloader, self.val_dataloader = self.fabric.setup_dataloaders(
             self.train_dataloader, self.val_dataloader
         )
 
         # Get scheduler from LightningModule
-        scheduler_config = self.lightning_module.configure_optimizers(
-            max_steps=self.max_steps
-        )["lr_scheduler"]
+        scheduler_config = self.lightning_module.configure_optimizers()["lr_scheduler"]
         self.scheduler = scheduler_config["scheduler"]
 
         # Initialize training state
