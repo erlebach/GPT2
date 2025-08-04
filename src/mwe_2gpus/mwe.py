@@ -68,16 +68,8 @@ class SimpleModel(LightningModule):
 
         # Check and print GPU allocation (first step only)
         if batch_idx == 0:
+            print(f"[Rank {self.global_rank}] Batch shape: {x.shape}")  # Add this!
             self.print_gpu_allocation()
-            # rank_info = f"[Rank {self.global_rank}/{self.trainer.world_size}]"
-            # device_info = f"Device: {self.device}"
-            # print(f"{rank_info} {device_info}", flush=True)
-
-            # # Only print allocation from rank 0 to avoid blocking
-            # allocs = check_gpu_allocation()
-            # print(f"[Rank {self.global_rank}] GPU Allocation:")
-            # for alloc in allocs:
-            #     print(f"[Rank {self.global_rank}] {alloc}", flush=True)
 
         return loss
 

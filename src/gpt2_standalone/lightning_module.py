@@ -139,17 +139,17 @@ class GPTLightningModule(pl.LightningModule):
 
         logits, loss = self(x, y)  # Forward pass
 
-        # Check gradients before and after backward
-        if batch_idx == 0:  # Only on first step
+        # Debug loss and gradients
+        if batch_idx == 0:
             print(f"[Rank {self.global_rank}] Loss: {loss.item()}")
             print(f"[Rank {self.global_rank}] Loss requires grad: {loss.requires_grad}")
+            print(f"[Rank {self.global_rank}] Loss grad_fn: {loss.grad_fn}")
 
-            # Check gradients before backward
+            # Check if model parameters require grad
             for name, param in self.named_parameters():
-                if param.grad is not None:
-                    print(
-                        f"[Rank {self.global_rank}] {name} grad norm before: {param.grad.norm()}"
-                    )
+                print(
+                    f"[Rank {self.global_rank}] {name} requires_grad: {param.requires_grad}"
+                )
 
         # Log training loss
         self.log(
