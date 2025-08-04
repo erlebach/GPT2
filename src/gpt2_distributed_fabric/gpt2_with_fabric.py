@@ -229,7 +229,7 @@ class FabricTrainer:
             print(f"🚀 Starting training for {self.max_steps} steps")
             print(f"   Device: {self.fabric.device}")
             print(f"   World size: {self.fabric.world_size}")
-            print(f"   Precision: {self.fabric.precision}")
+            print(f"   Precision: {self.fabric._precision}")
 
         # Create infinite iterator for training data
         train_iter = iter(self.train_dataloader)
