@@ -415,6 +415,10 @@ def main():
         max_steps=max_steps,
     )
 
+    print(f"🔍 Fabric device: {fabric.is_global_zero}")
+    print(f"🔍 Fabric global_rank: {fabric.global_rank}")
+    print(f"🔍 Fabric world_size: {fabric.world_size}")
+
     # Start training
     if fabric.is_global_zero:
         print(f"\n🚀 Starting training with Lightning Fabric:")
