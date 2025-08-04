@@ -294,7 +294,16 @@ class GPTLightningModule(pl.LightningModule):
         print(f"   Trainer global_rank: {self.trainer.global_rank}")
         print(f"   Trainer local_rank: {self.trainer.local_rank}")
         print(f"   Trainer is_global_zero: {self.trainer.is_global_zero}")
-        print(f"   Trainer num_devices: {self.trainer.num_devices}")
+        
+        # Handle Fabric vs Trainer differences
+        try:
+            num_devices = self.trainer.num_devices
+            print(f"   Trainer num_devices: {num_devices}")
+        except AttributeError:
+            # When using Fabric, num_devices might not be available
+            # Use world_size as a fallback
+            num_devices = getattr(self.trainer, 'world_size', 'unknown')
+            print(f"   Trainer num_devices: {num_devices} (from world_size)")
 
         # Log model parameters
         total_params = sum(p.numel() for p in self.parameters())
