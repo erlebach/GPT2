@@ -221,14 +221,14 @@ class FabricTrainer:
         return avg_val_loss
 
     def train(self, save_interval: int = 100, val_interval: int = 50) -> None:
-        """Main training loop using Fabric.
+        """Train main loop using Fabric.
 
         Args:
             save_interval: How often to save checkpoints (in steps).
             val_interval: How often to run validation (in steps).
 
         """
-        if self.fabric.global_rank == 0:  # Changed from self.fabric.is_global_zero
+        if self.fabric.global_rank == 0:
             print(f"🚀 Starting training for {self.max_steps} steps")
             print(f"   Device: {self.fabric.device}")
             print(f"   World size: {self.fabric.world_size}")
@@ -249,9 +249,7 @@ class FabricTrainer:
             self.step += 1
 
             # Print progress
-            if (
-                self.fabric.global_rank == 0 and self.step % 10 == 0
-            ):  # Changed from self.fabric.is_global_zero
+            if self.fabric.global_rank == 0 and self.step % 10 == 0:
                 lr = self.scheduler.get_last_lr()[0]
                 print(
                     f"Step {self.step}/{self.max_steps}: "
@@ -262,36 +260,28 @@ class FabricTrainer:
             if self.step % val_interval == 0:
                 val_loss = self.validate()
 
-                if (
-                    self.fabric.global_rank == 0
-                ):  # Changed from self.fabric.is_global_zero
+                if self.fabric.global_rank == 0:
                     print(f"Step {self.step}: Validation Loss: {val_loss:.4f}")
 
                 # Save best model
                 if val_loss < self.best_val_loss:
                     self.best_val_loss = val_loss
-                    if (
-                        self.fabric.global_rank == 0
-                    ):  # Changed from self.fabric.is_global_zero
+                    if self.fabric.global_rank == 0:
                         self.save_checkpoint("best_model.pt")
 
             # Regular checkpointing
-            if (
-                self.step % save_interval == 0 and self.fabric.global_rank == 0
-            ):  # Changed from self.fabric.is_global_zero
+            if self.step % save_interval == 0 and self.fabric.global_rank == 0:
                 self.save_checkpoint(f"checkpoint_step_{self.step}.pt")
 
             # GPU memory monitoring (only for first 2 steps)
-            if (
-                self.fabric.global_rank == 0 and self.step < 2
-            ):  # Changed from self.fabric.is_global_zero
+            if self.fabric.global_rank == 0 and self.step < 2:
                 print_gpu_allocation(self.fabric.global_rank)
 
         # Call on_train_epoch_end hook
         self.lightning_module.on_train_epoch_end()
 
         # Final checkpoint
-        if self.fabric.global_rank == 0:  # Changed from self.fabric.is_global_zero
+        if self.fabric.global_rank == 0:
             self.save_checkpoint("final_model.pt")
             print("✅ Training completed!")
 
@@ -302,7 +292,7 @@ def setup_fabric(
     precision: str = "32-true",
     strategy: str = "auto",
 ) -> Fabric:
-    """Setup Lightning Fabric for training.
+    """Set up Lightning Fabric for training.
 
     Args:
         accelerator: Type of accelerator ('auto', 'cpu', 'gpu').
@@ -388,7 +378,8 @@ def main():
         n_blocks_per_super=2,  # Number of blocks per SuperBlock
     )
 
-    max_steps = 10
+    max_steps = 20
+    batch_size = 64
 
     # Create LightningModule
     lightning_module = GPTLightningModule(
@@ -410,8 +401,6 @@ def main():
     train_dataset, val_dataset = torch.utils.data.random_split(
         train_dataset, [n_train, n_val]
     )
-
-    batch_size = 64
 
     # Create dataloaders
     train_dataloader = DataLoader(

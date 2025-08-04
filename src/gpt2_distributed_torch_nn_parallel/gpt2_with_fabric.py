@@ -368,6 +368,8 @@ def main():
     num_gpus = torch.cuda.device_count()
     print(f"🔍 Number of available GPUs: {num_gpus}")
 
+    max_steps = 20
+
     # Setup Fabric
     fabric = setup_fabric(
         accelerator="gpu",
@@ -408,7 +410,7 @@ def main():
         weight_decay=0.2,
         learning_rate=6e-2,
         warmup_steps=10,
-        max_steps=100,
+        max_steps=max_steps,
     )
 
     # Create datasets and dataloaders
@@ -448,7 +450,7 @@ def main():
         val_dataloader=val_dataloader,
         fabric=fabric,
         checkpoint_dir=Path("checkpoints/"),
-        max_steps=100,
+        max_steps=max_steps,
     )
 
     # Start training
