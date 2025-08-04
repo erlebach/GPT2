@@ -60,13 +60,13 @@ class SimpleModel(LightningModule):
         device_info = f"Device: {self.device}"
         print(f"{rank_info} {device_info}", flush=True)
 
-        # Print GPU allocation
+        # Print GPU allocation (original functionality)
         allocs = check_gpu_allocation()
         print(f"[Rank {self.global_rank}] GPU Allocation:")
         for alloc in allocs:
             print(f"[Rank {self.global_rank}] {alloc}", flush=True)
 
-        # Print data info
+        # Print data info (new functionality)
         print(f"[Rank {self.global_rank}] Batch shape: {self.current_batch_shape}")
         print(
             f"[Rank {self.global_rank}] First element: {self.current_first_element:.6f}"
