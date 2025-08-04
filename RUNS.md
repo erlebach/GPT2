@@ -19,7 +19,11 @@ JOBID: 11190300
 - Run a code with fabric that no longer uses Trainer class from Lightning, but stil 
   uses the structure required by LightningModule
 ----------------------------------------------------------------------
-JOBID: 11190348.err
+JOBID: 11190348
 - I added Sync barriers at the end of training to ensure that one of the GPUs does not exit 
   main() without both checking various conditions. Prints only occur for Rank-0 (GPU-0).
+----------------------------------------------------------------------
+JOBID: 11190378
+- confusion due to timings of training_step in lightning module and fabric module. 
+- this led to code cleanup
 ----------------------------------------------------------------------

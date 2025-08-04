@@ -411,10 +411,12 @@ def main():
         train_dataset, [n_train, n_val]
     )
 
+    batch_size = 64
+
     # Create dataloaders
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=32,
+        batch_size=batch_size,
         shuffle=True,
         num_workers=0,
         pin_memory=True,
@@ -422,7 +424,7 @@ def main():
 
     val_dataloader = DataLoader(
         val_dataset,
-        batch_size=32,
+        batch_size=batch_size,
         shuffle=False,
         num_workers=0,
     )
