@@ -477,7 +477,7 @@ def main():
     #     if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
     #         print(f"Error during post-training GPU verification: {e}")
 
-    save_metrics(fabric, "metrics.csv"))
+    save_metrics(fabric, "metrics.csv")
 
     # Final synchronization barrier
     barrier()
