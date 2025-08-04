@@ -365,12 +365,15 @@ def main():
         n_blocks_per_super=2,  # Number of blocks per SuperBlock
     )
 
+    max_steps = 10
+
     # Create LightningModule
     lightning_module = GPTLightningModule(
         config=config,
         weight_decay=0.2,
         learning_rate=6e-2,
         warmup_steps=10,
+        max_steps=max_steps,  # Match the FabricTrainer's max_steps
     )
 
     # Create datasets and dataloaders
@@ -408,7 +411,7 @@ def main():
         val_dataloader=val_dataloader,
         fabric=fabric,
         checkpoint_dir=Path("checkpoints/"),
-        max_steps=10,
+        max_steps=max_steps,
     )
 
     # Start training
