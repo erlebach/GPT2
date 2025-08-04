@@ -441,6 +441,11 @@ def main():
         print(f"   Precision: {precision}")
 
     trainer.train(save_interval=50, val_interval=25)
+
+    # Add synchronization barrier to ensure all processes complete training
+    if torch.distributed.is_initialized():
+        torch.distributed.barrier()
+
     print(f"exit trainer.train, {fabric.global_rank=}")
 
     # Add debug print to see if we reach here
@@ -466,6 +471,10 @@ def main():
         collector = get_metrics_collector()
         collector.save_all_metrics_to_csv("metrics.csv")
         print("✅ Training completed and metrics saved")
+
+    # Final synchronization barrier
+    if torch.distributed.is_initialized():
+        torch.distributed.barrier()
 
 
 if __name__ == "__main__":
