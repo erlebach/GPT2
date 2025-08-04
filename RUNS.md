@@ -15,3 +15,7 @@ across GPUs.
 JOBID: 11189849
 - modify dataloader to handle sharding (I must check docs and provide a link)
 ----------------------------------------------------------------------
+JOBID: 11190300
+- Run a code with fabric that no longer uses Trainer class from Lightning, but stil 
+  uses the structure required by LightningModule
+----------------------------------------------------------------------

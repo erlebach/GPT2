@@ -17,10 +17,11 @@ from gpt2_standalone.gpu_monitor import GPUMonitor
 from gpt2_standalone.gpu_parallelism_checker import GPUParallelismChecker
 from gpt2_standalone.lightning_module import GPTLightningModule
 from lightning.fabric import Fabric
-from lightning.fabric.loggers import TensorBoardLogger
+
+# from lightning.fabric.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
 from utils.data_utils import TextDataset, get_project_root
-from utils.metrics_extensions import get_metrics_collector
+from utils.metrics_extensions import get_metrics_collector, measure_performance
 
 
 def check_gpu_allocation() -> list[str]:
@@ -163,6 +164,7 @@ class FabricTrainer:
             print(f"✅ Checkpoint loaded: {checkpoint_path}")
             print(f"   Resuming from step: {self.step}")
 
+    @measure_performance(memory_enabled=True, timing_enabled=True)
     def training_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> float:
         """Perform a single training step using LightningModule.
 
@@ -302,7 +304,7 @@ def setup_fabric(
 
     """
     # Create logger
-    logger = TensorBoardLogger("runs", name="gpt2_fabric_training")
+    # logger = TensorBoardLogger("runs", name="gpt2_fabric_training")
 
     # Create Fabric
     fabric = Fabric(
@@ -310,7 +312,7 @@ def setup_fabric(
         devices=devices,
         precision=precision,
         strategy=strategy,
-        loggers=logger,
+        # loggers=logger,
     )
 
     # Setup Fabric
@@ -333,7 +335,7 @@ def main():
     fabric = setup_fabric(
         accelerator="gpu",
         devices=num_gpus,
-        precision="32-true",
+        precision="32",
         strategy="ddp" if num_gpus > 1 else "auto",
     )
 
@@ -415,7 +417,9 @@ def main():
         print(f"\n🚀 Starting training with Lightning Fabric:")
         print(f"   GPUs: {num_gpus}")
         print(f"   Device: {fabric.device}")
-        precision = getattr(fabric, '_precision', getattr(fabric, 'precision', 'unknown'))
+        precision = getattr(
+            fabric, "_precision", getattr(fabric, "precision", "unknown")
+        )
         print(f"   Precision: {precision}")
 
     trainer.train(save_interval=50, val_interval=25)
