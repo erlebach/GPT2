@@ -64,8 +64,9 @@ apptainer exec \
         
         # Change to the submit directory and run the Python script
         cd "'"$SLURM_SUBMIT_DIR"'"
-	pip install -e . --user
-	# pip list
+        # pip install -e . --user
+        export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+	    # pip list
 
 	# Launch with torchrun - FIXED PARAMETERS
         torchrun \
