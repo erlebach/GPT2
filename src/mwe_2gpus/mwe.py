@@ -82,6 +82,15 @@ class SimpleModel(LightningModule):
             f"[Rank {self.global_rank}] Target first element: {self.current_target_element:.6f}"
         )
 
+    def check_weight_synchronization(self):
+        """Check if weight matrices are synchronized across GPUs."""
+        print(f"[Rank {self.global_rank}] Weight Synchronization Check:")
+        for name, param in self.named_parameters():
+            if "weight" in name:  # Check weight matrices
+                weight_norm = param.data.norm().item()
+                print(f"[Rank {self.global_rank}] {name} norm: {weight_norm:.6f}")
+                break  # Just check the first weight matrix
+
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
@@ -93,7 +102,10 @@ class SimpleModel(LightningModule):
             self.current_first_element = x[0, 0].item()
             self.current_target_element = y[0, 0].item()
 
-            # Only print from rank 0 to avoid blocking
+            # Check weight synchronization
+            self.check_weight_synchronization()
+
+            # Print from both ranks to compare
             self.print_gpu_allocation()
 
         return loss
