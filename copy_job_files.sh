@@ -59,6 +59,8 @@ else
     echo "Warning: README.md not found"
 fi
 
+cp submit_fabric*.sh "${DEST_FOLDER}"
+
 echo "Files copied successfully to ${DEST_FOLDER}"
 echo "Contents of ${DEST_FOLDER}:"
 ls -la "${DEST_FOLDER}/"
