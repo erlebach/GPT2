@@ -122,12 +122,12 @@ class GPTLightningModule(pl.LightningModule):
         Returns:
             Training loss for the batch.
         """
-        print(f"Training step: Batch {batch_idx}")
-        if batch_idx <= 2:
-            print(
-                f"[Rank {self.global_rank}] Batch shape: {batch[0].shape}"
-            )  # Add this back!
-            self.print_gpu_allocation()  # Memory BEFORE forward/backward
+        print(f"Training step: Batch {batch_idx}, {batch[0].shape=}")
+        # if batch_idx <= 2:
+        #     print(
+        #         f"[Rank {self.global_rank}] Batch shape: {batch[0].shape}"
+        #     )  # Add this back!
+        #     self.print_gpu_allocation()  # Memory BEFORE forward/backward
 
         # Handle both tuple and list batch formats
         if isinstance(batch, tuple | list) and len(batch) == 2:
@@ -165,9 +165,9 @@ class GPTLightningModule(pl.LightningModule):
         self.train_losses.append(loss.detach().cpu().item())
 
         # ADD THIS: Print memory AFTER forward/backward
-        if batch_idx <= 2:
-            # print(f"After forward/backward - Batch {batch_idx}")
-            self.print_gpu_allocation()
+        # if batch_idx <= 2:
+        #     # print(f"After forward/backward - Batch {batch_idx}")
+        #     self.print_gpu_allocation()
 
         return loss
 
@@ -187,9 +187,9 @@ class GPTLightningModule(pl.LightningModule):
         Returns:
             Validation loss for the batch.
         """
-        if batch_idx >= 0:
-            print(f"Validation step: Batch {batch_idx}")
-            self.print_gpu_allocation()
+        # if batch_idx >= 0:
+        #     print(f"Validation step: Batch {batch_idx}")
+        #     self.print_gpu_allocation()
 
         # Handle both tuple and list batch formats
         if isinstance(batch, tuple | list) and len(batch) == 2:
@@ -365,7 +365,7 @@ class GPTLightningModule(pl.LightningModule):
             self.val_losses.clear()
 
 
-@measure_performance(memory_enabled=True, timing_enabled=True)
+# @measure_performance(memory_enabled=True, timing_enabled=True)
 def train_with_lightning(
     data_path: Path | None = None,
     block_size: int = 64,
