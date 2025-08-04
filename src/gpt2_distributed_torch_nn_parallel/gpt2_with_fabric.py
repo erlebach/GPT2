@@ -430,6 +430,7 @@ def main():
         shuffle=True,
         num_workers=0,
         pin_memory=True,
+        drop_last=True,
     )
 
     val_dataloader = DataLoader(
@@ -437,6 +438,7 @@ def main():
         batch_size=32,
         shuffle=False,
         num_workers=0,
+        drop_last=True,
     )
 
     # Create trainer using Fabric
