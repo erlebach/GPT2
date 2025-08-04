@@ -228,7 +228,7 @@ class FabricTrainer:
             val_interval: How often to run validation (in steps).
 
         """
-        if self.fabric.is_global_zero:
+        if self.fabric.global_rank == 0:  # Changed from self.fabric.is_global_zero
             print(f"🚀 Starting training for {self.max_steps} steps")
             print(f"   Device: {self.fabric.device}")
             print(f"   World size: {self.fabric.world_size}")
@@ -249,7 +249,7 @@ class FabricTrainer:
             self.step += 1
 
             # Print progress
-            if self.fabric.is_global_zero and self.step % 10 == 0:
+            if self.fabric.global_rank == 0 and self.step % 10 == 0:  # Changed from self.fabric.is_global_zero
                 lr = self.scheduler.get_last_lr()[0]
                 print(
                     f"Step {self.step}/{self.max_steps}: "
@@ -260,28 +260,28 @@ class FabricTrainer:
             if self.step % val_interval == 0:
                 val_loss = self.validate()
 
-                if self.fabric.is_global_zero:
+                if self.fabric.global_rank == 0:  # Changed from self.fabric.is_global_zero
                     print(f"Step {self.step}: Validation Loss: {val_loss:.4f}")
 
                 # Save best model
                 if val_loss < self.best_val_loss:
                     self.best_val_loss = val_loss
-                    if self.fabric.is_global_zero:
+                    if self.fabric.global_rank == 0:  # Changed from self.fabric.is_global_zero
                         self.save_checkpoint("best_model.pt")
 
             # Regular checkpointing
-            if self.step % save_interval == 0 and self.fabric.is_global_zero:
+            if self.step % save_interval == 0 and self.fabric.global_rank == 0:  # Changed from self.fabric.is_global_zero
                 self.save_checkpoint(f"checkpoint_step_{self.step}.pt")
 
             # GPU memory monitoring (only for first 2 steps)
-            if self.fabric.is_global_zero and self.step < 2:
+            if self.fabric.global_rank == 0 and self.step < 2:  # Changed from self.fabric.is_global_zero
                 print_gpu_allocation(self.fabric.global_rank)
 
         # Call on_train_epoch_end hook
         self.lightning_module.on_train_epoch_end()
 
         # Final checkpoint
-        if self.fabric.is_global_zero:
+        if self.fabric.global_rank == 0:  # Changed from self.fabric.is_global_zero
             self.save_checkpoint("final_model.pt")
             print("✅ Training completed!")
 
@@ -426,11 +426,12 @@ def main():
         print(f"   GPUs: {num_gpus}")
         print(f"   Device: {fabric.device}")
         precision = getattr(
-            fabric, "_precision", getattr(fabric, "precision", "unknown")
+            fabric,device "_precision", getattr(fabric, "precision", "unknown")
         )
         print(f"   Precision: {precision}")
 
     trainer.train(save_interval=50, val_interval=25)
+    print(f"exit trainer.train, {fabric.global_rank=}")
 
     # Add debug print to see if we reach here
     if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
