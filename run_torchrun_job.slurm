@@ -6,7 +6,7 @@
 #SBATCH --ntasks-per-node=2
 #SBATCH --gres=gpu:2
 #SBATCH --mem=60GB
-#SBATCH --time=01:00:00
+#SBATCH --time=00:03:00
 #SBATCH -A pilotgpu
 
 # --ntasks-per-node=2 and --gres=gpu:2 are required for two GPUs on the same node. 
