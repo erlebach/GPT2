@@ -48,6 +48,9 @@ class SimpleModel(LightningModule):
     def __init__(self):
         super().__init__()
         self.layer = nn.Linear(10, 1)
+        self.current_batch_shape = None
+        self.current_first_element = None
+        self.current_target_element = None
 
     def forward(self, x):
         return self.layer(x)
@@ -56,20 +59,36 @@ class SimpleModel(LightningModule):
         rank_info = f"[Rank {self.global_rank}/{self.trainer.world_size}]"
         device_info = f"Device: {self.device}"
         print(f"{rank_info} {device_info}", flush=True)
+
+        # Print GPU allocation
         allocs = check_gpu_allocation()
         print(f"[Rank {self.global_rank}] GPU Allocation:")
         for alloc in allocs:
             print(f"[Rank {self.global_rank}] {alloc}", flush=True)
+
+        # Print data info
+        print(f"[Rank {self.global_rank}] Batch shape: {self.current_batch_shape}")
+        print(
+            f"[Rank {self.global_rank}] First element: {self.current_first_element:.6f}"
+        )
+        print(
+            f"[Rank {self.global_rank}] Target first element: {self.current_target_element:.6f}"
+        )
 
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         loss = nn.functional.mse_loss(y_hat, y)
 
-        # Check and print GPU allocation (first step only)
+        # Store data for printing (first step only)
         if batch_idx == 0:
-            print(f"[Rank {self.global_rank}] Batch shape: {x.shape}")  # Add this!
-            self.print_gpu_allocation()
+            self.current_batch_shape = x.shape
+            self.current_first_element = x[0, 0].item()
+            self.current_target_element = y[0, 0].item()
+
+            # Only print from rank 0 to avoid blocking
+            if self.global_rank == 0:
+                self.print_gpu_allocation()
 
         return loss
 
