@@ -60,6 +60,10 @@ class SimpleModel(LightningModule):
         device_info = f"Device: {self.device}"
         print(f"{rank_info} {device_info}", flush=True)
 
+        # Print strategy info
+        print(f"[Rank {self.global_rank}] Strategy: {self.trainer.strategy}")
+        print(f"[Rank {self.global_rank}] Strategy type: {type(self.trainer.strategy)}")
+
         # Print GPU allocation (original functionality)
         allocs = check_gpu_allocation()
         print(f"[Rank {self.global_rank}] GPU Allocation:")
@@ -87,8 +91,7 @@ class SimpleModel(LightningModule):
             self.current_target_element = y[0, 0].item()
 
             # Only print from rank 0 to avoid blocking
-            if self.global_rank == 0:
-                self.print_gpu_allocation()
+            self.print_gpu_allocation()
 
         return loss
 
@@ -112,13 +115,18 @@ if __name__ == "__main__":
 
     model = SimpleModel()
 
-    # Lightning will detect SLURM environment variables
-    # To force 2 GPUs, set devices=2, accelerator="gpu", strategy="ddp"
+    # Use DDPStrategy object instead of string
+    from lightning.pytorch.strategies import DDPStrategy
+
+    strategy = DDPStrategy(
+        find_unused_parameters=False,
+        static_graph=True,
+    )
+
     trainer = Trainer(
         accelerator="gpu",
         devices=2,
-        strategy="ddp",  # DDP is simplest, standard parallelism
-        # strategy="ddp_spawn",  # DDP is simplest, standard parallelism
+        strategy=strategy,  # Use strategy object instead of "ddp"
         max_epochs=1,
         logger=False,  # suppress logging
         enable_checkpointing=False,
