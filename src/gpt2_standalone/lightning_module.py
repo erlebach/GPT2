@@ -139,10 +139,17 @@ class GPTLightningModule(pl.LightningModule):
 
         logits, loss = self(x, y)  # Forward pass
 
-        # Add gradient debugging
+        # Check gradients before and after backward
         if batch_idx == 0:  # Only on first step
             print(f"[Rank {self.global_rank}] Loss: {loss.item()}")
             print(f"[Rank {self.global_rank}] Loss requires grad: {loss.requires_grad}")
+
+            # Check gradients before backward
+            for name, param in self.named_parameters():
+                if param.grad is not None:
+                    print(
+                        f"[Rank {self.global_rank}] {name} grad norm before: {param.grad.norm()}"
+                    )
 
         # Log training loss
         self.log(
@@ -311,6 +318,20 @@ class GPTLightningModule(pl.LightningModule):
             f"({num_decay_params:,} decay params, {num_nodecay_params:,} no-decay params)"
         )
 
+        # Check NCCL communication
+        if torch.distributed.is_initialized():
+            print(
+                f"[Rank {self.global_rank}] NCCL backend: {torch.distributed.get_backend()}"
+            )
+            print(
+                f"[Rank {self.global_rank}] Process group: {torch.distributed.get_world_size()}"
+            )
+
+            # Test communication
+            tensor = torch.tensor([self.global_rank], device=self.device)
+            torch.distributed.all_reduce(tensor)
+            print(f"[Rank {self.global_rank}] All-reduce test result: {tensor.item()}")
+
     def on_train_epoch_end(self) -> None:
         """Called at the end of each training epoch."""
         # Log epoch-level metrics
@@ -318,6 +339,13 @@ class GPTLightningModule(pl.LightningModule):
             avg_train_loss = sum(self.train_losses) / len(self.train_losses)
             self.log("epoch_train_loss", avg_train_loss, sync_dist=True)
             self.train_losses.clear()
+
+        # Check if models are synchronized
+        if torch.distributed.is_initialized():
+            for name, param in self.named_parameters():
+                torch.distributed.broadcast(param.data, src=0)
+                if self.global_rank == 0:
+                    print(f"Parameter {name} synchronized across GPUs")
 
     def on_validation_epoch_end(self) -> None:
         """Called at the end of each validation epoch."""
