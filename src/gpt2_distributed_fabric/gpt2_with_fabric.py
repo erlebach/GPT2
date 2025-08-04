@@ -182,7 +182,7 @@ class FabricTrainer:
         self.fabric.backward(loss)
         self.optimizer.step()
         self.optimizer.zero_grad()
-        self.scheduler.step()
+        # self.scheduler.step()  # Disabled scheduler
 
         return loss.detach().cpu().item()
 
