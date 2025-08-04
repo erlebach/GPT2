@@ -415,7 +415,8 @@ def main():
         print(f"\n🚀 Starting training with Lightning Fabric:")
         print(f"   GPUs: {num_gpus}")
         print(f"   Device: {fabric.device}")
-        print(f"   Precision: {fabric.precision}")
+        precision = getattr(fabric, '_precision', getattr(fabric, 'precision', 'unknown'))
+        print(f"   Precision: {precision}")
 
     trainer.train(save_interval=50, val_interval=25)
 
