@@ -27,3 +27,23 @@ JOBID: 11190378
 - confusion due to timings of training_step in lightning module and fabric module. 
 - this led to code cleanup
 ----------------------------------------------------------------------
+jOBID: 11190632
+- 2 GPUs
+- batch_size=64
+- print GPU diagnostics for 2 steps
+- max_steps=20
+----------------------------------------------------------------------
+JOBID: 11190640
+- 1 GPU
+- batch_size=64
+- max_steps = 20
+- Times are slightly lower than with 2 GPUs. That makes sense since there is no communication. 
+- One must distinguish inner training_step (lightning) and outer training__step (fabric). 
+  the fabric step to take longer with 2 GPUs but the lightning training_step to be the same since
+  there are no synchronization/communication that will slow things down.
+----------------------------------------------------------------------
+JOBID: 11190645
+- 2 GPUs
+- batch_size = 32
+- max_steps=20
+- Why are there two different times
