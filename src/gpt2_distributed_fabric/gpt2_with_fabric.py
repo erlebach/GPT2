@@ -94,14 +94,18 @@ class FabricTrainer:
         # Setup model, optimizer, and dataloaders with Fabric
         self.lightning_module, self.optimizer = self.fabric.setup(
             self.lightning_module,
-            self.lightning_module.configure_optimizers()["optimizer"],
+            self.lightning_module.configure_optimizers(max_steps=self.max_steps)[
+                "optimizer"
+            ],
         )
         self.train_dataloader, self.val_dataloader = self.fabric.setup_dataloaders(
             self.train_dataloader, self.val_dataloader
         )
 
         # Get scheduler from LightningModule
-        scheduler_config = self.lightning_module.configure_optimizers()["lr_scheduler"]
+        scheduler_config = self.lightning_module.configure_optimizers(
+            max_steps=self.max_steps
+        )["lr_scheduler"]
         self.scheduler = scheduler_config["scheduler"]
 
         # Initialize training state
@@ -371,7 +375,6 @@ def main():
         weight_decay=0.2,
         learning_rate=6e-2,
         warmup_steps=10,
-        max_steps=100,
     )
 
     # Create datasets and dataloaders
@@ -409,7 +412,7 @@ def main():
         val_dataloader=val_dataloader,
         fabric=fabric,
         checkpoint_dir=Path("checkpoints/"),
-        max_steps=100,
+        max_steps=10,
     )
 
     # Start training
