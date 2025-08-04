@@ -75,8 +75,6 @@ def main():
 
     # Force DDP strategy for multi-GPU training
     if num_gpus > 1:
-        from lightning.pytorch.strategies import DDPStrategy
-
         strategy = DDPStrategy(
             find_unused_parameters=False,
             static_graph=True,

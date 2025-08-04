@@ -26,7 +26,7 @@ echo "======================="
 # Load modules and setup environment
 module load cuda/12.1 || echo "Warning: Could not load CUDA module"
 module load webproxy
-pip install torch pytorch-lightning
+pip install torch lightning
 
 # nproc_per_node == number of GPUs (or else won't work)
 torchrun \

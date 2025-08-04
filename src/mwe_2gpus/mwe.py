@@ -8,9 +8,12 @@ Minimum Working Example: PyTorch Lightning with Two GPUs
 
 import os
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
-from pytorch_lightning import LightningModule, Trainer
+from lightning import LightningModule, Trainer
+
+# Use DDPStrategy object instead of string
+from lightning.pytorch.strategies import DDPStrategy
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -114,9 +117,6 @@ if __name__ == "__main__":
     dl = DataLoader(ds, batch_size=64, shuffle=False, num_workers=0)
 
     model = SimpleModel()
-
-    # Use DDPStrategy object instead of string
-    from lightning.pytorch.strategies import DDPStrategy
 
     strategy = DDPStrategy(
         find_unused_parameters=False,
