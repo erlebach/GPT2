@@ -45,10 +45,11 @@ def print_gpu_allocation(rank: int = 0) -> None:
         rank: Process rank for distributed training.
 
     """
+    # Get the actual current device
+    current_device = torch.cuda.current_device() if torch.cuda.is_available() else "CPU"
+
     rank_info = f"[Rank {rank}]"
-    device_info = (
-        f"Device: {torch.cuda.current_device() if torch.cuda.is_available() else 'CPU'}"
-    )
+    device_info = f"Device: {current_device}"
     print(f"{rank_info} {device_info}", flush=True)
     allocs = check_gpu_allocation()
     print(f"[Rank {rank}] GPU Allocation:")
@@ -426,6 +427,10 @@ def main():
 
     trainer.train(save_interval=50, val_interval=25)
 
+    # Add debug print to see if we reach here
+    if fabric.is_global_zero:
+        print("🔍 Reached post-training section")
+
     # Post-training verification
     try:
         if fabric.is_global_zero:
@@ -449,3 +454,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print("✅ Training completed; last statement.")
