@@ -42,8 +42,9 @@ def measure_timing_scaling_experiments(
         "precision_experiment": [],
     }
 
+    # ----------------------------------------------------------------------
     # Experiment 1: Batch Size vs Timing
-    print(f"\n📊 Experiment 1: Batch Size vs Timing")
+    print(f"\n==> 📊 Experiment 1: Batch Size vs Timing")
     batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]
 
     for batch_size in batch_sizes:
@@ -123,8 +124,9 @@ def measure_timing_scaling_experiments(
         torch.cuda.empty_cache()
         gc.collect()
 
+    # ----------------------------------------------------------------------
     # Experiment 2: Model Size vs Timing
-    print(f"\n📊 Experiment 2: Model Size vs Timing")
+    print(f"\n==> 📊 Experiment 2: Model Size vs Timing")
     model_configs = [
         {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny"},
         {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small"},
