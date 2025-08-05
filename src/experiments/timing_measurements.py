@@ -336,6 +336,185 @@ def run_model_size_experiment(
     return model_results
 
 
+def run_sequence_length_experiment(
+    fabric: Fabric,
+    config: dict,
+    batch_size: int,
+    sequence_lengths: list,
+    num_iterations: int = 10,
+    warmup_iterations: int = 5,
+) -> dict:
+    """Run sequence length experiment for a specific model and batch size.
+
+    Args:
+        fabric: Lightning Fabric instance.
+        config: Model configuration dictionary.
+        batch_size: Batch size to use for testing.
+        sequence_lengths: List of sequence lengths to test (ordered from shortest to longest).
+        num_iterations: Number of iterations to measure after warmup.
+        warmup_iterations: Number of warmup iterations.
+
+    Returns:
+        Dictionary containing experiment results for this model across all sequence lengths.
+    """
+    import gc
+    import statistics
+    import time
+
+    print(f"   Testing model: {config['name']}, batch_size: {batch_size}")
+
+    seq_results = {
+        "model_name": config["name"],
+        "config": config,
+        "batch_size": batch_size,
+        "sequence_lengths": [],
+        "status": "success",
+    }
+
+    for seq_len in sequence_lengths:
+        print(f"     Testing sequence length: {seq_len}")
+
+        try:
+            # Clean palate before starting
+            deep_gpu_reset()
+
+            # Create fresh model with current sequence length
+            model_config = GPTConfig(
+                block_size=seq_len,
+                vocab_size=50304,
+                n_layer=config["n_layer"],
+                n_head=config["n_head"],
+                n_embd=config["n_embd"],
+                n_blocks_per_super=2,
+            )
+
+            model = GPTLightningModule(model_config)
+            model, optimizer = fabric.setup(
+                model, model.configure_optimizers()["optimizer"]
+            )
+
+            # Calculate model parameters
+            total_params = sum(p.numel() for p in model.parameters())
+
+            # Create test data with current sequence length
+            x = torch.randint(0, 50304, (batch_size, seq_len), device=fabric.device)
+            y = torch.randint(0, 50304, (batch_size, seq_len), device=fabric.device)
+            test_batch = (x, y)
+
+            # Warmup with clean palate between iterations
+            model.train()
+            for _ in range(warmup_iterations):
+                deep_gpu_reset()
+                _ = model.training_step(test_batch, batch_idx=0)
+
+            # Synchronize GPU
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+
+            # Measure timing over multiple iterations
+            timings = []
+            forward_timings = []
+            backward_timings = []
+
+            for i in range(num_iterations):
+                # Clean palate before each measurement
+                deep_gpu_reset()
+                reset_model_state(model, optimizer)
+
+                # Synchronize before timing
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+
+                # Measure forward pass separately
+                start_time = time.time()
+                with torch.no_grad():
+                    _ = model(x)
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                forward_time = time.time() - start_time
+
+                # Measure full training step
+                start_time = time.time()
+                loss = model.training_step(test_batch, batch_idx=i)
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                end_time = time.time()
+
+                total_time = end_time - start_time
+                backward_time = total_time - forward_time
+
+                timings.append(total_time)
+                forward_timings.append(forward_time)
+                backward_timings.append(backward_time)
+
+            # Calculate statistics
+            avg_time = statistics.mean(timings)
+            std_time = statistics.stdev(timings) if len(timings) > 1 else 0.0
+            avg_forward_time = statistics.mean(forward_timings)
+            avg_backward_time = statistics.mean(backward_timings)
+            time_per_token = avg_time / (batch_size * seq_len)
+
+            seq_result = {
+                "sequence_length": seq_len,
+                "total_params": total_params,
+                "avg_time_sec": avg_time,
+                "std_time_sec": std_time,
+                "avg_forward_time_sec": avg_forward_time,
+                "avg_backward_time_sec": avg_backward_time,
+                "time_per_token_sec": time_per_token,
+                "timings": timings,
+                "forward_timings": forward_timings,
+                "backward_timings": backward_timings,
+                "status": "success",
+            }
+
+            print(
+                f"       Time: {avg_time:.4f}s ± {std_time:.4f}s, "
+                f"Forward: {avg_forward_time:.4f}s, Backward: {avg_backward_time:.4f}s, "
+                f"Per token: {time_per_token*1000:.3f}ms"
+            )
+
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                print(f"       ❌ Out of memory for sequence length {seq_len}")
+                seq_result = {
+                    "sequence_length": seq_len,
+                    "status": "out_of_memory",
+                    "error": str(e),
+                }
+                # Stop testing longer sequences since they will also fail
+                print(
+                    f"       ⚠️  Stopping sequence length tests (will fail for longer sequences)"
+                )
+                seq_results["sequence_lengths"].append(seq_result)
+                break
+            else:
+                print(f"       ❌ Runtime error for sequence length {seq_len}: {e}")
+                seq_result = {
+                    "sequence_length": seq_len,
+                    "status": "runtime_error",
+                    "error": str(e),
+                }
+        except Exception as e:
+            print(f"       ❌ Unexpected error for sequence length {seq_len}: {e}")
+            seq_result = {
+                "sequence_length": seq_len,
+                "status": "error",
+                "error": str(e),
+            }
+        finally:
+            # Clean up
+            try:
+                del model, optimizer, x, y, test_batch
+            except NameError:
+                pass  # Variables might not exist if error occurred early
+            deep_gpu_reset()
+
+        seq_results["sequence_lengths"].append(seq_result)
+
+    return seq_results
+
+
 def measure_timing_scaling_experiments(
     fabric: Fabric,
     num_iterations: int = 10,
@@ -363,6 +542,14 @@ def measure_timing_scaling_experiments(
 
     # Define test configurations
     batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]  # Ordered from smallest to largest
+    sequence_lengths = [
+        128,
+        256,
+        512,
+        1024,
+        2048,
+        4096,
+    ]  # Ordered from shortest to longest
     model_configs = [
         {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny"},
         {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small"},
@@ -376,6 +563,7 @@ def measure_timing_scaling_experiments(
         "device": str(fabric.device),
         "batch_size_experiment": [],
         "model_size_experiment": [],
+        "sequence_length_experiment": [],
     }
 
     # ----------------------------------------------------------------------
@@ -412,8 +600,26 @@ def measure_timing_scaling_experiments(
         )
         results["model_size_experiment"].append(model_result)
 
-        # No need to check if all batch sizes failed - the function will stop early
-        # when it hits the first memory limit
+    # ----------------------------------------------------------------------
+    # Experiment 3: Sequence Length vs Timing (for each model, test all sequence lengths)
+    print(f"\n==> 📊 Experiment 3: Sequence Length vs Timing")
+    print(
+        f"   Testing each model across all sequence lengths (ordered from shortest to longest)"
+    )
+
+    # Use a moderate batch size for sequence length experiments
+    moderate_batch_size = 16
+
+    for config in model_configs:
+        seq_result = run_sequence_length_experiment(
+            fabric,
+            config,
+            moderate_batch_size,
+            sequence_lengths,
+            num_iterations,
+            warmup_iterations,
+        )
+        results["sequence_length_experiment"].append(seq_result)
 
     # Save results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
