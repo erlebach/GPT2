@@ -1579,6 +1579,16 @@ def measure_memory_scaling_experiments(
         {"n_layer": 8, "n_head": 8, "n_embd": 1024, "name": "xlarge"},
     ]
 
+    batch_sizes = [1, 4]  # Ordered from smallest to largest
+    sequence_lengths = [
+        128,
+        256,
+    ]  # Ordered from shortest to longest
+    model_configs = [
+        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small"},
+    ]
+
     results = {
         "timestamp": datetime.now().isoformat(),
         "device": str(fabric.device),
