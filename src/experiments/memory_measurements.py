@@ -12,6 +12,7 @@ def run_batch_size_memory_experiment(
     fabric: Fabric,
     batch_size: int,
     model_configs: list,
+    sequence_lengths: list,
     num_iterations: int = 10,
     warmup_iterations: int = 5,
 ) -> dict:
@@ -39,15 +40,16 @@ def run_batch_size_memory_experiment(
     }
 
     for config in model_configs:
+      for sequence_length in sequence_lengths:
         print(f"     Testing model: {config['name']}")
-
+        print(f"       Testing sequence length: {sequence_length}")
         try:
             # Clean palate before starting
             deep_gpu_reset()
 
             # Create fresh model
             model_config = GPTConfig(
-                block_size=1024,
+                block_size=sequence_length,  # Use variable instead of hardcoded 1024
                 vocab_size=50304,
                 n_layer=config["n_layer"],
                 n_head=config["n_head"],
@@ -64,8 +66,8 @@ def run_batch_size_memory_experiment(
             total_params = sum(p.numel() for p in model.parameters())
 
             # Create test data
-            x = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
+            x = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)  # Use sequence_length
+            y = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)  # Use sequence_length
             test_batch = (x, y)
 
             # Warmup with clean palate between iterations
@@ -422,53 +424,53 @@ def run_model_size_memory_experiment(
             # Clean palate before starting
             deep_gpu_reset()
 
-            # Create fresh model
+        # Create fresh model
             model_config = GPTConfig(
-                block_size=1024,
-                vocab_size=50304,
+            block_size=1024,
+            vocab_size=50304,
                 n_layer=config["n_layer"],
                 n_head=config["n_head"],
                 n_embd=config["n_embd"],
-                n_blocks_per_super=2,
-            )
+            n_blocks_per_super=2,
+        )
 
             model = GPTLightningModule(model_config)
-            model, optimizer = fabric.setup(
-                model, model.configure_optimizers()["optimizer"]
-            )
+        model, optimizer = fabric.setup(
+            model, model.configure_optimizers()["optimizer"]
+        )
 
             # Calculate model parameters
             total_params = sum(p.numel() for p in model.parameters())
 
-            # Create test data
-            x = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            test_batch = (x, y)
+        # Create test data
+        x = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
+        y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
+        test_batch = (x, y)
 
             # Warmup with clean palate between iterations
-            model.train()
-            for _ in range(warmup_iterations):
+        model.train()
+        for _ in range(warmup_iterations):
                 deep_gpu_reset()
-                _ = model.training_step(test_batch, batch_idx=0)
+            _ = model.training_step(test_batch, batch_idx=0)
 
-            # Reset memory stats
-            torch.cuda.reset_peak_memory_stats()
-            start_mem = torch.cuda.memory_allocated()
+        # Reset memory stats
+        torch.cuda.reset_peak_memory_stats()
+        start_mem = torch.cuda.memory_allocated()
 
-            # Measure memory over multiple iterations
-            memory_readings = []
+        # Measure memory over multiple iterations
+        memory_readings = []
             forward_memory_readings = []
             backward_memory_readings = []
             peak_forward_readings = []
             peak_backward_readings = []
 
-            for i in range(num_iterations):
+        for i in range(num_iterations):
                 # Clean palate before each measurement
                 deep_gpu_reset()
                 reset_model_state(model, optimizer)
 
-                # Clear gradients
-                optimizer.zero_grad()
+            # Clear gradients
+            optimizer.zero_grad()
 
                 # Measure forward pass memory
                 torch.cuda.reset_peak_memory_stats()
@@ -495,7 +497,7 @@ def run_model_size_memory_experiment(
                     _ = model(x)
 
                 # Now do backward pass
-                loss = model.training_step(test_batch, batch_idx=i)
+            loss = model.training_step(test_batch, batch_idx=i)
 
                 total_mem = torch.cuda.memory_allocated()
                 peak_total_mem = torch.cuda.max_memory_allocated()
@@ -508,7 +510,7 @@ def run_model_size_memory_experiment(
                 backward_memory_readings.append(backward_mem / 1e9)
                 peak_backward_readings.append(peak_backward_mem / 1e9)
 
-            # Calculate statistics
+        # Calculate statistics
             avg_memory = statistics.mean(memory_readings)
             std_memory = (
                 statistics.stdev(memory_readings) if len(memory_readings) > 1 else 0.0
@@ -518,8 +520,8 @@ def run_model_size_memory_experiment(
             avg_peak_forward_memory = statistics.mean(peak_forward_readings)
             avg_peak_backward_memory = statistics.mean(peak_backward_readings)
 
-            peak_memory = torch.cuda.max_memory_allocated() / 1e9
-            memory_per_sample = avg_memory / batch_size
+        peak_memory = torch.cuda.max_memory_allocated() / 1e9
+        memory_per_sample = avg_memory / batch_size
             memory_per_param = avg_memory / (
                 total_params / 1e6
             )  # GB per million params
@@ -579,9 +581,9 @@ def run_model_size_memory_experiment(
                 "error": str(e),
             }
         finally:
-            # Clean up
+        # Clean up
             try:
-                del model, optimizer, x, y, test_batch
+        del model, optimizer, x, y, test_batch
             except NameError:
                 pass  # Variables might not exist if error occurred early
             deep_gpu_reset()
@@ -600,7 +602,7 @@ def run_model_size_memory_experiment_eval(
 ) -> dict:
     """Run model size memory experiment in evaluation mode."""
 
-    print(f"   Testing model: {config['name']}")
+        print(f"   Testing model: {config['name']}")
 
     model_results = {
         "model_name": config["name"],
@@ -616,53 +618,53 @@ def run_model_size_memory_experiment_eval(
             # Clean palate before starting
             deep_gpu_reset()
 
-            # Create fresh model
-            model_config = GPTConfig(
-                block_size=1024,
-                vocab_size=50304,
-                n_layer=config["n_layer"],
-                n_head=config["n_head"],
-                n_embd=config["n_embd"],
-                n_blocks_per_super=2,
-            )
+        # Create fresh model
+        model_config = GPTConfig(
+            block_size=1024,
+            vocab_size=50304,
+            n_layer=config["n_layer"],
+            n_head=config["n_head"],
+            n_embd=config["n_embd"],
+            n_blocks_per_super=2,
+        )
 
-            model = GPTLightningModule(model_config)
-            model, optimizer = fabric.setup(
-                model, model.configure_optimizers()["optimizer"]
-            )
+        model = GPTLightningModule(model_config)
+        model, optimizer = fabric.setup(
+            model, model.configure_optimizers()["optimizer"]
+        )
 
-            # Calculate model parameters
-            total_params = sum(p.numel() for p in model.parameters())
+        # Calculate model parameters
+        total_params = sum(p.numel() for p in model.parameters())
 
-            # Create test data
-            x = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            test_batch = (x, y)
+        # Create test data
+        x = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
+        y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
+        test_batch = (x, y)
 
             # Warmup with clean palate between iterations
             model.eval()
-            for _ in range(warmup_iterations):
+        for _ in range(warmup_iterations):
                 deep_gpu_reset()
-                _ = model.training_step(test_batch, batch_idx=0)
+            _ = model.training_step(test_batch, batch_idx=0)
 
-            # Reset memory stats
-            torch.cuda.reset_peak_memory_stats()
-            start_mem = torch.cuda.memory_allocated()
+        # Reset memory stats
+        torch.cuda.reset_peak_memory_stats()
+        start_mem = torch.cuda.memory_allocated()
 
-            # Measure memory over multiple iterations
-            memory_readings = []
+        # Measure memory over multiple iterations
+        memory_readings = []
             forward_memory_readings = []
             backward_memory_readings = []
             peak_forward_readings = []
             peak_backward_readings = []
 
-            for i in range(num_iterations):
+        for i in range(num_iterations):
                 # Clean palate before each measurement
                 deep_gpu_reset()
                 reset_model_state(model, optimizer)
 
                 # Clear gradients
-                optimizer.zero_grad()
+            optimizer.zero_grad()
 
                 # Measure forward pass memory
                 torch.cuda.reset_peak_memory_stats()
@@ -689,7 +691,7 @@ def run_model_size_memory_experiment_eval(
                     _ = model(x)
 
                 # Now do backward pass
-                loss = model.training_step(test_batch, batch_idx=i)
+            loss = model.training_step(test_batch, batch_idx=i)
 
                 total_mem = torch.cuda.memory_allocated()
                 peak_total_mem = torch.cuda.max_memory_allocated()
@@ -702,7 +704,7 @@ def run_model_size_memory_experiment_eval(
                 backward_memory_readings.append(backward_mem / 1e9)
                 peak_backward_readings.append(peak_backward_mem / 1e9)
 
-            # Calculate statistics
+        # Calculate statistics
             avg_memory = statistics.mean(memory_readings)
             std_memory = (
                 statistics.stdev(memory_readings) if len(memory_readings) > 1 else 0.0
@@ -712,7 +714,7 @@ def run_model_size_memory_experiment_eval(
             avg_peak_forward_memory = statistics.mean(peak_forward_readings)
             avg_peak_backward_memory = statistics.mean(peak_backward_readings)
 
-            peak_memory = torch.cuda.max_memory_allocated() / 1e9
+        peak_memory = torch.cuda.max_memory_allocated() / 1e9
             memory_per_sample = avg_memory / batch_size
             memory_per_param = avg_memory / (
                 total_params / 1e6
@@ -828,7 +830,7 @@ def run_sequence_length_memory_experiment(
 
             # Create fresh model with current sequence length
             model_config = GPTConfig(
-                block_size=seq_len,
+                block_size=seq_len,  # This varies the sequence length
                 vocab_size=50304,
                 n_layer=config["n_layer"],
                 n_head=config["n_head"],
@@ -979,9 +981,9 @@ def run_sequence_length_memory_experiment(
                 "error": str(e),
             }
         finally:
-            # Clean up
+        # Clean up
             try:
-                del model, optimizer, x, y, test_batch
+        del model, optimizer, x, y, test_batch
             except NameError:
                 pass  # Variables might not exist if error occurred early
             deep_gpu_reset()
@@ -1020,7 +1022,7 @@ def run_sequence_length_memory_experiment_eval(
 
             # Create fresh model with current sequence length
             model_config = GPTConfig(
-                block_size=seq_len,
+                block_size=seq_len,  # This varies the sequence length
                 vocab_size=50304,
                 n_layer=config["n_layer"],
                 n_head=config["n_head"],
@@ -1080,7 +1082,7 @@ def run_sequence_length_memory_experiment_eval(
 
                 # Clean up forward pass
                 del _
-                torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
 
                 # Measure backward pass only (with fresh forward pass)
                 torch.cuda.reset_peak_memory_stats()
@@ -1607,7 +1609,7 @@ def measure_memory_scaling_experiments(
 
     for batch_size in batch_sizes:
         batch_result = run_batch_size_memory_experiment(
-            fabric, batch_size, model_configs, num_iterations, warmup_iterations
+            fabric, batch_size, model_configs, sequence_lengths, num_iterations=num_iterations, warmup_iterations=warmup_iterations
         )
         results["batch_size_experiment"].append(batch_result)
 
