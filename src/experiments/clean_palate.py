@@ -1,3 +1,6 @@
+import torch
+
+
 def reset_gpu_palate():
     """Reset GPU state between measurements."""
     if torch.cuda.is_available():
@@ -20,6 +23,7 @@ def deep_gpu_reset():
 
         # Force garbage collection
         import gc
+
         gc.collect()
 
         # Synchronize
@@ -39,7 +43,7 @@ def reset_model_state(model, optimizer):
     model.train()
 
     # Clear any cached computations
-    if hasattr(model, 'clear_cache'):
+    if hasattr(model, "clear_cache"):
         model.clear_cache()
 
 
@@ -66,9 +70,9 @@ def measure_with_clean_palate(func, *args, **kwargs):
     end_mem = torch.cuda.memory_allocated()
 
     return {
-        'time': end_time - start_time,
-        'memory': end_mem - start_mem,
-        'result': result
+        "time": end_time - start_time,
+        "memory": end_mem - start_mem,
+        "result": result,
     }
 
 
@@ -95,13 +99,9 @@ def measure_batch_size_with_clean_palate(fabric, model, batch_size, num_iteratio
         end_time = time.time()
         end_mem = torch.cuda.memory_allocated()
 
-        results.append({
-            'time': end_time - start_time,
-            'memory': end_mem - start_mem
-        })
+        results.append({"time": end_time - start_time, "memory": end_mem - start_mem})
 
         # Clean up batch
         del x, y, batch, loss
 
     return results
-
