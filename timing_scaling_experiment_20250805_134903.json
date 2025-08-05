@@ -1,0 +1,2964 @@
+{
+  "timestamp": "2025-08-05T13:41:29.212618",
+  "device": "cuda:0",
+  "batch_size_experiment": [
+    {
+      "batch_size": 1,
+      "models": [
+        {
+          "model_name": "tiny",
+          "config": {
+            "n_layer": 1,
+            "n_head": 2,
+            "n_embd": 256,
+            "name": "tiny"
+          },
+          "total_params": 14851842,
+          "avg_time_sec": 0.004368782043457031,
+          "std_time_sec": 8.451063336183335e-05,
+          "min_time_sec": 0.004282474517822266,
+          "max_time_sec": 0.004567146301269531,
+          "time_per_sample_sec": 0.004368782043457031,
+          "timings": [
+            0.004302024841308594,
+            0.004567146301269531,
+            0.0044558048248291016,
+            0.004282474517822266,
+            0.0043528079986572266,
+            0.004372596740722656,
+            0.0043201446533203125,
+            0.004350185394287109,
+            0.004319190979003906,
+            0.004365444183349609
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "small",
+          "config": {
+            "n_layer": 2,
+            "n_head": 4,
+            "n_embd": 512,
+            "name": "small"
+          },
+          "total_params": 39942148,
+          "avg_time_sec": 0.005181121826171875,
+          "std_time_sec": 0.00027898330884959456,
+          "min_time_sec": 0.004776716232299805,
+          "max_time_sec": 0.0056111812591552734,
+          "time_per_sample_sec": 0.005181121826171875,
+          "timings": [
+            0.0056111812591552734,
+            0.0055849552154541016,
+            0.005320072174072266,
+            0.0052947998046875,
+            0.005171537399291992,
+            0.005190849304199219,
+            0.004981517791748047,
+            0.004949092864990234,
+            0.0049304962158203125,
+            0.004776716232299805
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "medium",
+          "config": {
+            "n_layer": 4,
+            "n_head": 4,
+            "n_embd": 1024,
+            "name": "medium"
+          },
+          "total_params": 161732616,
+          "avg_time_sec": 0.010150766372680664,
+          "std_time_sec": 0.00047121610762289985,
+          "min_time_sec": 0.009395360946655273,
+          "max_time_sec": 0.01099705696105957,
+          "time_per_sample_sec": 0.010150766372680664,
+          "timings": [
+            0.01099705696105957,
+            0.010279655456542969,
+            0.010592460632324219,
+            0.010171890258789062,
+            0.010277986526489258,
+            0.00972747802734375,
+            0.010267972946166992,
+            0.009613037109375,
+            0.010184764862060547,
+            0.009395360946655273
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "large",
+          "config": {
+            "n_layer": 6,
+            "n_head": 6,
+            "n_embd": 1024,
+            "name": "large"
+          },
+          "status": "error",
+          "error": ""
+        },
+        {
+          "model_name": "xlarge",
+          "config": {
+            "n_layer": 8,
+            "n_head": 8,
+            "n_embd": 1024,
+            "name": "xlarge"
+          },
+          "total_params": 270903312,
+          "avg_time_sec": 0.028093409538269044,
+          "std_time_sec": 0.023193840475199252,
+          "min_time_sec": 0.018861770629882812,
+          "max_time_sec": 0.09400105476379395,
+          "time_per_sample_sec": 0.028093409538269044,
+          "timings": [
+            0.09400105476379395,
+            0.019872426986694336,
+            0.022229671478271484,
+            0.020992755889892578,
+            0.021375656127929688,
+            0.01964282989501953,
+            0.021897077560424805,
+            0.019379138946533203,
+            0.022681713104248047,
+            0.018861770629882812
+          ],
+          "status": "success"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "batch_size": 2,
+      "models": [
+        {
+          "model_name": "tiny",
+          "config": {
+            "n_layer": 1,
+            "n_head": 2,
+            "n_embd": 256,
+            "name": "tiny"
+          },
+          "total_params": 14851842,
+          "avg_time_sec": 0.00470726490020752,
+          "std_time_sec": 0.0002808236005650657,
+          "min_time_sec": 0.004387378692626953,
+          "max_time_sec": 0.005128383636474609,
+          "time_per_sample_sec": 0.00235363245010376,
+          "timings": [
+            0.004690408706665039,
+            0.004727840423583984,
+            0.004674673080444336,
+            0.005087375640869141,
+            0.005008220672607422,
+            0.00450444221496582,
+            0.004448413848876953,
+            0.005128383636474609,
+            0.004387378692626953,
+            0.0044155120849609375
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "small",
+          "config": {
+            "n_layer": 2,
+            "n_head": 4,
+            "n_embd": 512,
+            "name": "small"
+          },
+          "total_params": 39942148,
+          "avg_time_sec": 0.007855892181396484,
+          "std_time_sec": 0.0007125665922464193,
+          "min_time_sec": 0.0071904659271240234,
+          "max_time_sec": 0.009294748306274414,
+          "time_per_sample_sec": 0.003927946090698242,
+          "timings": [
+            0.009294748306274414,
+            0.00780034065246582,
+            0.007933855056762695,
+            0.008945226669311523,
+            0.007755279541015625,
+            0.007468700408935547,
+            0.007559776306152344,
+            0.0071904659271240234,
+            0.007363319396972656,
+            0.007247209548950195
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "medium",
+          "config": {
+            "n_layer": 4,
+            "n_head": 4,
+            "n_embd": 1024,
+            "name": "medium"
+          },
+          "total_params": 161732616,
+          "avg_time_sec": 0.01328134536743164,
+          "std_time_sec": 0.0003087169855587162,
+          "min_time_sec": 0.012808561325073242,
+          "max_time_sec": 0.01364898681640625,
+          "time_per_sample_sec": 0.00664067268371582,
+          "timings": [
+            0.013625860214233398,
+            0.013199329376220703,
+            0.01364898681640625,
+            0.013048648834228516,
+            0.01353907585144043,
+            0.012950420379638672,
+            0.013529539108276367,
+            0.013035297393798828,
+            0.013427734375,
+            0.012808561325073242
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "large",
+          "config": {
+            "n_layer": 6,
+            "n_head": 6,
+            "n_embd": 1024,
+            "name": "large"
+          },
+          "status": "error",
+          "error": ""
+        },
+        {
+          "model_name": "xlarge",
+          "config": {
+            "n_layer": 8,
+            "n_head": 8,
+            "n_embd": 1024,
+            "name": "xlarge"
+          },
+          "total_params": 270903312,
+          "avg_time_sec": 0.022786855697631836,
+          "std_time_sec": 0.0010286341116386584,
+          "min_time_sec": 0.021463394165039062,
+          "max_time_sec": 0.02396535873413086,
+          "time_per_sample_sec": 0.011393427848815918,
+          "timings": [
+            0.023764371871948242,
+            0.022446155548095703,
+            0.02391505241394043,
+            0.021634817123413086,
+            0.02396535873413086,
+            0.021770477294921875,
+            0.023659706115722656,
+            0.021967649459838867,
+            0.023281574249267578,
+            0.021463394165039062
+          ],
+          "status": "success"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "batch_size": 4,
+      "models": [
+        {
+          "model_name": "tiny",
+          "config": {
+            "n_layer": 1,
+            "n_head": 2,
+            "n_embd": 256,
+            "name": "tiny"
+          },
+          "total_params": 14851842,
+          "avg_time_sec": 0.006347751617431641,
+          "std_time_sec": 0.00016669288626298902,
+          "min_time_sec": 0.00608515739440918,
+          "max_time_sec": 0.0065767765045166016,
+          "time_per_sample_sec": 0.0015869379043579102,
+          "timings": [
+            0.00608515739440918,
+            0.006228923797607422,
+            0.006494998931884766,
+            0.006544589996337891,
+            0.00641322135925293,
+            0.006360769271850586,
+            0.0065767765045166016,
+            0.006225109100341797,
+            0.006382942199707031,
+            0.006165027618408203
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "small",
+          "config": {
+            "n_layer": 2,
+            "n_head": 4,
+            "n_embd": 512,
+            "name": "small"
+          },
+          "total_params": 39942148,
+          "avg_time_sec": 0.009303784370422364,
+          "std_time_sec": 0.0002184059489555784,
+          "min_time_sec": 0.008927106857299805,
+          "max_time_sec": 0.009824991226196289,
+          "time_per_sample_sec": 0.002325946092605591,
+          "timings": [
+            0.008927106857299805,
+            0.009824991226196289,
+            0.009325981140136719,
+            0.00922250747680664,
+            0.009317159652709961,
+            0.009308576583862305,
+            0.00924062728881836,
+            0.009340763092041016,
+            0.00925755500793457,
+            0.009272575378417969
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "medium",
+          "config": {
+            "n_layer": 4,
+            "n_head": 4,
+            "n_embd": 1024,
+            "name": "medium"
+          },
+          "total_params": 161732616,
+          "avg_time_sec": 0.01851074695587158,
+          "std_time_sec": 0.0005009594395638777,
+          "min_time_sec": 0.017837047576904297,
+          "max_time_sec": 0.01933145523071289,
+          "time_per_sample_sec": 0.004627686738967895,
+          "timings": [
+            0.018564701080322266,
+            0.018144845962524414,
+            0.018878936767578125,
+            0.018285751342773438,
+            0.01933145523071289,
+            0.018082380294799805,
+            0.018886804580688477,
+            0.018057584762573242,
+            0.019037961959838867,
+            0.017837047576904297
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "large",
+          "config": {
+            "n_layer": 6,
+            "n_head": 6,
+            "n_embd": 1024,
+            "name": "large"
+          },
+          "status": "error",
+          "error": ""
+        },
+        {
+          "model_name": "xlarge",
+          "config": {
+            "n_layer": 8,
+            "n_head": 8,
+            "n_embd": 1024,
+            "name": "xlarge"
+          },
+          "total_params": 270903312,
+          "avg_time_sec": 0.03192384243011474,
+          "std_time_sec": 0.000739403784729133,
+          "min_time_sec": 0.031019926071166992,
+          "max_time_sec": 0.03280186653137207,
+          "time_per_sample_sec": 0.007980960607528686,
+          "timings": [
+            0.03272700309753418,
+            0.03169751167297363,
+            0.03280186653137207,
+            0.031095504760742188,
+            0.03268146514892578,
+            0.031317949295043945,
+            0.032412052154541016,
+            0.031148910522460938,
+            0.03233623504638672,
+            0.031019926071166992
+          ],
+          "status": "success"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "batch_size": 8,
+      "models": [
+        {
+          "model_name": "tiny",
+          "config": {
+            "n_layer": 1,
+            "n_head": 2,
+            "n_embd": 256,
+            "name": "tiny"
+          },
+          "total_params": 14851842,
+          "avg_time_sec": 0.010448265075683593,
+          "std_time_sec": 0.00031723693784156166,
+          "min_time_sec": 0.009809255599975586,
+          "max_time_sec": 0.010670661926269531,
+          "time_per_sample_sec": 0.0013060331344604491,
+          "timings": [
+            0.009917497634887695,
+            0.009809255599975586,
+            0.010453939437866211,
+            0.010670661926269531,
+            0.01065683364868164,
+            0.010492324829101562,
+            0.010643720626831055,
+            0.01059865951538086,
+            0.010642766952514648,
+            0.010596990585327148
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "small",
+          "config": {
+            "n_layer": 2,
+            "n_head": 4,
+            "n_embd": 512,
+            "name": "small"
+          },
+          "total_params": 39942148,
+          "avg_time_sec": 0.015313005447387696,
+          "std_time_sec": 0.00010388535850916914,
+          "min_time_sec": 0.015136003494262695,
+          "max_time_sec": 0.015446186065673828,
+          "time_per_sample_sec": 0.001914125680923462,
+          "timings": [
+            0.015136003494262695,
+            0.015148639678955078,
+            0.015323400497436523,
+            0.015357494354248047,
+            0.015314817428588867,
+            0.015301704406738281,
+            0.015446186065673828,
+            0.015296459197998047,
+            0.015437841415405273,
+            0.015367507934570312
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "medium",
+          "config": {
+            "n_layer": 4,
+            "n_head": 4,
+            "n_embd": 1024,
+            "name": "medium"
+          },
+          "total_params": 161732616,
+          "avg_time_sec": 0.027362513542175292,
+          "std_time_sec": 0.0005461807659645635,
+          "min_time_sec": 0.02606797218322754,
+          "max_time_sec": 0.027849435806274414,
+          "time_per_sample_sec": 0.0034203141927719115,
+          "timings": [
+            0.02606797218322754,
+            0.02679133415222168,
+            0.027489423751831055,
+            0.027388572692871094,
+            0.027849435806274414,
+            0.027411222457885742,
+            0.027824878692626953,
+            0.02760934829711914,
+            0.02774190902709961,
+            0.027451038360595703
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "large",
+          "config": {
+            "n_layer": 6,
+            "n_head": 6,
+            "n_embd": 1024,
+            "name": "large"
+          },
+          "status": "error",
+          "error": ""
+        },
+        {
+          "model_name": "xlarge",
+          "config": {
+            "n_layer": 8,
+            "n_head": 8,
+            "n_embd": 1024,
+            "name": "xlarge"
+          },
+          "total_params": 270903312,
+          "avg_time_sec": 0.04532191753387451,
+          "std_time_sec": 0.003973218927723909,
+          "min_time_sec": 0.042047977447509766,
+          "max_time_sec": 0.05633735656738281,
+          "time_per_sample_sec": 0.005665239691734314,
+          "timings": [
+            0.042047977447509766,
+            0.05633735656738281,
+            0.04292654991149902,
+            0.04427790641784668,
+            0.044496774673461914,
+            0.044420480728149414,
+            0.0447697639465332,
+            0.04460477828979492,
+            0.04478311538696289,
+            0.04455447196960449
+          ],
+          "status": "success"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "batch_size": 16,
+      "models": [
+        {
+          "model_name": "tiny",
+          "config": {
+            "n_layer": 1,
+            "n_head": 2,
+            "n_embd": 256,
+            "name": "tiny"
+          },
+          "total_params": 14851842,
+          "avg_time_sec": 0.018816113471984863,
+          "std_time_sec": 0.000531863695649697,
+          "min_time_sec": 0.017750024795532227,
+          "max_time_sec": 0.019417762756347656,
+          "time_per_sample_sec": 0.001176007091999054,
+          "timings": [
+            0.017750024795532227,
+            0.0179901123046875,
+            0.01884150505065918,
+            0.01900935173034668,
+            0.018867969512939453,
+            0.019417762756347656,
+            0.018896102905273438,
+            0.0190732479095459,
+            0.019060611724853516,
+            0.019254446029663086
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "small",
+          "config": {
+            "n_layer": 2,
+            "n_head": 4,
+            "n_embd": 512,
+            "name": "small"
+          },
+          "total_params": 39942148,
+          "avg_time_sec": 0.024074959754943847,
+          "std_time_sec": 0.0005046590675738078,
+          "min_time_sec": 0.022687435150146484,
+          "max_time_sec": 0.024426698684692383,
+          "time_per_sample_sec": 0.0015046849846839904,
+          "timings": [
+            0.022687435150146484,
+            0.02434396743774414,
+            0.024294137954711914,
+            0.023936748504638672,
+            0.024208784103393555,
+            0.02414393424987793,
+            0.02419734001159668,
+            0.024426698684692383,
+            0.024232864379882812,
+            0.024277687072753906
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "medium",
+          "config": {
+            "n_layer": 4,
+            "n_head": 4,
+            "n_embd": 1024,
+            "name": "medium"
+          },
+          "total_params": 161732616,
+          "avg_time_sec": 0.052046704292297366,
+          "std_time_sec": 0.0013593783613609187,
+          "min_time_sec": 0.048825979232788086,
+          "max_time_sec": 0.05313682556152344,
+          "time_per_sample_sec": 0.0032529190182685854,
+          "timings": [
+            0.048825979232788086,
+            0.05045723915100098,
+            0.05255484580993652,
+            0.05250716209411621,
+            0.05218362808227539,
+            0.052413225173950195,
+            0.05243420600891113,
+            0.05283713340759277,
+            0.053116798400878906,
+            0.05313682556152344
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "large",
+          "config": {
+            "n_layer": 6,
+            "n_head": 6,
+            "n_embd": 1024,
+            "name": "large"
+          },
+          "status": "error",
+          "error": ""
+        },
+        {
+          "model_name": "xlarge",
+          "config": {
+            "n_layer": 8,
+            "n_head": 8,
+            "n_embd": 1024,
+            "name": "xlarge"
+          },
+          "total_params": 270903312,
+          "avg_time_sec": 0.08510358333587646,
+          "std_time_sec": 0.0021721941909602733,
+          "min_time_sec": 0.08074021339416504,
+          "max_time_sec": 0.0872347354888916,
+          "time_per_sample_sec": 0.005318973958492279,
+          "timings": [
+            0.08074021339416504,
+            0.08436465263366699,
+            0.0872347354888916,
+            0.08667588233947754,
+            0.08344101905822754,
+            0.0865786075592041,
+            0.08388781547546387,
+            0.08705568313598633,
+            0.08390426635742188,
+            0.08715295791625977
+          ],
+          "status": "success"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "batch_size": 32,
+      "models": [
+        {
+          "model_name": "tiny",
+          "config": {
+            "n_layer": 1,
+            "n_head": 2,
+            "n_embd": 256,
+            "name": "tiny"
+          },
+          "total_params": 14851842,
+          "avg_time_sec": 0.0742560863494873,
+          "std_time_sec": 0.09019686937977309,
+          "min_time_sec": 0.03164339065551758,
+          "max_time_sec": 0.27564406394958496,
+          "time_per_sample_sec": 0.002320502698421478,
+          "timings": [
+            0.03229928016662598,
+            0.03201699256896973,
+            0.03207063674926758,
+            0.03236651420593262,
+            0.03197193145751953,
+            0.03164339065551758,
+            0.27564406394958496,
+            0.032713890075683594,
+            0.21007776260375977,
+            0.03175640106201172
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "small",
+          "config": {
+            "n_layer": 2,
+            "n_head": 4,
+            "n_embd": 512,
+            "name": "small"
+          },
+          "total_params": 39942148,
+          "avg_time_sec": 0.09369306564331055,
+          "std_time_sec": 0.08723649391027076,
+          "min_time_sec": 0.03944754600524902,
+          "max_time_sec": 0.25650739669799805,
+          "time_per_sample_sec": 0.0029279083013534547,
+          "timings": [
+            0.0417935848236084,
+            0.04002523422241211,
+            0.20966148376464844,
+            0.03944754600524902,
+            0.1871507167816162,
+            0.03981304168701172,
+            0.04122567176818848,
+            0.25650739669799805,
+            0.04154396057128906,
+            0.039762020111083984
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "medium",
+          "config": {
+            "n_layer": 4,
+            "n_head": 4,
+            "n_embd": 1024,
+            "name": "medium"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 6.14 GiB. GPU 0 has a total capacity of 79.19 GiB of which 810.75 MiB is free. Including non-PyTorch memory, this process has 78.39 GiB memory in use. Of the allocated memory 77.77 GiB is allocated by PyTorch, and 45.46 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        },
+        {
+          "model_name": "large",
+          "config": {
+            "n_layer": 6,
+            "n_head": 6,
+            "n_embd": 1024,
+            "name": "large"
+          },
+          "status": "error",
+          "error": ""
+        },
+        {
+          "model_name": "xlarge",
+          "config": {
+            "n_layer": 8,
+            "n_head": 8,
+            "n_embd": 1024,
+            "name": "xlarge"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 6.14 GiB. GPU 0 has a total capacity of 79.19 GiB of which 6.12 GiB is free. Including non-PyTorch memory, this process has 73.07 GiB memory in use. Of the allocated memory 72.46 GiB is allocated by PyTorch, and 31.80 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "batch_size": 64,
+      "models": [
+        {
+          "model_name": "tiny",
+          "config": {
+            "n_layer": 1,
+            "n_head": 2,
+            "n_embd": 256,
+            "name": "tiny"
+          },
+          "total_params": 14851842,
+          "avg_time_sec": 0.47231996059417725,
+          "std_time_sec": 0.03896948519712385,
+          "min_time_sec": 0.3885047435760498,
+          "max_time_sec": 0.4929819107055664,
+          "time_per_sample_sec": 0.0073799993842840195,
+          "timings": [
+            0.40964698791503906,
+            0.3885047435760498,
+            0.4861011505126953,
+            0.49131250381469727,
+            0.48929858207702637,
+            0.4929819107055664,
+            0.49180054664611816,
+            0.49043941497802734,
+            0.49224281311035156,
+            0.49087095260620117
+          ],
+          "status": "success"
+        },
+        {
+          "model_name": "small",
+          "config": {
+            "n_layer": 2,
+            "n_head": 4,
+            "n_embd": 512,
+            "name": "small"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 12.28 GiB. GPU 0 has a total capacity of 79.19 GiB of which 8.79 GiB is free. Including non-PyTorch memory, this process has 70.39 GiB memory in use. Of the allocated memory 69.75 GiB is allocated by PyTorch, and 61.40 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        },
+        {
+          "model_name": "medium",
+          "config": {
+            "n_layer": 4,
+            "n_head": 4,
+            "n_embd": 1024,
+            "name": "medium"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 12.28 GiB. GPU 0 has a total capacity of 79.19 GiB of which 2.34 GiB is free. Including non-PyTorch memory, this process has 76.85 GiB memory in use. Of the allocated memory 76.23 GiB is allocated by PyTorch, and 34.94 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        },
+        {
+          "model_name": "large",
+          "config": {
+            "n_layer": 6,
+            "n_head": 6,
+            "n_embd": 1024,
+            "name": "large"
+          },
+          "status": "error",
+          "error": ""
+        },
+        {
+          "model_name": "xlarge",
+          "config": {
+            "n_layer": 8,
+            "n_head": 8,
+            "n_embd": 1024,
+            "name": "xlarge"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 768.00 MiB. GPU 0 has a total capacity of 79.19 GiB of which 416.75 MiB is free. Including non-PyTorch memory, this process has 78.78 GiB memory in use. Of the allocated memory 78.16 GiB is allocated by PyTorch, and 34.02 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "batch_size": 128,
+      "models": [
+        {
+          "model_name": "tiny",
+          "config": {
+            "n_layer": 1,
+            "n_head": 2,
+            "n_embd": 256,
+            "name": "tiny"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 24.56 GiB. GPU 0 has a total capacity of 79.19 GiB of which 6.13 GiB is free. Including non-PyTorch memory, this process has 73.05 GiB memory in use. Of the allocated memory 72.42 GiB is allocated by PyTorch, and 53.49 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        },
+        {
+          "model_name": "small",
+          "config": {
+            "n_layer": 2,
+            "n_head": 4,
+            "n_embd": 512,
+            "name": "small"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 24.56 GiB. GPU 0 has a total capacity of 79.19 GiB of which 21.41 GiB is free. Including non-PyTorch memory, this process has 57.77 GiB memory in use. Of the allocated memory 57.15 GiB is allocated by PyTorch, and 37.13 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        },
+        {
+          "model_name": "medium",
+          "config": {
+            "n_layer": 4,
+            "n_head": 4,
+            "n_embd": 1024,
+            "name": "medium"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 1.50 GiB. GPU 0 has a total capacity of 79.19 GiB of which 328.75 MiB is free. Including non-PyTorch memory, this process has 78.87 GiB memory in use. Of the allocated memory 78.24 GiB is allocated by PyTorch, and 45.17 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        },
+        {
+          "model_name": "large",
+          "config": {
+            "n_layer": 6,
+            "n_head": 6,
+            "n_embd": 1024,
+            "name": "large"
+          },
+          "status": "error",
+          "error": ""
+        },
+        {
+          "model_name": "xlarge",
+          "config": {
+            "n_layer": 8,
+            "n_head": 8,
+            "n_embd": 1024,
+            "name": "xlarge"
+          },
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 512.00 MiB. GPU 0 has a total capacity of 79.19 GiB of which 362.75 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 78.20 GiB is allocated by PyTorch, and 52.75 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    }
+  ],
+  "model_size_experiment": [
+    {
+      "model_name": "tiny",
+      "config": {
+        "n_layer": 1,
+        "n_head": 2,
+        "n_embd": 256,
+        "name": "tiny"
+      },
+      "batch_sizes": [
+        {
+          "batch_size": 1,
+          "total_params": 14851842,
+          "avg_time_sec": 0.004330921173095703,
+          "std_time_sec": 0.00025989617457026056,
+          "avg_forward_time_sec": 0.0029740333557128906,
+          "avg_backward_time_sec": 0.0013568878173828125,
+          "time_per_sample_sec": 0.004330921173095703,
+          "timings": [
+            0.0048139095306396484,
+            0.004506111145019531,
+            0.004381656646728516,
+            0.004370927810668945,
+            0.004564762115478516,
+            0.0043642520904541016,
+            0.004105329513549805,
+            0.0041959285736083984,
+            0.004006147384643555,
+            0.004000186920166016
+          ],
+          "forward_timings": [
+            0.004185676574707031,
+            0.003077268600463867,
+            0.0026557445526123047,
+            0.0026853084564208984,
+            0.0044825077056884766,
+            0.0026254653930664062,
+            0.002457141876220703,
+            0.0024695396423339844,
+            0.002767801284790039,
+            0.0023338794708251953
+          ],
+          "backward_timings": [
+            0.0006282329559326172,
+            0.001428842544555664,
+            0.001725912094116211,
+            0.0016856193542480469,
+            8.225440979003906e-05,
+            0.0017387866973876953,
+            0.0016481876373291016,
+            0.001726388931274414,
+            0.0012383460998535156,
+            0.0016663074493408203
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 2,
+          "total_params": 14851842,
+          "avg_time_sec": 0.004463672637939453,
+          "std_time_sec": 0.0002538881376373094,
+          "avg_forward_time_sec": 0.0027341365814208983,
+          "avg_backward_time_sec": 0.0017295360565185546,
+          "time_per_sample_sec": 0.0022318363189697266,
+          "timings": [
+            0.005128145217895508,
+            0.0045130252838134766,
+            0.004323482513427734,
+            0.004449367523193359,
+            0.0043544769287109375,
+            0.0043027400970458984,
+            0.004415035247802734,
+            0.00426793098449707,
+            0.004305601119995117,
+            0.004576921463012695
+          ],
+          "forward_timings": [
+            0.002698659896850586,
+            0.0025110244750976562,
+            0.002566099166870117,
+            0.002897024154663086,
+            0.0027008056640625,
+            0.0027518272399902344,
+            0.0026879310607910156,
+            0.0027387142181396484,
+            0.002875804901123047,
+            0.0029134750366210938
+          ],
+          "backward_timings": [
+            0.002429485321044922,
+            0.0020020008087158203,
+            0.0017573833465576172,
+            0.0015523433685302734,
+            0.0016536712646484375,
+            0.001550912857055664,
+            0.0017271041870117188,
+            0.0015292167663574219,
+            0.0014297962188720703,
+            0.0016634464263916016
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 4,
+          "total_params": 14851842,
+          "avg_time_sec": 0.0065277099609375,
+          "std_time_sec": 0.0004166555017541469,
+          "avg_forward_time_sec": 0.003497314453125,
+          "avg_backward_time_sec": 0.0030303955078125,
+          "time_per_sample_sec": 0.001631927490234375,
+          "timings": [
+            0.007589101791381836,
+            0.006644010543823242,
+            0.006746530532836914,
+            0.00649714469909668,
+            0.006413936614990234,
+            0.006411314010620117,
+            0.0062525272369384766,
+            0.006357431411743164,
+            0.0061376094818115234,
+            0.0062274932861328125
+          ],
+          "forward_timings": [
+            0.0036880970001220703,
+            0.0035104751586914062,
+            0.0036013126373291016,
+            0.003358125686645508,
+            0.003484964370727539,
+            0.0034782886505126953,
+            0.00347900390625,
+            0.0033757686614990234,
+            0.003631114959716797,
+            0.0033659934997558594
+          ],
+          "backward_timings": [
+            0.0039010047912597656,
+            0.003133535385131836,
+            0.0031452178955078125,
+            0.003139019012451172,
+            0.0029289722442626953,
+            0.002933025360107422,
+            0.0027735233306884766,
+            0.0029816627502441406,
+            0.0025064945220947266,
+            0.002861499786376953
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 8,
+          "total_params": 14851842,
+          "avg_time_sec": 0.010511636734008789,
+          "std_time_sec": 0.00026357779873797645,
+          "avg_forward_time_sec": 0.005664348602294922,
+          "avg_backward_time_sec": 0.004847288131713867,
+          "time_per_sample_sec": 0.0013139545917510986,
+          "timings": [
+            0.011124372482299805,
+            0.01034235954284668,
+            0.010555267333984375,
+            0.01034855842590332,
+            0.010545969009399414,
+            0.01027059555053711,
+            0.010634422302246094,
+            0.01029205322265625,
+            0.010688304901123047,
+            0.010314464569091797
+          ],
+          "forward_timings": [
+            0.005530357360839844,
+            0.005335092544555664,
+            0.005774021148681641,
+            0.0056781768798828125,
+            0.00571894645690918,
+            0.005861043930053711,
+            0.005818843841552734,
+            0.00555872917175293,
+            0.00574493408203125,
+            0.005623340606689453
+          ],
+          "backward_timings": [
+            0.005594015121459961,
+            0.005007266998291016,
+            0.004781246185302734,
+            0.004670381546020508,
+            0.004827022552490234,
+            0.0044095516204833984,
+            0.004815578460693359,
+            0.00473332405090332,
+            0.004943370819091797,
+            0.004691123962402344
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 16,
+          "total_params": 14851842,
+          "avg_time_sec": 0.019204020500183105,
+          "std_time_sec": 0.0009706619506652339,
+          "avg_forward_time_sec": 0.010141253471374512,
+          "avg_backward_time_sec": 0.009062767028808594,
+          "time_per_sample_sec": 0.001200251281261444,
+          "timings": [
+            0.021902084350585938,
+            0.01894068717956543,
+            0.01919841766357422,
+            0.018917322158813477,
+            0.019121885299682617,
+            0.018703937530517578,
+            0.019012928009033203,
+            0.018676280975341797,
+            0.019031047821044922,
+            0.018535614013671875
+          ],
+          "forward_timings": [
+            0.012461662292480469,
+            0.008880376815795898,
+            0.011016845703125,
+            0.010072708129882812,
+            0.009736776351928711,
+            0.00953531265258789,
+            0.011085987091064453,
+            0.009221553802490234,
+            0.009794473648071289,
+            0.00960683822631836
+          ],
+          "backward_timings": [
+            0.009440422058105469,
+            0.010060310363769531,
+            0.008181571960449219,
+            0.008844614028930664,
+            0.009385108947753906,
+            0.009168624877929688,
+            0.00792694091796875,
+            0.009454727172851562,
+            0.009236574172973633,
+            0.008928775787353516
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 32,
+          "total_params": 14851842,
+          "avg_time_sec": 0.10205488204956055,
+          "std_time_sec": 0.07461741614242731,
+          "avg_forward_time_sec": 0.017255830764770507,
+          "avg_backward_time_sec": 0.08479905128479004,
+          "time_per_sample_sec": 0.003189215064048767,
+          "timings": [
+            0.03599667549133301,
+            0.03369855880737305,
+            0.03535652160644531,
+            0.0338134765625,
+            0.03774213790893555,
+            0.20395946502685547,
+            0.1317136287689209,
+            0.13233160972595215,
+            0.16688823699951172,
+            0.20904850959777832
+          ],
+          "forward_timings": [
+            0.018222570419311523,
+            0.019427061080932617,
+            0.01700592041015625,
+            0.015574216842651367,
+            0.015111446380615234,
+            0.015600204467773438,
+            0.018821239471435547,
+            0.018303871154785156,
+            0.01863884925842285,
+            0.015852928161621094
+          ],
+          "backward_timings": [
+            0.017774105072021484,
+            0.01427149772644043,
+            0.018350601196289062,
+            0.018239259719848633,
+            0.022630691528320312,
+            0.18835926055908203,
+            0.11289238929748535,
+            0.11402773857116699,
+            0.14824938774108887,
+            0.19319558143615723
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 64,
+          "total_params": 14851842,
+          "avg_time_sec": 0.3864413261413574,
+          "std_time_sec": 0.07006037188022139,
+          "avg_forward_time_sec": 0.34007084369659424,
+          "avg_backward_time_sec": 0.04637048244476318,
+          "time_per_sample_sec": 0.006038145720958709,
+          "timings": [
+            0.4357280731201172,
+            0.5728919506072998,
+            0.3557016849517822,
+            0.35634779930114746,
+            0.3560333251953125,
+            0.36237406730651855,
+            0.3570530414581299,
+            0.354888916015625,
+            0.356644868850708,
+            0.3567495346069336
+          ],
+          "forward_timings": [
+            0.022284269332885742,
+            0.024663209915161133,
+            0.45341038703918457,
+            0.4615755081176758,
+            0.3944282531738281,
+            0.4152340888977051,
+            0.41266560554504395,
+            0.41341614723205566,
+            0.39882826805114746,
+            0.4042026996612549
+          ],
+          "backward_timings": [
+            0.41344380378723145,
+            0.5482287406921387,
+            -0.09770870208740234,
+            -0.10522770881652832,
+            -0.038394927978515625,
+            -0.05286002159118652,
+            -0.05561256408691406,
+            -0.058527231216430664,
+            -0.04218339920043945,
+            -0.04745316505432129
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 128,
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 24.56 GiB. GPU 0 has a total capacity of 79.19 GiB of which 18.37 GiB is free. Including non-PyTorch memory, this process has 60.81 GiB memory in use. Of the allocated memory 60.15 GiB is allocated by PyTorch, and 89.50 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "model_name": "small",
+      "config": {
+        "n_layer": 2,
+        "n_head": 4,
+        "n_embd": 512,
+        "name": "small"
+      },
+      "batch_sizes": [
+        {
+          "batch_size": 1,
+          "total_params": 39942148,
+          "avg_time_sec": 0.005473566055297851,
+          "std_time_sec": 0.0002347732335881275,
+          "avg_forward_time_sec": 0.0032010793685913084,
+          "avg_backward_time_sec": 0.002272486686706543,
+          "time_per_sample_sec": 0.005473566055297851,
+          "timings": [
+            0.005993843078613281,
+            0.00569605827331543,
+            0.0052661895751953125,
+            0.0055348873138427734,
+            0.00528264045715332,
+            0.0055615901947021484,
+            0.005301713943481445,
+            0.005479097366333008,
+            0.005280494689941406,
+            0.005339145660400391
+          ],
+          "forward_timings": [
+            0.0033419132232666016,
+            0.0032808780670166016,
+            0.003044605255126953,
+            0.0032701492309570312,
+            0.003059864044189453,
+            0.0034368038177490234,
+            0.0030558109283447266,
+            0.003263235092163086,
+            0.003070831298828125,
+            0.0031867027282714844
+          ],
+          "backward_timings": [
+            0.0026519298553466797,
+            0.002415180206298828,
+            0.0022215843200683594,
+            0.002264738082885742,
+            0.002222776412963867,
+            0.002124786376953125,
+            0.0022459030151367188,
+            0.002215862274169922,
+            0.0022096633911132812,
+            0.0021524429321289062
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 2,
+          "total_params": 39942148,
+          "avg_time_sec": 0.00732109546661377,
+          "std_time_sec": 0.0007461476386761271,
+          "avg_forward_time_sec": 0.00366358757019043,
+          "avg_backward_time_sec": 0.00365750789642334,
+          "time_per_sample_sec": 0.003660547733306885,
+          "timings": [
+            0.009230852127075195,
+            0.007600069046020508,
+            0.0074770450592041016,
+            0.007325887680053711,
+            0.007307291030883789,
+            0.007116079330444336,
+            0.0069696903228759766,
+            0.00688624382019043,
+            0.00661158561706543,
+            0.006686210632324219
+          ],
+          "forward_timings": [
+            0.004000425338745117,
+            0.003876924514770508,
+            0.0036649703979492188,
+            0.0036618709564208984,
+            0.0036919116973876953,
+            0.003778219223022461,
+            0.0034284591674804688,
+            0.0036351680755615234,
+            0.003453969955444336,
+            0.0034439563751220703
+          ],
+          "backward_timings": [
+            0.005230426788330078,
+            0.00372314453125,
+            0.003812074661254883,
+            0.0036640167236328125,
+            0.0036153793334960938,
+            0.003337860107421875,
+            0.003541231155395508,
+            0.0032510757446289062,
+            0.0031576156616210938,
+            0.0032422542572021484
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 4,
+          "total_params": 39942148,
+          "avg_time_sec": 0.01079995632171631,
+          "std_time_sec": 0.0006796287290351038,
+          "avg_forward_time_sec": 0.005378460884094239,
+          "avg_backward_time_sec": 0.005421495437622071,
+          "time_per_sample_sec": 0.0026999890804290773,
+          "timings": [
+            0.01260232925415039,
+            0.010552167892456055,
+            0.011185169219970703,
+            0.010735273361206055,
+            0.010613441467285156,
+            0.010306835174560547,
+            0.010571718215942383,
+            0.010357379913330078,
+            0.010662078857421875,
+            0.010413169860839844
+          ],
+          "forward_timings": [
+            0.0052640438079833984,
+            0.005204200744628906,
+            0.005652427673339844,
+            0.005387067794799805,
+            0.005352020263671875,
+            0.00531768798828125,
+            0.005290985107421875,
+            0.005464792251586914,
+            0.005494356155395508,
+            0.005357027053833008
+          ],
+          "backward_timings": [
+            0.007338285446166992,
+            0.0053479671478271484,
+            0.005532741546630859,
+            0.00534820556640625,
+            0.005261421203613281,
+            0.004989147186279297,
+            0.005280733108520508,
+            0.004892587661743164,
+            0.005167722702026367,
+            0.005056142807006836
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 8,
+          "total_params": 39942148,
+          "avg_time_sec": 0.01591916084289551,
+          "std_time_sec": 0.0009987130933743122,
+          "avg_forward_time_sec": 0.007583427429199219,
+          "avg_backward_time_sec": 0.008335733413696289,
+          "time_per_sample_sec": 0.0019898951053619386,
+          "timings": [
+            0.018750667572021484,
+            0.015620946884155273,
+            0.015450000762939453,
+            0.015547990798950195,
+            0.015568971633911133,
+            0.015572786331176758,
+            0.015563726425170898,
+            0.015767812728881836,
+            0.015695571899414062,
+            0.015653133392333984
+          ],
+          "forward_timings": [
+            0.0074350833892822266,
+            0.007283210754394531,
+            0.007673025131225586,
+            0.007571220397949219,
+            0.007594108581542969,
+            0.007622241973876953,
+            0.00764155387878418,
+            0.007510185241699219,
+            0.007750511169433594,
+            0.007753133773803711
+          ],
+          "backward_timings": [
+            0.011315584182739258,
+            0.008337736129760742,
+            0.007776975631713867,
+            0.007976770401000977,
+            0.007974863052368164,
+            0.007950544357299805,
+            0.007922172546386719,
+            0.008257627487182617,
+            0.007945060729980469,
+            0.007899999618530273
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 16,
+          "total_params": 39942148,
+          "avg_time_sec": 0.02845597267150879,
+          "std_time_sec": 0.011440587707671509,
+          "avg_forward_time_sec": 0.017480087280273438,
+          "avg_backward_time_sec": 0.010975885391235351,
+          "time_per_sample_sec": 0.0017784982919692993,
+          "timings": [
+            0.02796649932861328,
+            0.02421736717224121,
+            0.024018049240112305,
+            0.02441716194152832,
+            0.02408623695373535,
+            0.026461362838745117,
+            0.02401566505432129,
+            0.024187088012695312,
+            0.024389028549194336,
+            0.06080126762390137
+          ],
+          "forward_timings": [
+            0.012791156768798828,
+            0.013883352279663086,
+            0.014305591583251953,
+            0.014267206192016602,
+            0.014363765716552734,
+            0.014510869979858398,
+            0.014239311218261719,
+            0.014149665832519531,
+            0.014365434646606445,
+            0.04792451858520508
+          ],
+          "backward_timings": [
+            0.015175342559814453,
+            0.010334014892578125,
+            0.009712457656860352,
+            0.010149955749511719,
+            0.009722471237182617,
+            0.011950492858886719,
+            0.00977635383605957,
+            0.010037422180175781,
+            0.01002359390258789,
+            0.012876749038696289
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 32,
+          "total_params": 39942148,
+          "avg_time_sec": 0.21362698078155518,
+          "std_time_sec": 0.06106350975545262,
+          "avg_forward_time_sec": 0.024601125717163087,
+          "avg_backward_time_sec": 0.1890258550643921,
+          "time_per_sample_sec": 0.006675843149423599,
+          "timings": [
+            0.23659348487854004,
+            0.07789325714111328,
+            0.12341165542602539,
+            0.24839234352111816,
+            0.2445058822631836,
+            0.2475736141204834,
+            0.24474525451660156,
+            0.24458742141723633,
+            0.24795961380004883,
+            0.22060728073120117
+          ],
+          "forward_timings": [
+            0.02619624137878418,
+            0.02651047706604004,
+            0.024685382843017578,
+            0.024186134338378906,
+            0.0240933895111084,
+            0.024145841598510742,
+            0.024078369140625,
+            0.024002790451049805,
+            0.024050235748291016,
+            0.024062395095825195
+          ],
+          "backward_timings": [
+            0.21039724349975586,
+            0.05138278007507324,
+            0.09872627258300781,
+            0.22420620918273926,
+            0.2204124927520752,
+            0.22342777252197266,
+            0.22066688537597656,
+            0.22058463096618652,
+            0.2239093780517578,
+            0.19654488563537598
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 64,
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 12.28 GiB. GPU 0 has a total capacity of 79.19 GiB of which 5.82 GiB is free. Including non-PyTorch memory, this process has 73.37 GiB memory in use. Of the allocated memory 72.69 GiB is allocated by PyTorch, and 92.92 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "model_name": "medium",
+      "config": {
+        "n_layer": 4,
+        "n_head": 4,
+        "n_embd": 1024,
+        "name": "medium"
+      },
+      "batch_sizes": [
+        {
+          "batch_size": 1,
+          "total_params": 161732616,
+          "avg_time_sec": 0.01181018352508545,
+          "std_time_sec": 0.0009112218792894883,
+          "avg_forward_time_sec": 0.005494594573974609,
+          "avg_backward_time_sec": 0.00631558895111084,
+          "time_per_sample_sec": 0.01181018352508545,
+          "timings": [
+            0.014226913452148438,
+            0.012183666229248047,
+            0.011955976486206055,
+            0.011627435684204102,
+            0.011579275131225586,
+            0.01147770881652832,
+            0.011482477188110352,
+            0.011196136474609375,
+            0.011260271072387695,
+            0.011111974716186523
+          ],
+          "forward_timings": [
+            0.005659818649291992,
+            0.005616903305053711,
+            0.0056688785552978516,
+            0.0054666996002197266,
+            0.005460262298583984,
+            0.0062291622161865234,
+            0.005393505096435547,
+            0.00493311882019043,
+            0.005562782287597656,
+            0.004954814910888672
+          ],
+          "backward_timings": [
+            0.008567094802856445,
+            0.006566762924194336,
+            0.006287097930908203,
+            0.006160736083984375,
+            0.0061190128326416016,
+            0.005248546600341797,
+            0.006088972091674805,
+            0.006263017654418945,
+            0.005697488784790039,
+            0.0061571598052978516
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 2,
+          "total_params": 161732616,
+          "avg_time_sec": 0.016374850273132326,
+          "std_time_sec": 0.003986142045345083,
+          "avg_forward_time_sec": 0.007640862464904785,
+          "avg_backward_time_sec": 0.008733987808227539,
+          "time_per_sample_sec": 0.008187425136566163,
+          "timings": [
+            0.01838397979736328,
+            0.014591693878173828,
+            0.02654862403869629,
+            0.014059066772460938,
+            0.014793157577514648,
+            0.014627456665039062,
+            0.018594980239868164,
+            0.013875484466552734,
+            0.014430761337280273,
+            0.013843297958374023
+          ],
+          "forward_timings": [
+            0.007731437683105469,
+            0.007422685623168945,
+            0.007805585861206055,
+            0.007599830627441406,
+            0.007794857025146484,
+            0.007599830627441406,
+            0.007679939270019531,
+            0.007497310638427734,
+            0.0077495574951171875,
+            0.007527589797973633
+          ],
+          "backward_timings": [
+            0.010652542114257812,
+            0.007169008255004883,
+            0.018743038177490234,
+            0.006459236145019531,
+            0.006998300552368164,
+            0.007027626037597656,
+            0.010915040969848633,
+            0.006378173828125,
+            0.006681203842163086,
+            0.006315708160400391
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 4,
+          "total_params": 161732616,
+          "avg_time_sec": 0.020485806465148925,
+          "std_time_sec": 0.0023909178951119227,
+          "avg_forward_time_sec": 0.012425589561462402,
+          "avg_backward_time_sec": 0.008060216903686523,
+          "time_per_sample_sec": 0.005121451616287231,
+          "timings": [
+            0.026776790618896484,
+            0.019046545028686523,
+            0.021041393280029297,
+            0.01907038688659668,
+            0.02089715003967285,
+            0.01898670196533203,
+            0.02088475227355957,
+            0.019191265106201172,
+            0.020262479782104492,
+            0.018700599670410156
+          ],
+          "forward_timings": [
+            0.012462854385375977,
+            0.012043237686157227,
+            0.012755870819091797,
+            0.012355327606201172,
+            0.012639045715332031,
+            0.012170076370239258,
+            0.01265263557434082,
+            0.012189626693725586,
+            0.012683868408203125,
+            0.012303352355957031
+          ],
+          "backward_timings": [
+            0.014313936233520508,
+            0.007003307342529297,
+            0.0082855224609375,
+            0.006715059280395508,
+            0.00825810432434082,
+            0.0068166255950927734,
+            0.00823211669921875,
+            0.007001638412475586,
+            0.007578611373901367,
+            0.006397247314453125
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 8,
+          "total_params": 161732616,
+          "avg_time_sec": 0.028632140159606932,
+          "std_time_sec": 0.002285177058637689,
+          "avg_forward_time_sec": 0.022994422912597658,
+          "avg_backward_time_sec": 0.005637717247009277,
+          "time_per_sample_sec": 0.0035790175199508665,
+          "timings": [
+            0.034888267517089844,
+            0.027805805206298828,
+            0.02802252769470215,
+            0.027635812759399414,
+            0.027416229248046875,
+            0.02757096290588379,
+            0.02754497528076172,
+            0.028071165084838867,
+            0.027759313583374023,
+            0.029606342315673828
+          ],
+          "forward_timings": [
+            0.02171635627746582,
+            0.02238631248474121,
+            0.023148775100708008,
+            0.02320718765258789,
+            0.02322697639465332,
+            0.023230314254760742,
+            0.023272991180419922,
+            0.023090600967407227,
+            0.02332162857055664,
+            0.02334308624267578
+          ],
+          "backward_timings": [
+            0.013171911239624023,
+            0.005419492721557617,
+            0.004873752593994141,
+            0.0044286251068115234,
+            0.004189252853393555,
+            0.004340648651123047,
+            0.004271984100341797,
+            0.004980564117431641,
+            0.004437685012817383,
+            0.006263256072998047
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 16,
+          "total_params": 161732616,
+          "avg_time_sec": 0.05404527187347412,
+          "std_time_sec": 0.003437214987420231,
+          "avg_forward_time_sec": 0.043915176391601564,
+          "avg_backward_time_sec": 0.010130095481872558,
+          "time_per_sample_sec": 0.0033778294920921324,
+          "timings": [
+            0.06371450424194336,
+            0.05347728729248047,
+            0.053365230560302734,
+            0.052641868591308594,
+            0.053984880447387695,
+            0.0529322624206543,
+            0.052434444427490234,
+            0.052330732345581055,
+            0.05304241180419922,
+            0.052529096603393555
+          ],
+          "forward_timings": [
+            0.04085993766784668,
+            0.04263114929199219,
+            0.04460906982421875,
+            0.04465818405151367,
+            0.0448150634765625,
+            0.044153451919555664,
+            0.044351816177368164,
+            0.044146060943603516,
+            0.04455232620239258,
+            0.044374704360961914
+          ],
+          "backward_timings": [
+            0.02285456657409668,
+            0.010846138000488281,
+            0.008756160736083984,
+            0.007983684539794922,
+            0.009169816970825195,
+            0.008778810501098633,
+            0.00808262825012207,
+            0.008184671401977539,
+            0.00849008560180664,
+            0.00815439224243164
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 32,
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 6.14 GiB. GPU 0 has a total capacity of 79.19 GiB of which 2.37 GiB is free. Including non-PyTorch memory, this process has 76.81 GiB memory in use. Of the allocated memory 76.07 GiB is allocated by PyTorch, and 160.14 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "model_name": "large",
+      "config": {
+        "n_layer": 6,
+        "n_head": 6,
+        "n_embd": 1024,
+        "name": "large"
+      },
+      "batch_sizes": [
+        {
+          "batch_size": 1,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "batch_size": 2,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "batch_size": 4,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "batch_size": 8,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "batch_size": 16,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "batch_size": 32,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "batch_size": 64,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "batch_size": 128,
+          "status": "error",
+          "error": ""
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "model_name": "xlarge",
+      "config": {
+        "n_layer": 8,
+        "n_head": 8,
+        "n_embd": 1024,
+        "name": "xlarge"
+      },
+      "batch_sizes": [
+        {
+          "batch_size": 1,
+          "total_params": 270903312,
+          "avg_time_sec": 0.022637152671813966,
+          "std_time_sec": 0.001328848685664255,
+          "avg_forward_time_sec": 0.008791327476501465,
+          "avg_backward_time_sec": 0.0138458251953125,
+          "time_per_sample_sec": 0.022637152671813966,
+          "timings": [
+            0.02635788917541504,
+            0.022473573684692383,
+            0.022132158279418945,
+            0.022439241409301758,
+            0.0226590633392334,
+            0.02205061912536621,
+            0.022117137908935547,
+            0.021910905838012695,
+            0.021972179412841797,
+            0.022258758544921875
+          ],
+          "forward_timings": [
+            0.009286880493164062,
+            0.009002208709716797,
+            0.008719205856323242,
+            0.008974552154541016,
+            0.009098529815673828,
+            0.008695602416992188,
+            0.00875091552734375,
+            0.008510112762451172,
+            0.00836324691772461,
+            0.008512020111083984
+          ],
+          "backward_timings": [
+            0.017071008682250977,
+            0.013471364974975586,
+            0.013412952423095703,
+            0.013464689254760742,
+            0.01356053352355957,
+            0.013355016708374023,
+            0.013366222381591797,
+            0.013400793075561523,
+            0.013608932495117188,
+            0.01374673843383789
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 2,
+          "total_params": 270903312,
+          "avg_time_sec": 0.026629161834716798,
+          "std_time_sec": 0.0022445920581401924,
+          "avg_forward_time_sec": 0.013042116165161132,
+          "avg_backward_time_sec": 0.013587045669555663,
+          "time_per_sample_sec": 0.013314580917358399,
+          "timings": [
+            0.03257131576538086,
+            0.025602102279663086,
+            0.025915861129760742,
+            0.025548219680786133,
+            0.026361942291259766,
+            0.02540755271911621,
+            0.0259552001953125,
+            0.025379180908203125,
+            0.028131484985351562,
+            0.025418758392333984
+          ],
+          "forward_timings": [
+            0.012354373931884766,
+            0.012040853500366211,
+            0.012338638305664062,
+            0.01220393180847168,
+            0.012368202209472656,
+            0.01220393180847168,
+            0.012406110763549805,
+            0.012187957763671875,
+            0.020144224166870117,
+            0.012172937393188477
+          ],
+          "backward_timings": [
+            0.020216941833496094,
+            0.013561248779296875,
+            0.01357722282409668,
+            0.013344287872314453,
+            0.01399374008178711,
+            0.013203620910644531,
+            0.013549089431762695,
+            0.01319122314453125,
+            0.007987260818481445,
+            0.013245820999145508
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 4,
+          "total_params": 270903312,
+          "avg_time_sec": 0.03400866985321045,
+          "std_time_sec": 0.004178161636713975,
+          "avg_forward_time_sec": 0.020801520347595213,
+          "avg_backward_time_sec": 0.013207149505615235,
+          "time_per_sample_sec": 0.008502167463302613,
+          "timings": [
+            0.04493117332458496,
+            0.03146624565124512,
+            0.03464388847351074,
+            0.03135228157043457,
+            0.03451800346374512,
+            0.03127241134643555,
+            0.03470444679260254,
+            0.03141498565673828,
+            0.034685373306274414,
+            0.031097888946533203
+          ],
+          "forward_timings": [
+            0.02055644989013672,
+            0.020150423049926758,
+            0.0211641788482666,
+            0.0207364559173584,
+            0.021046161651611328,
+            0.020550966262817383,
+            0.021338224411010742,
+            0.02048468589782715,
+            0.021305561065673828,
+            0.020682096481323242
+          ],
+          "backward_timings": [
+            0.024374723434448242,
+            0.01131582260131836,
+            0.01347970962524414,
+            0.010615825653076172,
+            0.013471841812133789,
+            0.010721445083618164,
+            0.013366222381591797,
+            0.010930299758911133,
+            0.013379812240600586,
+            0.010415792465209961
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 8,
+          "total_params": 270903312,
+          "avg_time_sec": 0.0599400520324707,
+          "std_time_sec": 0.04329584865391403,
+          "avg_forward_time_sec": 0.03937385082244873,
+          "avg_backward_time_sec": 0.02056620121002197,
+          "time_per_sample_sec": 0.0074925065040588375,
+          "timings": [
+            0.05855274200439453,
+            0.04478287696838379,
+            0.04471468925476074,
+            0.04491066932678223,
+            0.04441547393798828,
+            0.18254446983337402,
+            0.044945716857910156,
+            0.044569969177246094,
+            0.04495525360107422,
+            0.04500865936279297
+          ],
+          "forward_timings": [
+            0.037667274475097656,
+            0.03834819793701172,
+            0.03992152214050293,
+            0.03972744941711426,
+            0.03982973098754883,
+            0.039977312088012695,
+            0.038550615310668945,
+            0.039945363998413086,
+            0.0400998592376709,
+            0.03967118263244629
+          ],
+          "backward_timings": [
+            0.020885467529296875,
+            0.00643467903137207,
+            0.0047931671142578125,
+            0.005183219909667969,
+            0.004585742950439453,
+            0.14256715774536133,
+            0.006395101547241211,
+            0.004624605178833008,
+            0.00485539436340332,
+            0.00533747673034668
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 16,
+          "total_params": 270903312,
+          "avg_time_sec": 0.088108491897583,
+          "std_time_sec": 0.0064303088410936895,
+          "avg_forward_time_sec": 0.07754452228546142,
+          "avg_backward_time_sec": 0.010563969612121582,
+          "time_per_sample_sec": 0.005506780743598938,
+          "timings": [
+            0.10624909400939941,
+            0.08563089370727539,
+            0.08583283424377441,
+            0.08509683609008789,
+            0.08568644523620605,
+            0.0863502025604248,
+            0.08750319480895996,
+            0.08505606651306152,
+            0.08747601509094238,
+            0.08620333671569824
+          ],
+          "forward_timings": [
+            0.0727396011352539,
+            0.07538700103759766,
+            0.07872247695922852,
+            0.07820367813110352,
+            0.07848811149597168,
+            0.07809209823608398,
+            0.07881808280944824,
+            0.07689690589904785,
+            0.0789334774017334,
+            0.07916378974914551
+          ],
+          "backward_timings": [
+            0.03350949287414551,
+            0.010243892669677734,
+            0.0071103572845458984,
+            0.006893157958984375,
+            0.007198333740234375,
+            0.00825810432434082,
+            0.008685111999511719,
+            0.008159160614013672,
+            0.008542537689208984,
+            0.007039546966552734
+          ],
+          "status": "success"
+        },
+        {
+          "batch_size": 32,
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 128.00 MiB. GPU 0 has a total capacity of 79.19 GiB of which 52.75 MiB is free. Including non-PyTorch memory, this process has 79.13 GiB memory in use. Of the allocated memory 78.48 GiB is allocated by PyTorch, and 73.51 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    }
+  ],
+  "sequence_length_experiment": [
+    {
+      "model_name": "tiny",
+      "config": {
+        "n_layer": 1,
+        "n_head": 2,
+        "n_embd": 256,
+        "name": "tiny"
+      },
+      "batch_size": 16,
+      "sequence_lengths": [
+        {
+          "sequence_length": 128,
+          "total_params": 14622466,
+          "avg_time_sec": 0.004282474517822266,
+          "std_time_sec": 7.981995444576467e-05,
+          "avg_forward_time_sec": 0.002595663070678711,
+          "avg_backward_time_sec": 0.0016868114471435547,
+          "time_per_token_sec": 2.091052010655403e-06,
+          "timings": [
+            0.004169940948486328,
+            0.00446629524230957,
+            0.004338979721069336,
+            0.004314422607421875,
+            0.0042476654052734375,
+            0.0042231082916259766,
+            0.0042874813079833984,
+            0.0042459964752197266,
+            0.004266023635864258,
+            0.00426483154296875
+          ],
+          "forward_timings": [
+            0.0026412010192871094,
+            0.0026154518127441406,
+            0.0027403831481933594,
+            0.0025789737701416016,
+            0.0025010108947753906,
+            0.0025255680084228516,
+            0.002536773681640625,
+            0.0025436878204345703,
+            0.002730846405029297,
+            0.002542734146118164
+          ],
+          "backward_timings": [
+            0.0015287399291992188,
+            0.0018508434295654297,
+            0.0015985965728759766,
+            0.0017354488372802734,
+            0.0017466545104980469,
+            0.001697540283203125,
+            0.0017507076263427734,
+            0.0017023086547851562,
+            0.001535177230834961,
+            0.001722097396850586
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 256,
+          "total_params": 14655234,
+          "avg_time_sec": 0.0061943292617797855,
+          "std_time_sec": 0.0003119893221943318,
+          "avg_forward_time_sec": 0.0033872842788696287,
+          "avg_backward_time_sec": 0.0028070449829101563,
+          "time_per_token_sec": 1.5122874174267054e-06,
+          "timings": [
+            0.0067691802978515625,
+            0.0067195892333984375,
+            0.006156444549560547,
+            0.006293058395385742,
+            0.006037473678588867,
+            0.006047964096069336,
+            0.005890369415283203,
+            0.006082773208618164,
+            0.005903005599975586,
+            0.006043434143066406
+          ],
+          "forward_timings": [
+            0.003571033477783203,
+            0.00325775146484375,
+            0.003405332565307617,
+            0.0034110546112060547,
+            0.0033483505249023438,
+            0.003414630889892578,
+            0.003355741500854492,
+            0.0033559799194335938,
+            0.003371715545654297,
+            0.0033812522888183594
+          ],
+          "backward_timings": [
+            0.0031981468200683594,
+            0.0034618377685546875,
+            0.0027511119842529297,
+            0.0028820037841796875,
+            0.0026891231536865234,
+            0.002633333206176758,
+            0.002534627914428711,
+            0.0027267932891845703,
+            0.002531290054321289,
+            0.002662181854248047
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 512,
+          "total_params": 14720770,
+          "avg_time_sec": 0.010274577140808105,
+          "std_time_sec": 0.0002454938388821532,
+          "avg_forward_time_sec": 0.005637645721435547,
+          "avg_backward_time_sec": 0.004636931419372559,
+          "time_per_token_sec": 1.2542208423838019e-06,
+          "timings": [
+            0.010946035385131836,
+            0.010108709335327148,
+            0.01024484634399414,
+            0.010196924209594727,
+            0.010152816772460938,
+            0.010210990905761719,
+            0.010294675827026367,
+            0.010207891464233398,
+            0.010092496871948242,
+            0.010290384292602539
+          ],
+          "forward_timings": [
+            0.005266904830932617,
+            0.005316972732543945,
+            0.005773305892944336,
+            0.005633115768432617,
+            0.005717039108276367,
+            0.005736351013183594,
+            0.005689382553100586,
+            0.005811929702758789,
+            0.005635738372802734,
+            0.005795717239379883
+          ],
+          "backward_timings": [
+            0.005679130554199219,
+            0.004791736602783203,
+            0.004471540451049805,
+            0.004563808441162109,
+            0.00443577766418457,
+            0.004474639892578125,
+            0.004605293273925781,
+            0.004395961761474609,
+            0.004456758499145508,
+            0.004494667053222656
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 1024,
+          "total_params": 14851842,
+          "avg_time_sec": 0.018715691566467286,
+          "std_time_sec": 0.00047027168828115106,
+          "avg_forward_time_sec": 0.009397792816162109,
+          "avg_backward_time_sec": 0.009317898750305175,
+          "time_per_token_sec": 1.142315159086138e-06,
+          "timings": [
+            0.020022153854370117,
+            0.018378496170043945,
+            0.01868271827697754,
+            0.01858067512512207,
+            0.018592119216918945,
+            0.018496274948120117,
+            0.0184476375579834,
+            0.01864004135131836,
+            0.018619775772094727,
+            0.018697023391723633
+          ],
+          "forward_timings": [
+            0.008849382400512695,
+            0.008846521377563477,
+            0.009469032287597656,
+            0.009483814239501953,
+            0.00971531867980957,
+            0.009620428085327148,
+            0.00953817367553711,
+            0.0095977783203125,
+            0.009338855743408203,
+            0.009518623352050781
+          ],
+          "backward_timings": [
+            0.011172771453857422,
+            0.009531974792480469,
+            0.009213685989379883,
+            0.009096860885620117,
+            0.008876800537109375,
+            0.008875846862792969,
+            0.008909463882446289,
+            0.00904226303100586,
+            0.009280920028686523,
+            0.009178400039672852
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 2048,
+          "total_params": 15113986,
+          "avg_time_sec": 0.20127031803131104,
+          "std_time_sec": 0.05486372569237189,
+          "avg_forward_time_sec": 0.015347766876220702,
+          "avg_backward_time_sec": 0.18592255115509032,
+          "time_per_token_sec": 6.142282654764131e-06,
+          "timings": [
+            0.22345709800720215,
+            0.08812546730041504,
+            0.1172797679901123,
+            0.23529410362243652,
+            0.23375296592712402,
+            0.23502111434936523,
+            0.2312631607055664,
+            0.23337912559509277,
+            0.23383474349975586,
+            0.18129563331604004
+          ],
+          "forward_timings": [
+            0.015781879425048828,
+            0.015967130661010742,
+            0.015294075012207031,
+            0.015169143676757812,
+            0.014985322952270508,
+            0.01497650146484375,
+            0.01528024673461914,
+            0.014967918395996094,
+            0.015089273452758789,
+            0.015966176986694336
+          ],
+          "backward_timings": [
+            0.20767521858215332,
+            0.0721583366394043,
+            0.10198569297790527,
+            0.2201249599456787,
+            0.21876764297485352,
+            0.22004461288452148,
+            0.21598291397094727,
+            0.21841120719909668,
+            0.21874547004699707,
+            0.1653294563293457
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 4096,
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 12.28 GiB. GPU 0 has a total capacity of 79.19 GiB of which 8.83 GiB is free. Including non-PyTorch memory, this process has 70.35 GiB memory in use. Of the allocated memory 69.61 GiB is allocated by PyTorch, and 163.91 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "model_name": "small",
+      "config": {
+        "n_layer": 2,
+        "n_head": 4,
+        "n_embd": 512,
+        "name": "small"
+      },
+      "batch_size": 16,
+      "sequence_lengths": [
+        {
+          "sequence_length": 128,
+          "total_params": 39483396,
+          "avg_time_sec": 0.006996297836303711,
+          "std_time_sec": 0.0008623603865857242,
+          "avg_forward_time_sec": 0.003726029396057129,
+          "avg_backward_time_sec": 0.003270268440246582,
+          "time_per_token_sec": 3.416161052882671e-06,
+          "timings": [
+            0.007486820220947266,
+            0.008323907852172852,
+            0.006544828414916992,
+            0.007902145385742188,
+            0.006294965744018555,
+            0.007515907287597656,
+            0.0059316158294677734,
+            0.007252931594848633,
+            0.005691051483154297,
+            0.0070188045501708984
+          ],
+          "forward_timings": [
+            0.0041561126708984375,
+            0.004082679748535156,
+            0.0035293102264404297,
+            0.003988981246948242,
+            0.003537416458129883,
+            0.0037300586700439453,
+            0.003532886505126953,
+            0.0035409927368164062,
+            0.0035898685455322266,
+            0.0035719871520996094
+          ],
+          "backward_timings": [
+            0.003330707550048828,
+            0.004241228103637695,
+            0.0030155181884765625,
+            0.003913164138793945,
+            0.002757549285888672,
+            0.003785848617553711,
+            0.0023987293243408203,
+            0.0037119388580322266,
+            0.0021011829376220703,
+            0.003446817398071289
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 256,
+          "total_params": 39548932,
+          "avg_time_sec": 0.00984349250793457,
+          "std_time_sec": 0.0004986292418099372,
+          "avg_forward_time_sec": 0.005084109306335449,
+          "avg_backward_time_sec": 0.004759383201599121,
+          "time_per_token_sec": 2.4031964130699634e-06,
+          "timings": [
+            0.011091470718383789,
+            0.010322332382202148,
+            0.00956273078918457,
+            0.009805917739868164,
+            0.009471654891967773,
+            0.009736299514770508,
+            0.009610414505004883,
+            0.00966644287109375,
+            0.009569168090820312,
+            0.009598493576049805
+          ],
+          "forward_timings": [
+            0.005311727523803711,
+            0.004914045333862305,
+            0.0050373077392578125,
+            0.005126953125,
+            0.0050394535064697266,
+            0.00502324104309082,
+            0.0051288604736328125,
+            0.005141258239746094,
+            0.005048274993896484,
+            0.0050699710845947266
+          ],
+          "backward_timings": [
+            0.005779743194580078,
+            0.005408287048339844,
+            0.004525423049926758,
+            0.004678964614868164,
+            0.004432201385498047,
+            0.0047130584716796875,
+            0.00448155403137207,
+            0.004525184631347656,
+            0.004520893096923828,
+            0.004528522491455078
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 512,
+          "total_params": 39680004,
+          "avg_time_sec": 0.01791198253631592,
+          "std_time_sec": 0.006376828292012057,
+          "avg_forward_time_sec": 0.007678794860839844,
+          "avg_backward_time_sec": 0.010233187675476074,
+          "time_per_token_sec": 2.186521305702627e-06,
+          "timings": [
+            0.018082141876220703,
+            0.015765666961669922,
+            0.015613794326782227,
+            0.015827178955078125,
+            0.01533961296081543,
+            0.015657901763916016,
+            0.03592205047607422,
+            0.015758275985717773,
+            0.015347719192504883,
+            0.015805482864379883
+          ],
+          "forward_timings": [
+            0.007395029067993164,
+            0.006939411163330078,
+            0.007164955139160156,
+            0.007445573806762695,
+            0.007403135299682617,
+            0.007326364517211914,
+            0.011600971221923828,
+            0.007089853286743164,
+            0.007236957550048828,
+            0.007185697555541992
+          ],
+          "backward_timings": [
+            0.010687112808227539,
+            0.008826255798339844,
+            0.00844883918762207,
+            0.00838160514831543,
+            0.007936477661132812,
+            0.008331537246704102,
+            0.02432107925415039,
+            0.00866842269897461,
+            0.008110761642456055,
+            0.00861978530883789
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 1024,
+          "total_params": 39942148,
+          "avg_time_sec": 0.02584848403930664,
+          "std_time_sec": 0.0010654609204132932,
+          "avg_forward_time_sec": 0.013950943946838379,
+          "avg_backward_time_sec": 0.011897540092468262,
+          "time_per_token_sec": 1.5776662621647119e-06,
+          "timings": [
+            0.02815699577331543,
+            0.025778532028198242,
+            0.024550437927246094,
+            0.02636265754699707,
+            0.025920629501342773,
+            0.026070594787597656,
+            0.024760723114013672,
+            0.026070117950439453,
+            0.026199817657470703,
+            0.024614334106445312
+          ],
+          "forward_timings": [
+            0.012871026992797852,
+            0.013428449630737305,
+            0.014069080352783203,
+            0.014113903045654297,
+            0.01433873176574707,
+            0.014186620712280273,
+            0.014226198196411133,
+            0.014041900634765625,
+            0.01421499252319336,
+            0.014018535614013672
+          ],
+          "backward_timings": [
+            0.015285968780517578,
+            0.012350082397460938,
+            0.01048135757446289,
+            0.012248754501342773,
+            0.011581897735595703,
+            0.011883974075317383,
+            0.010534524917602539,
+            0.012028217315673828,
+            0.011984825134277344,
+            0.01059579849243164
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 2048,
+          "total_params": 40466436,
+          "avg_time_sec": 0.2160353660583496,
+          "std_time_sec": 0.08164231721090437,
+          "avg_forward_time_sec": 0.03066287040710449,
+          "avg_backward_time_sec": 0.1853724956512451,
+          "time_per_token_sec": 6.5928761614486575e-06,
+          "timings": [
+            0.3097212314605713,
+            0.09732317924499512,
+            0.25258588790893555,
+            0.22928261756896973,
+            0.04880189895629883,
+            0.2979438304901123,
+            0.22995543479919434,
+            0.23428940773010254,
+            0.23133254051208496,
+            0.22911763191223145
+          ],
+          "forward_timings": [
+            0.03031182289123535,
+            0.030579328536987305,
+            0.03041672706604004,
+            0.030164241790771484,
+            0.03049492835998535,
+            0.03377580642700195,
+            0.03009653091430664,
+            0.03018474578857422,
+            0.030461788177490234,
+            0.030142784118652344
+          ],
+          "backward_timings": [
+            0.27940940856933594,
+            0.06674385070800781,
+            0.2221691608428955,
+            0.19911837577819824,
+            0.018306970596313477,
+            0.26416802406311035,
+            0.1998589038848877,
+            0.20410466194152832,
+            0.20087075233459473,
+            0.1989748477935791
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 4096,
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 12.28 GiB. GPU 0 has a total capacity of 79.19 GiB of which 4.58 GiB is free. Including non-PyTorch memory, this process has 74.60 GiB memory in use. Of the allocated memory 73.91 GiB is allocated by PyTorch, and 111.96 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "model_name": "medium",
+      "config": {
+        "n_layer": 4,
+        "n_head": 4,
+        "n_embd": 1024,
+        "name": "medium"
+      },
+      "batch_size": 16,
+      "sequence_lengths": [
+        {
+          "sequence_length": 128,
+          "total_params": 160815112,
+          "avg_time_sec": 0.02298002243041992,
+          "std_time_sec": 0.023240105917984477,
+          "avg_forward_time_sec": 0.006670355796813965,
+          "avg_backward_time_sec": 0.016309666633605956,
+          "time_per_token_sec": 1.1220714077353477e-05,
+          "timings": [
+            0.01876354217529297,
+            0.017438411712646484,
+            0.08899950981140137,
+            0.015323877334594727,
+            0.014502763748168945,
+            0.0153045654296875,
+            0.014314651489257812,
+            0.015310049057006836,
+            0.014342784881591797,
+            0.015500068664550781
+          ],
+          "forward_timings": [
+            0.006640434265136719,
+            0.007431983947753906,
+            0.008112907409667969,
+            0.006463766098022461,
+            0.006229877471923828,
+            0.006545066833496094,
+            0.006140470504760742,
+            0.006449222564697266,
+            0.006235361099243164,
+            0.0064544677734375
+          ],
+          "backward_timings": [
+            0.01212310791015625,
+            0.010006427764892578,
+            0.0808866024017334,
+            0.008860111236572266,
+            0.008272886276245117,
+            0.008759498596191406,
+            0.00817418098449707,
+            0.00886082649230957,
+            0.008107423782348633,
+            0.009045600891113281
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 256,
+          "total_params": 160946184,
+          "avg_time_sec": 0.020418620109558104,
+          "std_time_sec": 0.002573005213661727,
+          "avg_forward_time_sec": 0.010409212112426758,
+          "avg_backward_time_sec": 0.010009407997131348,
+          "time_per_token_sec": 4.985014675185084e-06,
+          "timings": [
+            0.02659893035888672,
+            0.01844310760498047,
+            0.021274805068969727,
+            0.01854705810546875,
+            0.021298885345458984,
+            0.018447160720825195,
+            0.021252155303955078,
+            0.018543720245361328,
+            0.021271944046020508,
+            0.018508434295654297
+          ],
+          "forward_timings": [
+            0.010434389114379883,
+            0.009894132614135742,
+            0.010679006576538086,
+            0.010180950164794922,
+            0.010706186294555664,
+            0.010305166244506836,
+            0.010718584060668945,
+            0.010205268859863281,
+            0.010623931884765625,
+            0.010344505310058594
+          ],
+          "backward_timings": [
+            0.016164541244506836,
+            0.008548974990844727,
+            0.01059579849243164,
+            0.008366107940673828,
+            0.01059269905090332,
+            0.00814199447631836,
+            0.010533571243286133,
+            0.008338451385498047,
+            0.010648012161254883,
+            0.008163928985595703
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 512,
+          "total_params": 161208328,
+          "avg_time_sec": 0.030071353912353514,
+          "std_time_sec": 0.006760269954858092,
+          "avg_forward_time_sec": 0.021371126174926758,
+          "avg_backward_time_sec": 0.008700227737426758,
+          "time_per_token_sec": 3.670819569379091e-06,
+          "timings": [
+            0.035576820373535156,
+            0.02721238136291504,
+            0.027411699295043945,
+            0.04777336120605469,
+            0.02751445770263672,
+            0.027104854583740234,
+            0.02712845802307129,
+            0.026924610137939453,
+            0.027164459228515625,
+            0.026902437210083008
+          ],
+          "forward_timings": [
+            0.019219160079956055,
+            0.019845247268676758,
+            0.020673274993896484,
+            0.021958351135253906,
+            0.0289762020111084,
+            0.020780563354492188,
+            0.02034473419189453,
+            0.02070927619934082,
+            0.020488500595092773,
+            0.020715951919555664
+          ],
+          "backward_timings": [
+            0.0163576602935791,
+            0.007367134094238281,
+            0.006738424301147461,
+            0.02581501007080078,
+            -0.0014617443084716797,
+            0.006324291229248047,
+            0.006783723831176758,
+            0.006215333938598633,
+            0.0066759586334228516,
+            0.006186485290527344
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 1024,
+          "total_params": 161732616,
+          "avg_time_sec": 0.05885910987854004,
+          "std_time_sec": 0.016113623197760933,
+          "avg_forward_time_sec": 0.043787384033203126,
+          "avg_backward_time_sec": 0.015071725845336914,
+          "time_per_token_sec": 3.59247496817261e-06,
+          "timings": [
+            0.06314802169799805,
+            0.052564382553100586,
+            0.05382394790649414,
+            0.05242133140563965,
+            0.1037435531616211,
+            0.05261683464050293,
+            0.052720069885253906,
+            0.05236935615539551,
+            0.052793264389038086,
+            0.052390336990356445
+          ],
+          "forward_timings": [
+            0.041146278381347656,
+            0.042412757873535156,
+            0.04451799392700195,
+            0.04436635971069336,
+            0.04484272003173828,
+            0.042185068130493164,
+            0.04458165168762207,
+            0.04451107978820801,
+            0.044708967208862305,
+            0.0446009635925293
+          ],
+          "backward_timings": [
+            0.02200174331665039,
+            0.01015162467956543,
+            0.009305953979492188,
+            0.008054971694946289,
+            0.05890083312988281,
+            0.010431766510009766,
+            0.008138418197631836,
+            0.0078582763671875,
+            0.008084297180175781,
+            0.0077893733978271484
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 2048,
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 6.14 GiB. GPU 0 has a total capacity of 79.19 GiB of which 3.28 GiB is free. Including non-PyTorch memory, this process has 75.91 GiB memory in use. Of the allocated memory 75.23 GiB is allocated by PyTorch, and 94.30 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "model_name": "large",
+      "config": {
+        "n_layer": 6,
+        "n_head": 6,
+        "n_embd": 1024,
+        "name": "large"
+      },
+      "batch_size": 16,
+      "sequence_lengths": [
+        {
+          "sequence_length": 128,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "sequence_length": 256,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "sequence_length": 512,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "sequence_length": 1024,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "sequence_length": 2048,
+          "status": "error",
+          "error": ""
+        },
+        {
+          "sequence_length": 4096,
+          "status": "error",
+          "error": ""
+        }
+      ],
+      "status": "success"
+    },
+    {
+      "model_name": "xlarge",
+      "config": {
+        "n_layer": 8,
+        "n_head": 8,
+        "n_embd": 1024,
+        "name": "xlarge"
+      },
+      "batch_size": 16,
+      "sequence_lengths": [
+        {
+          "sequence_length": 128,
+          "total_params": 269985808,
+          "avg_time_sec": 0.027219104766845702,
+          "std_time_sec": 0.002327336799458398,
+          "avg_forward_time_sec": 0.010015559196472169,
+          "avg_backward_time_sec": 0.017203545570373534,
+          "time_per_token_sec": 1.3290578499436378e-05,
+          "timings": [
+            0.033284902572631836,
+            0.027629613876342773,
+            0.024979352951049805,
+            0.026958227157592773,
+            0.02555251121520996,
+            0.027396202087402344,
+            0.025785207748413086,
+            0.02732229232788086,
+            0.02588033676147461,
+            0.027402400970458984
+          ],
+          "forward_timings": [
+            0.010107994079589844,
+            0.010086297988891602,
+            0.009815216064453125,
+            0.009835004806518555,
+            0.009830474853515625,
+            0.010175466537475586,
+            0.009873390197753906,
+            0.010193586349487305,
+            0.010106801986694336,
+            0.010131359100341797
+          ],
+          "backward_timings": [
+            0.023176908493041992,
+            0.017543315887451172,
+            0.01516413688659668,
+            0.01712322235107422,
+            0.015722036361694336,
+            0.017220735549926758,
+            0.01591181755065918,
+            0.017128705978393555,
+            0.015773534774780273,
+            0.017271041870117188
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 256,
+          "total_params": 270116880,
+          "avg_time_sec": 0.03569858074188233,
+          "std_time_sec": 0.004889437352682699,
+          "avg_forward_time_sec": 0.017439985275268556,
+          "avg_backward_time_sec": 0.01825859546661377,
+          "time_per_token_sec": 8.715473813936115e-06,
+          "timings": [
+            0.04782724380493164,
+            0.032288312911987305,
+            0.037244558334350586,
+            0.03191995620727539,
+            0.03698468208312988,
+            0.03207540512084961,
+            0.036974191665649414,
+            0.032630205154418945,
+            0.036882638931274414,
+            0.032158613204956055
+          ],
+          "forward_timings": [
+            0.017232418060302734,
+            0.016847848892211914,
+            0.017874479293823242,
+            0.017166614532470703,
+            0.01770162582397461,
+            0.017284393310546875,
+            0.017625093460083008,
+            0.017433881759643555,
+            0.0179293155670166,
+            0.017304182052612305
+          ],
+          "backward_timings": [
+            0.030594825744628906,
+            0.01544046401977539,
+            0.019370079040527344,
+            0.014753341674804688,
+            0.019283056259155273,
+            0.014791011810302734,
+            0.019349098205566406,
+            0.01519632339477539,
+            0.018953323364257812,
+            0.01485443115234375
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 512,
+          "total_params": 270379024,
+          "avg_time_sec": 0.04556605815887451,
+          "std_time_sec": 0.005613786814659598,
+          "avg_forward_time_sec": 0.03518795967102051,
+          "avg_backward_time_sec": 0.010378098487854004,
+          "time_per_token_sec": 5.562262958846986e-06,
+          "timings": [
+            0.06152510643005371,
+            0.04399251937866211,
+            0.04426407814025879,
+            0.04368400573730469,
+            0.044107913970947266,
+            0.043471336364746094,
+            0.04373812675476074,
+            0.04347395896911621,
+            0.04384922981262207,
+            0.04355430603027344
+          ],
+          "forward_timings": [
+            0.033415794372558594,
+            0.034006357192993164,
+            0.03579545021057129,
+            0.03542208671569824,
+            0.03537893295288086,
+            0.035477638244628906,
+            0.035750627517700195,
+            0.03542780876159668,
+            0.035645484924316406,
+            0.03555941581726074
+          ],
+          "backward_timings": [
+            0.028109312057495117,
+            0.009986162185668945,
+            0.0084686279296875,
+            0.008261919021606445,
+            0.008728981018066406,
+            0.007993698120117188,
+            0.007987499237060547,
+            0.008046150207519531,
+            0.008203744888305664,
+            0.007994890213012695
+          ],
+          "status": "success"
+        },
+        {
+          "sequence_length": 1024,
+          "status": "out_of_memory",
+          "error": "CUDA out of memory. Tried to allocate 256.00 MiB. GPU 0 has a total capacity of 79.19 GiB of which 44.75 MiB is free. Including non-PyTorch memory, this process has 79.14 GiB memory in use. Of the allocated memory 78.38 GiB is allocated by PyTorch, and 188.51 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+        }
+      ],
+      "status": "success"
+    }
+  ]
+}
