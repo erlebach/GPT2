@@ -434,7 +434,6 @@ filtered_metrics = round_floats(filtered_metrics)
 
 if not filtered_metrics:
     print("No memory or timing metrics to save.")
-    return
 
 file_exists = os.path.isfile(filename)
 with open(filename, "a", newline="") as f:
