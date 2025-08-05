@@ -1,3 +1,11 @@
+"""Memory measurement experiments."""
+
+import torch
+from gpt2_standalone.lightning_module import GPTLightningModule
+from gpt2_standalone.model import GPTConfig
+from lightning import Fabric
+
+
 def measure_memory_scaling_experiments(
     fabric: Fabric,
     num_iterations: int = 10,
@@ -25,11 +33,11 @@ def measure_memory_scaling_experiments(
     print(f"   Measurement iterations: {num_iterations}")
 
     results = {
-        'timestamp': datetime.now().isoformat(),
-        'device': str(fabric.device),
-        'batch_size_experiment': [],
-        'model_size_experiment': [],
-        'precision_experiment': []
+        "timestamp": datetime.now().isoformat(),
+        "device": str(fabric.device),
+        "batch_size_experiment": [],
+        "model_size_experiment": [],
+        "precision_experiment": [],
     }
 
     # Experiment 1: Batch Size vs Memory
@@ -54,7 +62,9 @@ def measure_memory_scaling_experiments(
         )
 
         model = GPTLightningModule(config)
-        model, optimizer = fabric.setup(model, model.configure_optimizers()["optimizer"])
+        model, optimizer = fabric.setup(
+            model, model.configure_optimizers()["optimizer"]
+        )
 
         # Create test data
         x = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
@@ -88,13 +98,15 @@ def measure_memory_scaling_experiments(
         peak_memory = torch.cuda.max_memory_allocated() / 1e9
         memory_per_sample = avg_memory / batch_size
 
-        results['batch_size_experiment'].append({
-            'batch_size': batch_size,
-            'avg_memory_gb': avg_memory,
-            'peak_memory_gb': peak_memory,
-            'memory_per_sample_gb': memory_per_sample,
-            'memory_readings': memory_readings
-        })
+        results["batch_size_experiment"].append(
+            {
+                "batch_size": batch_size,
+                "avg_memory_gb": avg_memory,
+                "peak_memory_gb": peak_memory,
+                "memory_per_sample_gb": memory_per_sample,
+                "memory_readings": memory_readings,
+            }
+        )
 
         print(f"     Avg Memory: {avg_memory:.2f} GB, Peak: {peak_memory:.2f} GB")
 
@@ -106,13 +118,13 @@ def measure_memory_scaling_experiments(
     # Experiment 2: Model Size vs Memory
     print(f"\n📊 Experiment 2: Model Size vs Memory")
     model_configs = [
-        {'n_layer': 1, 'n_head': 2, 'n_embd': 256, 'name': 'tiny'},
-        {'n_layer': 2, 'n_head': 4, 'n_embd': 512, 'name': 'small'},
-        {'n_layer': 4, 'n_head': 4, 'n_embd': 1024, 'name': 'medium'},
-        {'n_layer': 6, 'n_head': 6, 'n_embd': 1024, 'name': 'large'},
-        {'n_layer': 8, 'n_head': 8, 'n_embd': 1024, 'name': 'xlarge'},
-        {'n_layer': 12, 'n_head': 12, 'n_embd': 768, 'name': 'gpt2-small'},
-        {'n_layer': 12, 'n_head': 12, 'n_embd': 1024, 'name': 'gpt2-medium'},
+        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small"},
+        {"n_layer": 4, "n_head": 4, "n_embd": 1024, "name": "medium"},
+        {"n_layer": 6, "n_head": 6, "n_embd": 1024, "name": "large"},
+        {"n_layer": 8, "n_head": 8, "n_embd": 1024, "name": "xlarge"},
+        {"n_layer": 12, "n_head": 12, "n_embd": 768, "name": "gpt2-small"},
+        {"n_layer": 12, "n_head": 12, "n_embd": 1024, "name": "gpt2-medium"},
     ]
 
     batch_size = 32  # Fixed batch size
@@ -128,14 +140,16 @@ def measure_memory_scaling_experiments(
         model_config = GPTConfig(
             block_size=1024,
             vocab_size=50304,
-            n_layer=config['n_layer'],
-            n_head=config['n_head'],
-            n_embd=config['n_embd'],
+            n_layer=config["n_layer"],
+            n_head=config["n_head"],
+            n_embd=config["n_embd"],
             n_blocks_per_super=2,
         )
 
         model = GPTLightningModule(model_config)
-        model, optimizer = fabric.setup(model, model.configure_optimizers()["optimizer"])
+        model, optimizer = fabric.setup(
+            model, model.configure_optimizers()["optimizer"]
+        )
 
         # Calculate model parameters
         total_params = sum(p.numel() for p in model.parameters())
@@ -168,16 +182,18 @@ def measure_memory_scaling_experiments(
         peak_memory = torch.cuda.max_memory_allocated() / 1e9
         memory_per_param = avg_memory / (total_params / 1e6)  # GB per million params
 
-        results['model_size_experiment'].append({
-            'model_name': config['name'],
-            'config': config,
-            'total_params': total_params,
-            'trainable_params': trainable_params,
-            'avg_memory_gb': avg_memory,
-            'peak_memory_gb': peak_memory,
-            'memory_per_param_gb': memory_per_param,
-            'memory_readings': memory_readings
-        })
+        results["model_size_experiment"].append(
+            {
+                "model_name": config["name"],
+                "config": config,
+                "total_params": total_params,
+                "trainable_params": trainable_params,
+                "avg_memory_gb": avg_memory,
+                "peak_memory_gb": peak_memory,
+                "memory_per_param_gb": memory_per_param,
+                "memory_readings": memory_readings,
+            }
+        )
 
         print(f"     Params: {total_params/1e6:.1f}M, Memory: {avg_memory:.2f} GB")
 
@@ -190,9 +206,14 @@ def measure_memory_scaling_experiments(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"memory_scaling_experiment_{timestamp}.json"
 
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         json.dump(results, f, indent=2)
 
     print(f"\n✅ Results saved to: {filename}")
 
     return results
+
+
+if __name__ == "__main__":
+    fabric = Fabric(accelerator="cuda", devices=1)
+    measure_memory_scaling_experiments(fabric)
