@@ -174,7 +174,7 @@ def run_model_size_experiment(
     Args:
         fabric: Lightning Fabric instance.
         config: Model configuration dictionary.
-        batch_sizes: List of batch sizes to test.
+        batch_sizes: List of batch sizes to test (assumed to be ordered from smallest to largest).
         num_iterations: Number of iterations to measure after warmup.
         warmup_iterations: Number of warmup iterations.
 
@@ -303,6 +303,12 @@ def run_model_size_experiment(
                     "status": "out_of_memory",
                     "error": str(e),
                 }
+                # Stop testing larger batch sizes since they will also fail
+                print(
+                    f"       ⚠️  Stopping batch size tests for model {config['name']} (will fail for larger batches)"
+                )
+                model_results["batch_sizes"].append(batch_result)
+                break
             else:
                 print(f"       ❌ Runtime error for batch size {batch_size}: {e}")
                 batch_result = {
@@ -356,7 +362,7 @@ def measure_timing_scaling_experiments(
     print(f"   Measurement iterations: {num_iterations}")
 
     # Define test configurations
-    batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]
+    batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]  # Ordered from smallest to largest
     model_configs = [
         {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny"},
         {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small"},
@@ -396,7 +402,9 @@ def measure_timing_scaling_experiments(
     # ----------------------------------------------------------------------
     # Experiment 2: Model Size vs Timing (for each model, test all batch sizes)
     print(f"\n==> 📊 Experiment 2: Model Size vs Timing")
-    print(f"   Testing each model across all batch sizes")
+    print(
+        f"   Testing each model across all batch sizes (ordered from smallest to largest)"
+    )
 
     for config in model_configs:
         model_result = run_model_size_experiment(
@@ -404,15 +412,8 @@ def measure_timing_scaling_experiments(
         )
         results["model_size_experiment"].append(model_result)
 
-        # Check if all batch sizes failed for this model
-        successful_batches = [
-            b for b in model_result["batch_sizes"] if b.get("status") == "success"
-        ]
-        if not successful_batches:
-            print(
-                f"     ⚠️  All batch sizes failed for model {config['name']}, stopping model experiments"
-            )
-            break
+        # No need to check if all batch sizes failed - the function will stop early
+        # when it hits the first memory limit
 
     # Save results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
