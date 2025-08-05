@@ -80,6 +80,11 @@ def run_batch_size_memory_experiment(
 
             # Measure memory over multiple iterations
             memory_readings = []
+            forward_memory_readings = []
+            backward_memory_readings = []
+            peak_forward_readings = []
+            peak_backward_readings = []
+
             for i in range(num_iterations):
                 # Clean palate before each measurement
                 deep_gpu_reset()
@@ -88,18 +93,54 @@ def run_batch_size_memory_experiment(
                 # Clear gradients
                 optimizer.zero_grad()
 
-                # Forward pass
+                # Measure forward pass memory
+                torch.cuda.reset_peak_memory_stats()
+                start_mem = torch.cuda.memory_allocated()
+
+                with torch.no_grad():
+                    _ = model(x)
+
+                forward_mem = torch.cuda.memory_allocated()
+                peak_forward_mem = torch.cuda.max_memory_allocated()
+                forward_memory_readings.append(forward_mem / 1e9)
+                peak_forward_readings.append(peak_forward_mem / 1e9)
+
+                # Clean up forward pass
+                del _
+                torch.cuda.empty_cache()
+
+                # Measure backward pass only (with fresh forward pass)
+                torch.cuda.reset_peak_memory_stats()
+                start_mem = torch.cuda.memory_allocated()
+
+                # Do forward pass again (needed for backward)
+                with torch.no_grad():
+                    _ = model(x)
+
+                # Now do backward pass
                 loss = model.training_step(test_batch, batch_idx=i)
 
-                # Measure memory
-                current_mem = torch.cuda.memory_allocated()
-                memory_readings.append(current_mem / 1e9)  # Convert to GB
+                total_mem = torch.cuda.memory_allocated()
+                peak_total_mem = torch.cuda.max_memory_allocated()
+
+                # Backward memory is the additional memory used beyond the forward pass
+                backward_mem = total_mem - start_mem
+                peak_backward_mem = peak_total_mem
+
+                memory_readings.append(total_mem / 1e9)
+                backward_memory_readings.append(backward_mem / 1e9)
+                peak_backward_readings.append(peak_backward_mem / 1e9)
 
             # Calculate statistics
             avg_memory = statistics.mean(memory_readings)
             std_memory = (
                 statistics.stdev(memory_readings) if len(memory_readings) > 1 else 0.0
             )
+            avg_forward_memory = statistics.mean(forward_memory_readings)
+            avg_backward_memory = statistics.mean(backward_memory_readings)
+            avg_peak_forward_memory = statistics.mean(peak_forward_readings)
+            avg_peak_backward_memory = statistics.mean(peak_backward_readings)
+
             peak_memory = torch.cuda.max_memory_allocated() / 1e9
             memory_per_sample = avg_memory / batch_size
 
@@ -109,14 +150,24 @@ def run_batch_size_memory_experiment(
                 "total_params": total_params,
                 "avg_memory_gb": avg_memory,
                 "std_memory_gb": std_memory,
+                "avg_forward_memory_gb": avg_forward_memory,
+                "avg_backward_memory_gb": avg_backward_memory,
+                "avg_peak_forward_memory_gb": avg_peak_forward_memory,
+                "avg_peak_backward_memory_gb": avg_peak_backward_memory,
                 "peak_memory_gb": peak_memory,
                 "memory_per_sample_gb": memory_per_sample,
                 "memory_readings": memory_readings,
+                "forward_memory_readings": forward_memory_readings,
+                "backward_memory_readings": backward_memory_readings,
+                "peak_forward_readings": peak_forward_readings,
+                "peak_backward_readings": peak_backward_readings,
                 "status": "success",
             }
 
             print(
-                f"       Params: {total_params/1e6:.1f}M, Memory: {avg_memory:.2f}GB ± {std_memory:.2f}GB, Peak: {peak_memory:.2f}GB"
+                f"       Total: {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
+                f"Forward: {avg_forward_memory:.2f}GB, Backward: {avg_backward_memory:.2f}GB, "
+                f"Peak F: {avg_peak_forward_memory:.2f}GB, Peak B: {avg_peak_backward_memory:.2f}GB"
             )
 
         except RuntimeError as e:
@@ -230,6 +281,11 @@ def run_model_size_memory_experiment(
 
             # Measure memory over multiple iterations
             memory_readings = []
+            forward_memory_readings = []
+            backward_memory_readings = []
+            peak_forward_readings = []
+            peak_backward_readings = []
+
             for i in range(num_iterations):
                 # Clean palate before each measurement
                 deep_gpu_reset()
@@ -238,18 +294,54 @@ def run_model_size_memory_experiment(
                 # Clear gradients
                 optimizer.zero_grad()
 
-                # Forward pass
+                # Measure forward pass memory
+                torch.cuda.reset_peak_memory_stats()
+                start_mem = torch.cuda.memory_allocated()
+
+                with torch.no_grad():
+                    _ = model(x)
+
+                forward_mem = torch.cuda.memory_allocated()
+                peak_forward_mem = torch.cuda.max_memory_allocated()
+                forward_memory_readings.append(forward_mem / 1e9)
+                peak_forward_readings.append(peak_forward_mem / 1e9)
+
+                # Clean up forward pass
+                del _
+                torch.cuda.empty_cache()
+
+                # Measure backward pass only (with fresh forward pass)
+                torch.cuda.reset_peak_memory_stats()
+                start_mem = torch.cuda.memory_allocated()
+
+                # Do forward pass again (needed for backward)
+                with torch.no_grad():
+                    _ = model(x)
+
+                # Now do backward pass
                 loss = model.training_step(test_batch, batch_idx=i)
 
-                # Measure memory
-                current_mem = torch.cuda.memory_allocated()
-                memory_readings.append(current_mem / 1e9)  # Convert to GB
+                total_mem = torch.cuda.memory_allocated()
+                peak_total_mem = torch.cuda.max_memory_allocated()
+
+                # Backward memory is the additional memory used beyond the forward pass
+                backward_mem = total_mem - start_mem
+                peak_backward_mem = peak_total_mem
+
+                memory_readings.append(total_mem / 1e9)
+                backward_memory_readings.append(backward_mem / 1e9)
+                peak_backward_readings.append(peak_backward_mem / 1e9)
 
             # Calculate statistics
             avg_memory = statistics.mean(memory_readings)
             std_memory = (
                 statistics.stdev(memory_readings) if len(memory_readings) > 1 else 0.0
             )
+            avg_forward_memory = statistics.mean(forward_memory_readings)
+            avg_backward_memory = statistics.mean(backward_memory_readings)
+            avg_peak_forward_memory = statistics.mean(peak_forward_readings)
+            avg_peak_backward_memory = statistics.mean(peak_backward_readings)
+
             peak_memory = torch.cuda.max_memory_allocated() / 1e9
             memory_per_sample = avg_memory / batch_size
             memory_per_param = avg_memory / (
@@ -261,15 +353,25 @@ def run_model_size_memory_experiment(
                 "total_params": total_params,
                 "avg_memory_gb": avg_memory,
                 "std_memory_gb": std_memory,
+                "avg_forward_memory_gb": avg_forward_memory,
+                "avg_backward_memory_gb": avg_backward_memory,
+                "avg_peak_forward_memory_gb": avg_peak_forward_memory,
+                "avg_peak_backward_memory_gb": avg_peak_backward_memory,
                 "peak_memory_gb": peak_memory,
                 "memory_per_sample_gb": memory_per_sample,
                 "memory_per_param_gb": memory_per_param,
                 "memory_readings": memory_readings,
+                "forward_memory_readings": forward_memory_readings,
+                "backward_memory_readings": backward_memory_readings,
+                "peak_forward_readings": peak_forward_readings,
+                "peak_backward_readings": peak_backward_readings,
                 "status": "success",
             }
 
             print(
-                f"       Memory: {avg_memory:.2f}GB ± {std_memory:.2f}GB, Peak: {peak_memory:.2f}GB, Per sample: {memory_per_sample:.3f}GB"
+                f"       Total: {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
+                f"Forward: {avg_forward_memory:.2f}GB, Backward: {avg_backward_memory:.2f}GB, "
+                f"Peak F: {avg_peak_forward_memory:.2f}GB, Peak B: {avg_peak_backward_memory:.2f}GB"
             )
 
         except RuntimeError as e:
@@ -389,6 +491,11 @@ def run_sequence_length_memory_experiment(
 
             # Measure memory over multiple iterations
             memory_readings = []
+            forward_memory_readings = []
+            backward_memory_readings = []
+            peak_forward_readings = []
+            peak_backward_readings = []
+
             for i in range(num_iterations):
                 # Clean palate before each measurement
                 deep_gpu_reset()
@@ -397,18 +504,54 @@ def run_sequence_length_memory_experiment(
                 # Clear gradients
                 optimizer.zero_grad()
 
-                # Forward pass
+                # Measure forward pass memory
+                torch.cuda.reset_peak_memory_stats()
+                start_mem = torch.cuda.memory_allocated()
+
+                with torch.no_grad():
+                    _ = model(x)
+
+                forward_mem = torch.cuda.memory_allocated()
+                peak_forward_mem = torch.cuda.max_memory_allocated()
+                forward_memory_readings.append(forward_mem / 1e9)
+                peak_forward_readings.append(peak_forward_mem / 1e9)
+
+                # Clean up forward pass
+                del _
+                torch.cuda.empty_cache()
+
+                # Measure backward pass only (with fresh forward pass)
+                torch.cuda.reset_peak_memory_stats()
+                start_mem = torch.cuda.memory_allocated()
+
+                # Do forward pass again (needed for backward)
+                with torch.no_grad():
+                    _ = model(x)
+
+                # Now do backward pass
                 loss = model.training_step(test_batch, batch_idx=i)
 
-                # Measure memory
-                current_mem = torch.cuda.memory_allocated()
-                memory_readings.append(current_mem / 1e9)  # Convert to GB
+                total_mem = torch.cuda.memory_allocated()
+                peak_total_mem = torch.cuda.max_memory_allocated()
+
+                # Backward memory is the additional memory used beyond the forward pass
+                backward_mem = total_mem - start_mem
+                peak_backward_mem = peak_total_mem
+
+                memory_readings.append(total_mem / 1e9)
+                backward_memory_readings.append(backward_mem / 1e9)
+                peak_backward_readings.append(peak_backward_mem / 1e9)
 
             # Calculate statistics
             avg_memory = statistics.mean(memory_readings)
             std_memory = (
                 statistics.stdev(memory_readings) if len(memory_readings) > 1 else 0.0
             )
+            avg_forward_memory = statistics.mean(forward_memory_readings)
+            avg_backward_memory = statistics.mean(backward_memory_readings)
+            avg_peak_forward_memory = statistics.mean(peak_forward_readings)
+            avg_peak_backward_memory = statistics.mean(peak_backward_readings)
+
             peak_memory = torch.cuda.max_memory_allocated() / 1e9
             memory_per_token = avg_memory / (batch_size * seq_len)
 
@@ -417,14 +560,24 @@ def run_sequence_length_memory_experiment(
                 "total_params": total_params,
                 "avg_memory_gb": avg_memory,
                 "std_memory_gb": std_memory,
+                "avg_forward_memory_gb": avg_forward_memory,
+                "avg_backward_memory_gb": avg_backward_memory,
+                "avg_peak_forward_memory_gb": avg_peak_forward_memory,
+                "avg_peak_backward_memory_gb": avg_peak_backward_memory,
                 "peak_memory_gb": peak_memory,
                 "memory_per_token_gb": memory_per_token,
                 "memory_readings": memory_readings,
+                "forward_memory_readings": forward_memory_readings,
+                "backward_memory_readings": backward_memory_readings,
+                "peak_forward_readings": peak_forward_readings,
+                "peak_backward_readings": peak_backward_readings,
                 "status": "success",
             }
 
             print(
-                f"       Memory: {avg_memory:.2f}GB ± {std_memory:.2f}GB, Peak: {peak_memory:.2f}GB, Per token: {memory_per_token*1e6:.1f}MB"
+                f"       Total: {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
+                f"Forward: {avg_forward_memory:.2f}GB, Backward: {avg_backward_memory:.2f}GB, "
+                f"Peak F: {avg_peak_forward_memory:.2f}GB, Peak B: {avg_peak_backward_memory:.2f}GB"
             )
 
         except RuntimeError as e:

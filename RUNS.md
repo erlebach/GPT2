@@ -79,4 +79,11 @@ JOBID: 11192212
 - timing experiments: over batch size and model size. 
 - Output saved in json rather than csv
 - explicit loop timings rather than using decorators. 
+- Output data in: timing_scaling_experiment_20250805_134903.json
+----------------------------------------------------------------------
+JOBID: 11192222
+- Added a 3rd experiments: over sequences
+- output saved in json
+- measure memory usage across experiments
+- Output data in: memory_scaling_experiment_20250805_140102.json
 ----------------------------------------------------------------------
