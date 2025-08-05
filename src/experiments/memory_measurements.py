@@ -215,9 +215,22 @@ def run_batch_size_memory_experiment_eval(
     num_iterations: int = 10,
     warmup_iterations: int = 5,
 ) -> dict:
-    """Run batch size memory experiment in evaluation mode."""
+    """Run batch size memory experiment in evaluation mode for a specific batch size across all models.
 
-    print(f"   Testing batch size: {batch_size}")
+    Args:
+        fabric: Lightning Fabric instance.
+        batch_size: Batch size to test.
+        model_configs: List of model configurations to test.
+        num_iterations: Number of iterations to measure after warmup.
+        warmup_iterations: Number of warmup iterations.
+
+    Returns:
+        Dictionary containing evaluation memory experiment results for this batch size across all models.
+    """
+    import gc
+    import statistics
+
+    print(f"   Testing batch size (eval): {batch_size}")
 
     batch_results = {
         "batch_size": batch_size,
@@ -226,7 +239,7 @@ def run_batch_size_memory_experiment_eval(
     }
 
     for config in model_configs:
-        print(f"     Testing model: {config['name']}")
+        print(f"     Testing model (eval): {config['name']}")
 
         try:
             # Clean palate before starting
@@ -259,7 +272,8 @@ def run_batch_size_memory_experiment_eval(
             model.eval()
             for _ in range(warmup_iterations):
                 deep_gpu_reset()
-                _ = model.training_step(test_batch, batch_idx=0)
+                with torch.no_grad():
+                    _ = model(x)
 
             # Reset memory stats
             torch.cuda.reset_peak_memory_stats()
@@ -268,19 +282,17 @@ def run_batch_size_memory_experiment_eval(
             # Measure memory over multiple iterations
             memory_readings = []
             forward_memory_readings = []
-            backward_memory_readings = []
             peak_forward_readings = []
-            peak_backward_readings = []
 
             for i in range(num_iterations):
                 # Clean palate before each measurement
                 deep_gpu_reset()
                 reset_model_state(model, optimizer)
 
-                # Clear gradients
-                optimizer.zero_grad()
+                # Set to evaluation mode
+                model.eval()
 
-                # Measure forward pass memory
+                # Measure forward pass memory only (no backward in eval mode)
                 torch.cuda.reset_peak_memory_stats()
                 start_mem = torch.cuda.memory_allocated()
 
@@ -292,31 +304,9 @@ def run_batch_size_memory_experiment_eval(
                 forward_memory_readings.append(forward_mem / 1e9)
                 peak_forward_readings.append(peak_forward_mem / 1e9)
 
-                # Clean up forward pass
-                del _
-                torch.cuda.empty_cache()
-
-                # Measure backward pass only (with fresh forward pass)
-                torch.cuda.reset_peak_memory_stats()
-                start_mem = torch.cuda.memory_allocated()
-
-                # Do forward pass again (needed for backward)
-                with torch.no_grad():
-                    _ = model(x)
-
-                # Now do backward pass
-                loss = model.training_step(test_batch, batch_idx=i)
-
-                total_mem = torch.cuda.memory_allocated()
-                peak_total_mem = torch.cuda.max_memory_allocated()
-
-                # Backward memory is the additional memory used beyond the forward pass
-                backward_mem = total_mem - start_mem
-                peak_backward_mem = peak_total_mem
-
+                # In evaluation mode, total memory is just forward memory
+                total_mem = forward_mem
                 memory_readings.append(total_mem / 1e9)
-                backward_memory_readings.append(backward_mem / 1e9)
-                peak_backward_readings.append(peak_backward_mem / 1e9)
 
             # Calculate statistics
             avg_memory = statistics.mean(memory_readings)
@@ -324,9 +314,7 @@ def run_batch_size_memory_experiment_eval(
                 statistics.stdev(memory_readings) if len(memory_readings) > 1 else 0.0
             )
             avg_forward_memory = statistics.mean(forward_memory_readings)
-            avg_backward_memory = statistics.mean(backward_memory_readings)
             avg_peak_forward_memory = statistics.mean(peak_forward_readings)
-            avg_peak_backward_memory = statistics.mean(peak_backward_readings)
 
             peak_memory = torch.cuda.max_memory_allocated() / 1e9
             memory_per_sample = avg_memory / batch_size
@@ -338,28 +326,27 @@ def run_batch_size_memory_experiment_eval(
                 "avg_memory_gb": avg_memory,
                 "std_memory_gb": std_memory,
                 "avg_forward_memory_gb": avg_forward_memory,
-                "avg_backward_memory_gb": avg_backward_memory,
+                "avg_backward_memory_gb": 0.0,  # No backward pass in eval mode
                 "avg_peak_forward_memory_gb": avg_peak_forward_memory,
-                "avg_peak_backward_memory_gb": avg_peak_backward_memory,
+                "avg_peak_backward_memory_gb": 0.0,  # No backward pass in eval mode
                 "peak_memory_gb": peak_memory,
                 "memory_per_sample_gb": memory_per_sample,
                 "memory_readings": memory_readings,
                 "forward_memory_readings": forward_memory_readings,
-                "backward_memory_readings": backward_memory_readings,
+                "backward_memory_readings": [0.0] * num_iterations,  # No backward pass
                 "peak_forward_readings": peak_forward_readings,
-                "peak_backward_readings": peak_backward_readings,
+                "peak_backward_readings": [0.0] * num_iterations,  # No backward pass
                 "status": "success",
             }
 
             print(
-                f"       Total: {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
-                f"Forward: {avg_forward_memory:.2f}GB, Backward: {avg_backward_memory:.2f}GB, "
-                f"Peak F: {avg_peak_forward_memory:.2f}GB, Peak B: {avg_peak_backward_memory:.2f}GB"
+                f"       Total (eval): {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
+                f"Forward: {avg_forward_memory:.2f}GB, Peak F: {avg_peak_forward_memory:.2f}GB"
             )
 
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
-                print(f"       ❌ Out of memory for model {config['name']}")
+                print(f"       ❌ Out of memory for model {config['name']} (eval)")
                 model_result = {
                     "model_name": config["name"],
                     "config": config,
@@ -367,7 +354,7 @@ def run_batch_size_memory_experiment_eval(
                     "error": str(e),
                 }
             else:
-                print(f"       ❌ Runtime error for model {config['name']}: {e}")
+                print(f"       ❌ Runtime error for model {config['name']} (eval): {e}")
                 model_result = {
                     "model_name": config["name"],
                     "config": config,
@@ -375,7 +362,7 @@ def run_batch_size_memory_experiment_eval(
                     "error": str(e),
                 }
         except Exception as e:
-            print(f"       ❌ Unexpected error for model {config['name']}: {e}")
+            print(f"       ❌ Unexpected error for model {config['name']} (eval): {e}")
             model_result = {
                 "model_name": config["name"],
                 "config": config,
@@ -1199,8 +1186,16 @@ def measure_memory_scaling_experiments(
     num_iterations: int = 10,
     warmup_iterations: int = 5,
 ) -> dict:
-    """Comprehensive memory scaling experiments (training + evaluation)."""
+    """Comprehensive memory scaling experiments (training + evaluation).
 
+    Args:
+        fabric: Lightning Fabric instance.
+        num_iterations: Number of iterations to measure after warmup.
+        warmup_iterations: Number of warmup iterations.
+
+    Returns:
+        Dictionary containing all experiment results.
+    """
     import json
     from datetime import datetime
 
@@ -1235,14 +1230,14 @@ def measure_memory_scaling_experiments(
         "batch_size_experiment": [],
         "model_size_experiment": [],
         "sequence_length_experiment": [],
-        "batch_size_experiment_eval": [],  # New
-        "model_size_experiment_eval": [],  # New
-        "sequence_length_experiment_eval": [],  # New
+        "batch_size_experiment_eval": [],
+        "model_size_experiment_eval": [],
+        "sequence_length_experiment_eval": [],
     }
 
     # ----------------------------------------------------------------------
-    # Experiment 1: Batch Size vs Memory (for each batch size, test all models)
-    print(f"\n==> 📊 Experiment 1: Batch Size vs Memory")
+    # Experiment 1: Batch Size vs Memory (Training Mode)
+    print(f"\n==> 📊 Experiment 1: Batch Size vs Memory (Training)")
     print(f"   Testing each batch size across all models")
 
     for batch_size in batch_sizes:
@@ -1262,8 +1257,8 @@ def measure_memory_scaling_experiments(
             break
 
     # ----------------------------------------------------------------------
-    # Experiment 2: Model Size vs Memory (for each model, test all batch sizes)
-    print(f"\n==> 📊 Experiment 2: Model Size vs Memory")
+    # Experiment 2: Model Size vs Memory (Training Mode)
+    print(f"\n==> 📊 Experiment 2: Model Size vs Memory (Training)")
     print(
         f"   Testing each model across all batch sizes (ordered from smallest to largest)"
     )
@@ -1275,8 +1270,8 @@ def measure_memory_scaling_experiments(
         results["model_size_experiment"].append(model_result)
 
     # ----------------------------------------------------------------------
-    # Experiment 3: Sequence Length vs Memory (for each model, test all sequence lengths)
-    print(f"\n==> 📊 Experiment 3: Sequence Length vs Memory")
+    # Experiment 3: Sequence Length vs Memory (Training Mode)
+    print(f"\n==> 📊 Experiment 3: Sequence Length vs Memory (Training)")
     print(
         f"   Testing each model across all sequence lengths (ordered from shortest to longest)"
     )
@@ -1296,17 +1291,33 @@ def measure_memory_scaling_experiments(
         results["sequence_length_experiment"].append(seq_result)
 
     # ----------------------------------------------------------------------
-    # Experiment 1 (Eval): Batch Size vs Memory
-    print(f"\n==> 📊 Experiment 1 (Eval): Batch Size vs Memory")
+    # Experiment 1 (Eval): Batch Size vs Memory (Evaluation Mode)
+    print(f"\n==> 📊 Experiment 1 (Eval): Batch Size vs Memory (Evaluation)")
+    print(f"   Testing each batch size across all models")
+
     for batch_size in batch_sizes:
         batch_result = run_batch_size_memory_experiment_eval(
             fabric, batch_size, model_configs, num_iterations, warmup_iterations
         )
         results["batch_size_experiment_eval"].append(batch_result)
 
+        # Check if all models failed for this batch size
+        successful_models = [
+            m for m in batch_result["models"] if m.get("status") == "success"
+        ]
+        if not successful_models:
+            print(
+                f"     ⚠️  All models failed for batch size {batch_size} (eval), stopping batch size experiments"
+            )
+            break
+
     # ----------------------------------------------------------------------
-    # Experiment 2 (Eval): Model Size vs Memory
-    print(f"\n==> 📊 Experiment 2 (Eval): Model Size vs Memory")
+    # Experiment 2 (Eval): Model Size vs Memory (Evaluation Mode)
+    print(f"\n==> 📊 Experiment 2 (Eval): Model Size vs Memory (Evaluation)")
+    print(
+        f"   Testing each model across all batch sizes (ordered from smallest to largest)"
+    )
+
     for config in model_configs:
         model_result = run_model_size_memory_experiment_eval(
             fabric, config, batch_sizes, num_iterations, warmup_iterations
@@ -1314,8 +1325,15 @@ def measure_memory_scaling_experiments(
         results["model_size_experiment_eval"].append(model_result)
 
     # ----------------------------------------------------------------------
-    # Experiment 3 (Eval): Sequence Length vs Memory
-    print(f"\n==> 📊 Experiment 3 (Eval): Sequence Length vs Memory")
+    # Experiment 3 (Eval): Sequence Length vs Memory (Evaluation Mode)
+    print(f"\n==> 📊 Experiment 3 (Eval): Sequence Length vs Memory (Evaluation)")
+    print(
+        f"   Testing each model across all sequence lengths (ordered from shortest to longest)"
+    )
+
+    # Use a moderate batch size for sequence length experiments
+    moderate_batch_size = 16
+
     for config in model_configs:
         seq_result = run_sequence_length_memory_experiment_eval(
             fabric,
