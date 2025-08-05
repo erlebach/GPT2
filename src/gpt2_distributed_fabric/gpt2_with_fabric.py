@@ -447,6 +447,243 @@ def test_training_step_timing(
     print(f"     - Global metrics collector operations")
 
 
+def test_fabric_training_step_timing(
+    fabric: Fabric,
+    trainer: FabricTrainer,
+    num_iterations: int = 20,
+    warmup_iterations: int = 5,
+) -> None:
+    """Test FabricTrainer training step timing to isolate backward/optimizer overhead.
+
+    This function calls the complete FabricTrainer.training_step() method multiple times
+    to measure timing including backward pass, optimizer step, and gradient zeroing.
+
+    Args:
+        fabric: Lightning Fabric instance.
+        trainer: The FabricTrainer instance to test.
+        num_iterations: Number of iterations to test timing.
+        warmup_iterations: Number of warmup iterations before timing.
+    """
+    import statistics
+    import time
+
+    if fabric.global_rank != 0:
+        return  # Only run on rank 0
+
+    print(f"\n🧪 Testing FabricTrainer training step timing (with backward/optimizer):")
+    print(f"   Warmup iterations: {warmup_iterations}")
+    print(f"   Test iterations: {num_iterations}")
+
+    # Create a test batch (same as what would be used in training)
+    batch_size = 32
+    block_size = 1024
+    vocab_size = 50304
+
+    # Create random input and target tensors
+    x = torch.randint(0, vocab_size, (batch_size, block_size), device=fabric.device)
+    y = torch.randint(0, vocab_size, (batch_size, block_size), device=fabric.device)
+    test_batch = (x, y)
+
+    print(f"   Test batch shape: {x.shape}")
+    print(f"   Device: {fabric.device}")
+
+    # Warm up the model and GPU
+    print(f"\n🔥 Warming up...")
+    trainer.lightning_module.train()
+    for i in range(warmup_iterations):
+        _ = trainer.training_step(test_batch)
+        if i < 3:  # Print first few warmup iterations
+            print(f"   Warmup {i+1}/{warmup_iterations}")
+
+    # Synchronize GPU to ensure warmup is complete
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+
+    print(f"\n⏱️  Running timing test...")
+    timings = []
+
+    for i in range(num_iterations):
+        # Synchronize before timing to ensure clean measurement
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        start_time = time.time()
+
+        # Run the complete training step (forward + backward + optimizer)
+        loss = trainer.training_step(test_batch)
+
+        # Synchronize after to ensure GPU operations are complete
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        end_time = time.time()
+        step_time = end_time - start_time
+        timings.append(step_time)
+
+        print(f"   Step {i+1:2d}: {step_time:.6f}s (loss: {loss:.4f})")
+
+    # Calculate statistics
+    mean_time = statistics.mean(timings)
+    std_time = statistics.stdev(timings) if len(timings) > 1 else 0.0
+    min_time = min(timings)
+    max_time = max(timings)
+
+    print(f"\n📊 Timing Statistics:")
+    print(f"   Mean:   {mean_time:.6f}s")
+    print(f"   Std:    {std_time:.6f}s")
+    print(f"   Min:    {min_time:.6f}s")
+    print(f"   Max:    {max_time:.6f}s")
+    print(f"   Range:  {max_time - min_time:.6f}s")
+    print(f"   CV:     {(std_time/mean_time)*100:.2f}% (coefficient of variation)")
+
+    # Check for timing variations
+    if max_time > 1.5 * mean_time:
+        print(f"⚠️  Significant timing variation detected!")
+        print(f"   Max time is {max_time/mean_time:.2f}x the mean")
+
+        # Find which steps were slow
+        slow_threshold = mean_time + std_time
+        slow_steps = [i + 1 for i, t in enumerate(timings) if t > slow_threshold]
+        if slow_steps:
+            print(f"   Slow steps (> mean + std): {slow_steps}")
+    else:
+        print(f"✅ Timing is relatively consistent")
+
+    # Compare with pure training step timing
+    print(f"\n🔍 Comparison with pure training step:")
+    print(f"   This test includes:")
+    print(f"     - Forward pass (training_step)")
+    print(f"     - Backward pass (fabric.backward)")
+    print(f"     - Optimizer step (optimizer.step)")
+    print(f"     - Gradient zeroing (optimizer.zero_grad)")
+    print(f"   Pure training step timing was ~0.09-0.10s")
+    print(f"   This test timing is ~{mean_time:.3f}s")
+    print(f"   Overhead: ~{mean_time - 0.095:.3f}s (backward + optimizer)")
+
+
+def test_individual_operations_timing(
+    fabric: Fabric,
+    trainer: FabricTrainer,
+    num_iterations: int = 10,
+) -> None:
+    """Test individual operations within the training step to identify bottlenecks.
+
+    This function breaks down the training step into individual operations
+    to identify which part is causing timing variations.
+
+    Args:
+        fabric: Lightning Fabric instance.
+        trainer: The FabricTrainer instance to test.
+        num_iterations: Number of iterations to test timing.
+    """
+    import statistics
+    import time
+
+    if fabric.global_rank != 0:
+        return  # Only run on rank 0
+
+    print(f"\n🧪 Testing individual operations timing:")
+    print(f"   Test iterations: {num_iterations}")
+
+    # Create a test batch
+    batch_size = 32
+    block_size = 1024
+    vocab_size = 50304
+
+    x = torch.randint(0, vocab_size, (batch_size, block_size), device=fabric.device)
+    y = torch.randint(0, vocab_size, (batch_size, block_size), device=fabric.device)
+    test_batch = (x, y)
+
+    # Warm up
+    trainer.lightning_module.train()
+    for _ in range(3):
+        _ = trainer.training_step(test_batch)
+
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+
+    print(f"\n⏱️  Running individual operation timing test...")
+
+    forward_times = []
+    backward_times = []
+    optimizer_times = []
+    zero_grad_times = []
+
+    for i in range(num_iterations):
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        # Time forward pass
+        start_time = time.time()
+        loss = trainer.lightning_module.training_step(test_batch, batch_idx=i)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        forward_time = time.time() - start_time
+        forward_times.append(forward_time)
+
+        # Time backward pass
+        start_time = time.time()
+        trainer.fabric.backward(loss)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        backward_time = time.time() - start_time
+        backward_times.append(backward_time)
+
+        # Time optimizer step
+        start_time = time.time()
+        trainer.optimizer.step()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        optimizer_time = time.time() - start_time
+        optimizer_times.append(optimizer_time)
+
+        # Time gradient zeroing
+        start_time = time.time()
+        trainer.optimizer.zero_grad()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        zero_grad_time = time.time() - start_time
+        zero_grad_times.append(zero_grad_time)
+
+        total_time = forward_time + backward_time + optimizer_time + zero_grad_time
+        print(
+            f"   Step {i+1:2d}: F:{forward_time:.4f}s B:{backward_time:.4f}s O:{optimizer_time:.4f}s Z:{zero_grad_time:.4f}s Total:{total_time:.4f}s"
+        )
+
+    # Calculate statistics for each operation
+    def print_stats(name, times):
+        mean_time = statistics.mean(times)
+        std_time = statistics.stdev(times) if len(times) > 1 else 0.0
+        min_time = min(times)
+        max_time = max(times)
+        cv = (std_time / mean_time) * 100 if mean_time > 0 else 0.0
+
+        print(
+            f"   {name:12s}: Mean={mean_time:.4f}s, Std={std_time:.4f}s, Min={min_time:.4f}s, Max={max_time:.4f}s, CV={cv:.1f}%"
+        )
+
+    print(f"\n📊 Individual Operation Statistics:")
+    print_stats("Forward", forward_times)
+    print_stats("Backward", backward_times)
+    print_stats("Optimizer", optimizer_times)
+    print_stats("Zero Grad", zero_grad_times)
+
+    # Identify the most variable operation
+    operations = [
+        ("Forward", forward_times),
+        ("Backward", backward_times),
+        ("Optimizer", optimizer_times),
+        ("Zero Grad", zero_grad_times),
+    ]
+
+    most_variable = max(
+        operations, key=lambda x: statistics.stdev(x[1]) if len(x[1]) > 1 else 0.0
+    )
+    print(
+        f"\n🎯 Most variable operation: {most_variable[0]} (std: {statistics.stdev(most_variable[1]):.4f}s)"
+    )
+
+
 def main():
     """Main function to run GPT-2 training using Lightning Fabric."""
     # Initialize GPU parallelism checker
@@ -552,6 +789,14 @@ def main():
     test_training_step_timing(
         fabric, lightning_module, num_iterations=20, warmup_iterations=5
     )
+
+    # Test FabricTrainer training step timing
+    test_fabric_training_step_timing(
+        fabric, trainer, num_iterations=20, warmup_iterations=5
+    )
+
+    # Test individual operations timing
+    test_individual_operations_timing(fabric, trainer, num_iterations=10)
 
     # Start training
     if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
