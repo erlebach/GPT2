@@ -122,7 +122,7 @@ class GPTLightningModule(pl.LightningModule):
         Returns:
             Training loss for the batch.
         """
-        print(f"Training step: Batch {batch_idx}, {batch[0].shape=}")
+        # print(f"Training step: Batch {batch_idx}, {batch[0].shape=}", flush=True)
         # if batch_idx <= 2:
         #     print(
         #         f"[Rank {self.global_rank}] Batch shape: {batch[0].shape}"
@@ -152,14 +152,14 @@ class GPTLightningModule(pl.LightningModule):
         #         )
 
         # Log training loss
-        self.log(
-            "train_loss",
-            loss,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-        )
+        # self.log(
+        #     "train_loss",
+        #     loss,
+        #     on_step=True,
+        #     on_epoch=True,
+        #     prog_bar=True,
+        #     logger=True,
+        # )
 
         # Store loss for potential custom logging
         self.train_losses.append(loss.detach().cpu().item())
@@ -171,7 +171,7 @@ class GPTLightningModule(pl.LightningModule):
 
         return loss
 
-    @measure_performance(memory_enabled=True, timing_enabled=True)
+    # @measure_performance(memory_enabled=True, timing_enabled=True)
     def validation_step(
         self,
         batch: tuple[Integer[Tensor, "b seq"], Integer[Tensor, "b seq"]]

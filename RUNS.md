@@ -48,6 +48,12 @@ JOBID: 11190645
 - max_steps=20
 - Why are there two different times for training_step in lightning
 ----------------------------------------------------------------------
-JOBID: 11190805
+JOBID: 11190808
 - batch_size=32
+- two GPUs
+Objective: try to understand whether batch size changes within an epoch. 
+----------------------------------------------------------------------
+JOBID: 11190824
+- batch_size 32
+- Single GPU
 ----------------------------------------------------------------------
