@@ -5,6 +5,8 @@ from gpt2_standalone.lightning_module import GPTLightningModule
 from gpt2_standalone.model import GPTConfig
 from lightning import Fabric
 
+from experiments.clean_palate import deep_gpu_reset, reset_model_state
+
 
 def run_batch_size_experiment(
     fabric: Fabric,
@@ -30,6 +32,9 @@ def run_batch_size_experiment(
     print(f"   Testing batch size: {batch_size}")
 
     try:
+        # Clean palate before starting
+        deep_gpu_reset()
+
         # Create fresh model
         config = GPTConfig(
             block_size=1024,
@@ -50,9 +55,10 @@ def run_batch_size_experiment(
         y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
         test_batch = (x, y)
 
-        # Warmup
+        # Warmup with clean palate between iterations
         model.train()
         for _ in range(warmup_iterations):
+            deep_gpu_reset()
             _ = model.training_step(test_batch, batch_idx=0)
 
         # Synchronize GPU
@@ -62,7 +68,9 @@ def run_batch_size_experiment(
         # Measure timing over multiple iterations
         timings = []
         for i in range(num_iterations):
-            optimizer.zero_grad()
+            # Clean palate before each measurement
+            deep_gpu_reset()
+            reset_model_state(model, optimizer)
 
             # Synchronize before timing
             if torch.cuda.is_available():
@@ -126,8 +134,7 @@ def run_batch_size_experiment(
             del model, optimizer, x, y, test_batch
         except NameError:
             pass  # Variables might not exist if error occurred early
-        torch.cuda.empty_cache()
-        gc.collect()
+        deep_gpu_reset()
 
     return result
 
@@ -158,6 +165,9 @@ def run_model_size_experiment(
     print(f"   Testing model: {config['name']}")
 
     try:
+        # Clean palate before starting
+        deep_gpu_reset()
+
         # Create fresh model
         model_config = GPTConfig(
             block_size=1024,
@@ -181,9 +191,10 @@ def run_model_size_experiment(
         y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
         test_batch = (x, y)
 
-        # Warmup
+        # Warmup with clean palate between iterations
         model.train()
         for _ in range(warmup_iterations):
+            deep_gpu_reset()
             _ = model.training_step(test_batch, batch_idx=0)
 
         # Synchronize GPU
@@ -192,24 +203,45 @@ def run_model_size_experiment(
 
         # Measure timing over multiple iterations
         timings = []
-        for i in range(num_iterations):
-            optimizer.zero_grad()
+        forward_timings = []
+        backward_timings = []
 
+        for i in range(num_iterations):
+            # Clean palate before each measurement
+            deep_gpu_reset()
+            reset_model_state(model, optimizer)
+
+            # Synchronize before timing
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
 
+            # Measure forward pass separately
+            start_time = time.time()
+            with torch.no_grad():
+                _ = model(x)
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            forward_time = time.time() - start_time
+
+            # Measure full training step
             start_time = time.time()
             loss = model.training_step(test_batch, batch_idx=i)
-
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
-
             end_time = time.time()
-            timings.append(end_time - start_time)
+
+            total_time = end_time - start_time
+            backward_time = total_time - forward_time
+
+            timings.append(total_time)
+            forward_timings.append(forward_time)
+            backward_timings.append(backward_time)
 
         # Calculate statistics
         avg_time = statistics.mean(timings)
         std_time = statistics.stdev(timings) if len(timings) > 1 else 0.0
+        avg_forward_time = statistics.mean(forward_timings)
+        avg_backward_time = statistics.mean(backward_timings)
         time_per_param = avg_time / (total_params / 1e6)  # seconds per million params
 
         result = {
@@ -218,13 +250,20 @@ def run_model_size_experiment(
             "total_params": total_params,
             "avg_time_sec": avg_time,
             "std_time_sec": std_time,
+            "avg_forward_time_sec": avg_forward_time,
+            "avg_backward_time_sec": avg_backward_time,
             "time_per_param_sec": time_per_param,
             "timings": timings,
+            "forward_timings": forward_timings,
+            "backward_timings": backward_timings,
             "status": "success",
         }
 
         print(
-            f"     Params: {total_params/1e6:.1f}M, Time: {avg_time:.4f}s ± {std_time:.4f}s"
+            f"     Params: {total_params/1e6:.1f}M, "
+            f"Total: {avg_time:.4f}s ± {std_time:.4f}s, "
+            f"Forward: {avg_forward_time:.4f}s, "
+            f"Backward: {avg_backward_time:.4f}s"
         )
 
     except RuntimeError as e:
@@ -258,8 +297,7 @@ def run_model_size_experiment(
             del model, optimizer, x, y, test_batch
         except NameError:
             pass  # Variables might not exist if error occurred early
-        torch.cuda.empty_cache()
-        gc.collect()
+        deep_gpu_reset()
 
     return result
 
