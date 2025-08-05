@@ -87,3 +87,12 @@ JOBID: 11192222
 - measure memory usage across experiments
 - Output data in: memory_scaling_experiment_20250805_140102.json
 ----------------------------------------------------------------------
+JOBID: 11192518
+- Output data in: memory_scaling_experiment_20250805_172941.json
+- Separate out forward and backward modes. 
+----------------------------------------------------------------------
+JOBID: 
+- Output data in: 
+- Implement eval mode (doubles output). Peak memory in training mode will be 
+  much higher than peak memory in evaluation mode. This serves as a check. 
+----------------------------------------------------------------------
