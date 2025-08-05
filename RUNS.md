@@ -74,3 +74,9 @@ JOBID:
 - Memory enabled for al decorators (so I can compare apples and apples)
 - the timings are very consistent: 0.09 and 0.33 (there are no variations). All variations were due to 
   the measurement of memory. 
+----------------------------------------------------------------------
+JOBID: 11192212
+- timing experiments: over batch size and model size. 
+- Output saved in json rather than csv
+- explicit loop timings rather than using decorators. 
+----------------------------------------------------------------------
