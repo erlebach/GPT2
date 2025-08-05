@@ -259,44 +259,48 @@ def measure_performance(memory_enabled: bool = True, timing_enabled: bool = Fals
 
     return decorator
 
-def measure_timing()
+
+def measure_timing():
     """Measure only timing of a function.
-    
+
     Returns:
         Decorated function with timing metrics attached.
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             metrics = {}
-            
+
             start_time = time.time()
             result = func(*args, **kwargs)
             end_time = time.time()
             metrics["step_time_sec"] = end_time - start_time
-            
+
             # Store metrics locally on the wrapper
             wrapper.last_metrics = metrics
             wrapper.metrics.append(metrics.copy())
-            
+
             # Add to global collector
             func_name = f"{func.__module__}.{func.__qualname__}"
             _metrics_collector.add_metrics(func_name, metrics)
-            
+
             return result
-        
+
         wrapper.last_metrics = {}
         wrapper.metrics = []
         return wrapper
+
     return decorator
 
 
-def measure_memory()
+def measure_memory():
     """Measure only memory usage of a function.
-    
+
     Returns:
         Decorated function with memory metrics attached.
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -313,52 +317,49 @@ def measure_memory()
                 current_device = torch.cuda.current_device()
                 torch.cuda.empty_cache()
                 torch.cuda.reset_peak_memory_stats(current_device)
-                start_gpu_mem = (
-                    torch.cuda.memory_allocated(current_device) / 1024**2
+                start_gpu_mem = torch.cuda.memory_allocated(current_device) / 1024**2
+
+            # Call the function
+            result = func(*args, **kwargs)
+
+            # CPU memory
+            if psutil is not None:
+                end_cpu_mem = process.memory_info().rss / 1024**2
+                metrics["cpu_memory_usage_mb"] = end_cpu_mem - start_cpu_mem
+                metrics["cpu_memory_rss_mb"] = end_cpu_mem
+
+            # GPU memory
+            if gpu_available:
+                gpu_metrics = get_gpu_memory_metrics()
+                metrics.update(gpu_metrics)
+                metrics["gpu_memory_usage_mb"] = (
+                    gpu_metrics["gpu_memory_current_mb"] - start_gpu_mem
                 )
-
-                # Call the function
-                result = func(*args, **kwargs)
-
-                # CPU memory
-                if psutil is not None:
-                    end_cpu_mem = process.memory_info().rss / 1024**2
-                    metrics["cpu_memory_usage_mb"] = end_cpu_mem - start_cpu_mem
-                    metrics["cpu_memory_rss_mb"] = end_cpu_mem
-
-                # GPU memory
-                if gpu_available:
-                    gpu_metrics = get_gpu_memory_metrics()
-                    metrics.update(gpu_metrics)
-                    metrics["gpu_memory_usage_mb"] = (
-                        gpu_metrics["gpu_memory_current_mb"] - start_gpu_mem
-                    )
-            else:
-                result = func(*args, **kwargs)
 
             # Store metrics locally on the wrapper
             wrapper.last_metrics = metrics
             wrapper.metrics.append(metrics.copy())
-        
-        # Add to global collector
-        func_name = f"{func.__module__}.{func.__qualname__}"
-        _metrics_collector.add_metrics(func_name, metrics)
 
-        return result
-    
-    wrapper.last_metrics = {}
-    wrapper.metrics = []
-    return wrapper
-return decorator
+            # Add to global collector
+            func_name = f"{func.__module__}.{func.__qualname__}"
+            _metrics_collector.add_metrics(func_name, metrics)
 
+            return result
+
+        wrapper.last_metrics = {}
+        wrapper.metrics = []
+        return wrapper
+
+    return decorator
 
 
 class MetricsModelCheckpoint(ModelCheckpoint):
-"""ModelCheckpoint with performance measurement capabilities.
+    """ModelCheckpoint with performance measurement capabilities.
 
-This callback extends the standard ModelCheckpoint to include
-performance metrics for checkpoint operations.
-"""
+    This callback extends the standard ModelCheckpoint to include
+    performance metrics for checkpoint operations.
+    """
+
 
 def __init__(self, *args, **kwargs):
     """Initialize the metrics checkpoint callback.
@@ -369,6 +370,7 @@ def __init__(self, *args, **kwargs):
     """
     super().__init__(*args, **kwargs)
 
+
 @measure_performance(memory_enabled=True, timing_enabled=True)
 def _save_checkpoint(self, trainer, filepath: str) -> None:
     """Save checkpoint with performance measurement.
@@ -378,6 +380,7 @@ def _save_checkpoint(self, trainer, filepath: str) -> None:
         filepath: Path where to save the checkpoint.
     """
     return super()._save_checkpoint(trainer, filepath)
+
 
 @measure_performance(memory_enabled=True, timing_enabled=True)
 def on_save_checkpoint(
@@ -395,6 +398,7 @@ def on_save_checkpoint(
     """
     return super().on_save_checkpoint(trainer, pl_module, checkpoint)
 
+
 @measure_performance(memory_enabled=True, timing_enabled=True)
 def on_load_checkpoint(
     self, trainer, pl_module: LightningModule, checkpoint: Dict[str, Any]
@@ -410,20 +414,22 @@ def on_load_checkpoint(
 
 
 def save_metrics_to_csv(filename: str, metrics: dict):
-"""Append memory and timing metrics to a CSV file, rounding floats to 5 significant digits.
+    """Append memory and timing metrics to a CSV file, rounding floats to 5 significant digits.
 
-Only keys containing 'memory' or 'time' are saved.
-"""
+    Only keys containing 'memory' or 'time' are saved.
+    """
+
+
 import csv
 import os
+
 
 def round_floats(d):
     return {k: (round(v, 5) if isinstance(v, float) else v) for k, v in d.items()}
 
+
 # Only keep keys related to memory or timing
-filtered_metrics = {
-    k: v for k, v in metrics.items() if "memory" in k or "time" in k
-}
+filtered_metrics = {k: v for k, v in metrics.items() if "memory" in k or "time" in k}
 filtered_metrics = round_floats(filtered_metrics)
 
 if not filtered_metrics:
