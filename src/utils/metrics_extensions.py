@@ -418,6 +418,15 @@ def save_metrics_to_csv(filename: str, metrics: dict):
 
     Only keys containing 'memory' or 'time' are saved.
     """
+    # Only keep keys related to memory or timing
+    filtered_metrics = {
+        k: v for k, v in metrics.items() if "memory" in k or "time" in k
+    }
+    filtered_metrics = round_floats(filtered_metrics)
+
+    if not filtered_metrics:
+        print("No memory or timing metrics to save.")
+        return
 
 
 import csv
@@ -427,13 +436,6 @@ import os
 def round_floats(d):
     return {k: (round(v, 5) if isinstance(v, float) else v) for k, v in d.items()}
 
-
-# Only keep keys related to memory or timing
-filtered_metrics = {k: v for k, v in metrics.items() if "memory" in k or "time" in k}
-filtered_metrics = round_floats(filtered_metrics)
-
-if not filtered_metrics:
-    print("No memory or timing metrics to save.")
 
 file_exists = os.path.isfile(filename)
 with open(filename, "a", newline="") as f:
