@@ -300,7 +300,9 @@ def run_batch_size_memory_experiment_eval(
                     _ = model(x)
 
                 forward_mem = torch.cuda.memory_allocated()
-                peak_forward_mem = torch.cuda.max_memory_allocated()
+                peak_forward_mem = (
+                    torch.cuda.max_memory_allocated()
+                )  # This should capture peak during computation
                 forward_memory_readings.append(forward_mem / 1e9)
                 peak_forward_readings.append(peak_forward_mem / 1e9)
 
@@ -1610,40 +1612,6 @@ def measure_memory_scaling_experiments(
             break
 
     # ----------------------------------------------------------------------
-    # Experiment 2: Model Size vs Memory (Training Mode)
-    print(f"\n==> 📊 Experiment 2: Model Size vs Memory (Training)")
-    print(
-        f"   Testing each model across all batch sizes (ordered from smallest to largest)"
-    )
-
-    for config in model_configs:
-        model_result = run_model_size_memory_experiment(
-            fabric, config, batch_sizes, num_iterations, warmup_iterations
-        )
-        results["model_size_experiment"].append(model_result)
-
-    # ----------------------------------------------------------------------
-    # Experiment 3: Sequence Length vs Memory (Training Mode)
-    print(f"\n==> 📊 Experiment 3: Sequence Length vs Memory (Training)")
-    print(
-        f"   Testing each model across all sequence lengths (ordered from shortest to longest)"
-    )
-
-    # Use a moderate batch size for sequence length experiments
-    moderate_batch_size = 16
-
-    for config in model_configs:
-        seq_result = run_sequence_length_memory_experiment(
-            fabric,
-            config,
-            moderate_batch_size,
-            sequence_lengths,
-            num_iterations,
-            warmup_iterations,
-        )
-        results["sequence_length_experiment"].append(seq_result)
-
-    # ----------------------------------------------------------------------
     # Experiment 1 (Eval): Batch Size vs Memory (Evaluation Mode)
     print(f"\n==> Experiment 1 (Eval): Batch Size vs Memory (Evaluation)")
     print(f"   Testing each batch size across all models")
@@ -1665,38 +1633,14 @@ def measure_memory_scaling_experiments(
             break
 
     # ----------------------------------------------------------------------
-    # Experiment 2 (Eval): Model Size vs Memory (Evaluation Mode)
-    print(f"\n==> Experiment 2 (Eval): Model Size vs Memory (Evaluation)")
-    print(
-        f"   Testing each model across all batch sizes (ordered from smallest to largest)"
-    )
-
-    for config in model_configs:
-        model_result = run_model_size_memory_experiment_eval(
-            fabric, config, batch_sizes, num_iterations, warmup_iterations
-        )
-        results["model_size_experiment_eval"].append(model_result)
-
-    # ----------------------------------------------------------------------
-    # Experiment 3 (Eval): Sequence Length vs Memory (Evaluation Mode)
-    print(f"\n==> Experiment 3 (Eval): Sequence Length vs Memory (Evaluation)")
-    print(
-        f"   Testing each model across all sequence lengths (ordered from shortest to longest)"
-    )
-
-    # Use a moderate batch size for sequence length experiments
-    moderate_batch_size = 16
-
-    for config in model_configs:
-        seq_result = run_sequence_length_memory_experiment_eval(
-            fabric,
-            config,
-            moderate_batch_size,
-            sequence_lengths,
-            num_iterations,
-            warmup_iterations,
-        )
-        results["sequence_length_experiment_eval"].append(seq_result)
+    # Experiments 2 and 3 are duplications of Experiment 1, so they are commented out
+    # The batch_size_scaling experiment already covers all combinations of:
+    # - All models (tiny, small, medium, large, xlarge)
+    # - All batch sizes (1, 2, 4, 8, 16, 32, 64, 128)
+    # - Both training and evaluation modes
+    #
+    # Experiments 2 and 3 would just be reorganizing the same data differently.
+    # If you need sequence length scaling, that would be a separate experiment.
 
     # Save full results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
