@@ -59,3 +59,18 @@ JOBID: 11190824
 ----------------------------------------------------------------------
 JOBID: 11190865
 - disable memory monitoring to see if timings are more stable. 
+----------------------------------------------------------------------
+JOBID: 11191019
+- Added additional tests. See analysis in Understanding\ timing...md
+- No memory measurements in lightning. I will now repeat the experiment with both timing and mmeory measurments. 
+  Memory measurements in fabric. 
+----------------------------------------------------------------------
+JOBID: 11191029
+- single GPU
+- Memory disabled for al decorators (so I can compare apples and apples)
+----------------------------------------------------------------------
+JOBID: 
+- single GPU
+- Memory enabled for al decorators (so I can compare apples and apples)
+- the timings are very consistent: 0.09 and 0.33 (there are no variations). All variations were due to 
+  the measurement of memory. 
