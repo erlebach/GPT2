@@ -57,3 +57,5 @@ JOBID: 11190824
 - batch_size 32
 - Single GPU
 ----------------------------------------------------------------------
+JOBID: 11190865
+- disable memory monitoring to see if timings are more stable. 

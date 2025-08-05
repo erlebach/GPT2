@@ -334,6 +334,119 @@ def save_metrics(fabric, file_name: str) -> None:
         print("✅ Training completed and metrics saved")
 
 
+def test_training_step_timing(
+    fabric: Fabric,
+    lightning_module: GPTLightningModule,
+    num_iterations: int = 20,
+    warmup_iterations: int = 5,
+) -> None:
+    """Test training step timing without decorator overhead.
+
+    This function creates a test batch and runs the training step multiple times
+    to measure pure timing without any decorator overhead.
+
+    Args:
+        fabric: Lightning Fabric instance.
+        lightning_module: The GPT Lightning module to test.
+        num_iterations: Number of iterations to test timing.
+        warmup_iterations: Number of warmup iterations before timing.
+    """
+    import statistics
+    import time
+
+    if fabric.global_rank != 0:
+        return  # Only run on rank 0
+
+    print(f"\n🧪 Testing training step timing (no decorator overhead):")
+    print(f"   Warmup iterations: {warmup_iterations}")
+    print(f"   Test iterations: {num_iterations}")
+
+    # Create a test batch (same as what would be used in training)
+    batch_size = 32
+    block_size = 1024
+    vocab_size = 50304
+
+    # Create random input and target tensors
+    x = torch.randint(0, vocab_size, (batch_size, block_size), device=fabric.device)
+    y = torch.randint(0, vocab_size, (batch_size, block_size), device=fabric.device)
+    test_batch = (x, y)
+
+    print(f"   Test batch shape: {x.shape}")
+    print(f"   Device: {fabric.device}")
+
+    # Warm up the model and GPU
+    print(f"\n🔥 Warming up...")
+    lightning_module.train()
+    for i in range(warmup_iterations):
+        with torch.no_grad():
+            _ = lightning_module.training_step(test_batch, batch_idx=i)
+        if i < 3:  # Print first few warmup iterations
+            print(f"   Warmup {i+1}/{warmup_iterations}")
+
+    # Synchronize GPU to ensure warmup is complete
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+
+    print(f"\n⏱️  Running timing test...")
+    timings = []
+
+    for i in range(num_iterations):
+        # Synchronize before timing to ensure clean measurement
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        start_time = time.time()
+
+        # Run the training step (forward pass only, no backward)
+        loss = lightning_module.training_step(test_batch, batch_idx=i)
+
+        # Synchronize after to ensure GPU operations are complete
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        end_time = time.time()
+        step_time = end_time - start_time
+        timings.append(step_time)
+
+        print(f"   Step {i+1:2d}: {step_time:.6f}s (loss: {loss.item():.4f})")
+
+    # Calculate statistics
+    mean_time = statistics.mean(timings)
+    std_time = statistics.stdev(timings) if len(timings) > 1 else 0.0
+    min_time = min(timings)
+    max_time = max(timings)
+
+    print(f"\n📊 Timing Statistics:")
+    print(f"   Mean:   {mean_time:.6f}s")
+    print(f"   Std:    {std_time:.6f}s")
+    print(f"   Min:    {min_time:.6f}s")
+    print(f"   Max:    {max_time:.6f}s")
+    print(f"   Range:  {max_time - min_time:.6f}s")
+    print(f"   CV:     {(std_time/mean_time)*100:.2f}% (coefficient of variation)")
+
+    # Check for timing variations
+    if max_time > 1.5 * mean_time:
+        print(f"⚠️  Significant timing variation detected!")
+        print(f"   Max time is {max_time/mean_time:.2f}x the mean")
+
+        # Find which steps were slow
+        slow_threshold = mean_time + std_time
+        slow_steps = [i + 1 for i, t in enumerate(timings) if t > slow_threshold]
+        if slow_steps:
+            print(f"   Slow steps (> mean + std): {slow_steps}")
+    else:
+        print(f"✅ Timing is relatively consistent")
+
+    # Compare with decorator measurements if available
+    print(f"\n🔍 Comparison with decorator measurements:")
+    print(f"   This test measures ONLY the training_step() method")
+    print(f"   Decorator measurements include overhead from:")
+    print(f"     - Memory operations (empty_cache, reset_peak_memory_stats)")
+    print(f"     - Metrics collection and storage")
+    print(f"     - Function wrapper overhead")
+    print(f"     - Global metrics collector operations")
+
+
 def main():
     """Main function to run GPT-2 training using Lightning Fabric."""
     # Initialize GPU parallelism checker
@@ -434,6 +547,11 @@ def main():
     print(f"🔍 Fabric device: {fabric.is_global_zero}", flush=True)
     print(f"🔍 Fabric global_rank: {fabric.global_rank}", flush=True)
     print(f"🔍 Fabric world_size: {fabric.world_size}", flush=True)
+
+    # Run timing test before training
+    test_training_step_timing(
+        fabric, lightning_module, num_iterations=20, warmup_iterations=5
+    )
 
     # Start training
     if fabric.global_rank == 0:  # Changed from fabric.is_global_zero
