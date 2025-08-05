@@ -428,6 +428,13 @@ def save_metrics_to_csv(filename: str, metrics: dict):
         print("No memory or timing metrics to save.")
         return
 
+    file_exists = os.path.isfile(filename)
+    with open(filename, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=filtered_metrics.keys())
+        if not file_exists or os.stat(filename).st_size == 0:
+            writer.writeheader()
+        writer.writerow(filtered_metrics)
+
 
 import csv
 import os
@@ -435,14 +442,6 @@ import os
 
 def round_floats(d):
     return {k: (round(v, 5) if isinstance(v, float) else v) for k, v in d.items()}
-
-
-file_exists = os.path.isfile(filename)
-with open(filename, "a", newline="") as f:
-    writer = csv.DictWriter(f, fieldnames=filtered_metrics.keys())
-    if not file_exists or os.stat(filename).st_size == 0:
-        writer.writeheader()
-    writer.writerow(filtered_metrics)
 
 
 # Add test cases for both regular functions and class methods
