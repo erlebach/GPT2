@@ -1246,103 +1246,113 @@ def save_simplified_results(results: dict, timestamp: str) -> None:
 
     # Process batch size experiments (training)
     for batch_result in results.get("batch_size_experiment", []):
-        batch_size = batch_result["batch_size"]
-        for model_result in batch_result.get("models", []):
-            if model_result.get("status") == "success":
-                simplified_data["experiments"].append(
-                    {
-                        "experiment_type": "batch_size_scaling",
-                        "mode": "training",
-                        "model_name": model_result["model_name"],
-                        "batch_size": batch_size,
-                        "sequence_length": 1024,  # Fixed for batch size experiments
-                        "total_params_millions": model_result["total_params"] / 1e6,
-                        "avg_memory_gb": model_result["avg_memory_gb"],
-                        "peak_memory_gb": model_result["peak_memory_gb"],
-                        "avg_forward_memory_gb": model_result["avg_forward_memory_gb"],
-                        "peak_forward_memory_gb": model_result[
-                            "avg_peak_forward_memory_gb"
-                        ],
-                        "avg_backward_memory_gb": model_result[
-                            "avg_backward_memory_gb"
-                        ],
-                        "peak_backward_memory_gb": model_result[
-                            "avg_peak_backward_memory_gb"
-                        ],
-                        "memory_per_sample_gb": model_result["memory_per_sample_gb"],
-                        "memory_per_token_gb": model_result["memory_per_sample_gb"]
-                        / 1024,  # Convert sample to token
-                        "status": model_result["status"],
-                    }
-                )
+        for seq_len in results.get("seq_len_experiment", []):
+            batch_size = batch_result["batch_size"]
+            for model_result in batch_result.get("models", []):
+                if model_result.get("status") == "success":
+                    simplified_data["experiments"].append(
+                        {
+                            "experiment_type": "batch_size_scaling",
+                            "mode": "training",
+                            "model_name": model_result["model_name"],
+                            "batch_size": batch_size,
+                            "sequence_length": seq_len,  # Fixed for batch size experiments
+                            "total_params_millions": model_result["total_params"] / 1e6,
+                            "avg_memory_gb": model_result["avg_memory_gb"],
+                            "peak_memory_gb": model_result["peak_memory_gb"],
+                            "avg_forward_memory_gb": model_result[
+                                "avg_forward_memory_gb"
+                            ],
+                            "peak_forward_memory_gb": model_result[
+                                "avg_peak_forward_memory_gb"
+                            ],
+                            "avg_backward_memory_gb": model_result[
+                                "avg_backward_memory_gb"
+                            ],
+                            "peak_backward_memory_gb": model_result[
+                                "avg_peak_backward_memory_gb"
+                            ],
+                            "memory_per_sample_gb": model_result[
+                                "memory_per_sample_gb"
+                            ],
+                            "memory_per_token_gb": model_result["memory_per_sample_gb"]
+                            / 1024,  # Convert sample to token
+                            "status": model_result["status"],
+                        }
+                    )
 
-                csv_rows.append(
-                    [
-                        "batch_size_scaling",
-                        "training",
-                        model_result["model_name"],
-                        batch_size,
-                        1024,
-                        f"{model_result['total_params'] / 1e6:.1f}",
-                        f"{model_result['avg_memory_gb']:.2f}",
-                        f"{model_result['peak_memory_gb']:.2f}",
-                        f"{model_result['avg_forward_memory_gb']:.2f}",
-                        f"{model_result['avg_peak_forward_memory_gb']:.2f}",
-                        f"{model_result['avg_backward_memory_gb']:.2f}",
-                        f"{model_result['avg_peak_backward_memory_gb']:.2f}",
-                        f"{model_result['memory_per_sample_gb']:.3f}",
-                        f"{model_result['memory_per_sample_gb'] / 1024:.3f}",
-                        model_result["status"],
-                    ]
-                )
+                    csv_rows.append(
+                        [
+                            "batch_size_scaling",
+                            "training",
+                            model_result["model_name"],
+                            batch_size,
+                            seq_len,
+                            f"{model_result['total_params'] / 1e6:.1f}",
+                            f"{model_result['avg_memory_gb']:.2f}",
+                            f"{model_result['peak_memory_gb']:.2f}",
+                            f"{model_result['avg_forward_memory_gb']:.2f}",
+                            f"{model_result['avg_peak_forward_memory_gb']:.2f}",
+                            f"{model_result['avg_backward_memory_gb']:.2f}",
+                            f"{model_result['avg_peak_backward_memory_gb']:.2f}",
+                            f"{model_result['memory_per_sample_gb']:.3f}",
+                            f"{model_result['memory_per_sample_gb'] / 1024:.3f}",
+                            model_result["status"],
+                        ]
+                    )
 
     # Process batch size experiments (evaluation)
     for batch_result in results.get("batch_size_experiment_eval", []):
-        batch_size = batch_result["batch_size"]
-        for model_result in batch_result.get("models", []):
-            if model_result.get("status") == "success":
-                simplified_data["experiments"].append(
-                    {
-                        "experiment_type": "batch_size_scaling",
-                        "mode": "evaluation",
-                        "model_name": model_result["model_name"],
-                        "batch_size": batch_size,
-                        "sequence_length": 1024,
-                        "total_params_millions": model_result["total_params"] / 1e6,
-                        "avg_memory_gb": model_result["avg_memory_gb"],
-                        "peak_memory_gb": model_result["peak_memory_gb"],
-                        "avg_forward_memory_gb": model_result["avg_forward_memory_gb"],
-                        "peak_forward_memory_gb": model_result[
-                            "avg_peak_forward_memory_gb"
-                        ],
-                        "avg_backward_memory_gb": 0.0,  # No backward pass in eval
-                        "peak_backward_memory_gb": 0.0,  # No backward pass in eval
-                        "memory_per_sample_gb": model_result["memory_per_sample_gb"],
-                        "memory_per_token_gb": model_result["memory_per_sample_gb"]
-                        / 1024,
-                        "status": model_result["status"],
-                    }
-                )
+        for seq_len in results.get("seq_len_experiment_eval", []):
+            batch_size = batch_result["batch_size"]
+            for model_result in batch_result.get("models", []):
+                if model_result.get("status") == "success":
+                    simplified_data["experiments"].append(
+                        {
+                            "experiment_type": "batch_size_scaling",
+                            "mode": "evaluation",
+                            "model_name": model_result["model_name"],
+                            "batch_size": batch_size,
+                            "sequence_length": seq_len,
+                            "total_params_millions": model_result["total_params"] / 1e6,
+                            "avg_memory_gb": model_result["avg_memory_gb"],
+                            "peak_memory_gb": model_result["peak_memory_gb"],
+                            "avg_forward_memory_gb": model_result[
+                                "avg_forward_memory_gb"
+                            ],
+                            "peak_forward_memory_gb": model_result[
+                                "avg_peak_forward_memory_gb"
+                            ],
+                            "avg_backward_memory_gb": 0.0,  # No backward pass in eval
+                            "peak_backward_memory_gb": 0.0,  # No backward pass in eval
+                            "memory_per_sample_gb": model_result[
+                                "memory_per_sample_gb"
+                            ],
+                            "memory_per_token_gb": model_result["memory_per_sample_gb"]
+                            / 1024,
+                            "status": model_result["status"],
+                        }
+                    )
 
-                csv_rows.append(
-                    [
-                        "batch_size_scaling",
-                        "evaluation",
-                        model_result["model_name"],
-                        batch_size,
-                        1024,
-                        f"{model_result['total_params'] / 1e6:.1f}",
-                        f"{model_result['avg_memory_gb']:.2f}",
-                        f"{model_result['peak_memory_gb']:.2f}",
-                        f"{model_result['avg_forward_memory_gb']:.2f}",
-                        f"{model_result['avg_peak_forward_memory_gb']:.2f}",
-                        "0.00",  # No backward pass in eval
-                        "0.00",  # No backward pass in eval
-                        f"{model_result['memory_per_sample_gb']:.3f}",
-                        f"{model_result['memory_per_sample_gb'] / 1024:.3f}",
-                        model_result["status"],
-                    ]
-                )
+                    csv_rows.append(
+                        [
+                            "batch_size_scaling",
+                            "evaluation",
+                            model_result["model_name"],
+                            batch_size,
+                            1024,
+                            f"{model_result['total_params'] / 1e6:.1f}",
+                            f"{model_result['avg_memory_gb']:.2f}",
+                            f"{model_result['peak_memory_gb']:.2f}",
+                            f"{model_result['avg_forward_memory_gb']:.2f}",
+                            f"{model_result['avg_peak_forward_memory_gb']:.2f}",
+                            "0.00",  # No backward pass in eval
+                            "0.00",  # No backward pass in eval
+                            f"{model_result['memory_per_sample_gb']:.3f}",
+                            f"{model_result['memory_per_sample_gb'] / 1024:.3f}",
+                            model_result["status"],
+                        ]
+                    )
 
     # Process model size experiments (training)
     for model_result in results.get("model_size_experiment", []):
@@ -1617,6 +1627,7 @@ def measure_memory_scaling_experiments(
         "timestamp": datetime.now().isoformat(),
         "device": str(fabric.device),
         "batch_size_experiment": [],
+        "seq_len_experiment": [],
         "model_size_experiment": [],
         "sequence_length_experiment": [],
         "batch_size_experiment_eval": [],
@@ -1640,6 +1651,7 @@ def measure_memory_scaling_experiments(
                 warmup_iterations,
             )
             results["batch_size_experiment"].append(batch_result)
+            results["seq_len_experiment"].append(seq_len)
 
             # Check if all models failed for this batch size
             successful_models = [
@@ -1667,6 +1679,7 @@ def measure_memory_scaling_experiments(
                 warmup_iterations,
             )
             results["batch_size_experiment_eval"].append(batch_result)
+            results["seq_len_experiment_eval"].append(seq_len)
 
             # Check if all models failed for this batch size
             successful_models = [
