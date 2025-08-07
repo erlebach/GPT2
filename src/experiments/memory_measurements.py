@@ -64,34 +64,29 @@ def memory_measurement(func):
 
 
 @memory_measurement
-def run_forward_pass(model, x, mode="training"):
-    """Run a forward pass and measure GPU memory usage.
+def run_inference(model, x):
+    """Run inference (forward pass without gradients) and measure GPU memory usage.
 
     Args:
-        model: The model to run forward pass on.
+        model: The model to run inference on.
         x: Input tensor.
-        mode: Either 'training' or 'evaluation'.
 
     Returns:
-        dict: Memory measurements for the forward pass.
+        dict: Memory measurements for inference.
     """
-    # Run forward pass
-    if mode == "evaluation":
-        with torch.no_grad():
-            output = model(x)
-    else:
-        # For training mode, enable gradient computation
-        output = model(x)  # No torch.no_grad() - gradients will be computed
+    # Run forward pass without gradients
+    with torch.no_grad():
+        output = model(x)
 
-    # Clean up forward pass
+    # Clean up
     del output
 
-    return {"operation": "forward_pass", "mode": mode}
+    return {"operation": "inference"}
 
 
 @memory_measurement
-def run_forward_in_preparation_for_backward(model, x, y):
-    """Run forward pass in training mode to prepare for backward pass.
+def run_forward_with_gradients(model, x, y):
+    """Run forward pass with gradients enabled and measure GPU memory usage.
 
     This function runs the forward pass with gradients enabled but does NOT
     compute loss or run backward pass. It's used to measure the memory
@@ -103,7 +98,7 @@ def run_forward_in_preparation_for_backward(model, x, y):
         y: Target tensor.
 
     Returns:
-        dict: Memory measurements for the forward pass preparation.
+        dict: Memory measurements for forward pass with gradients.
     """
     # Run forward pass with gradients enabled (no loss computation)
     logits, _ = model(
@@ -113,12 +108,12 @@ def run_forward_in_preparation_for_backward(model, x, y):
     # Clean up
     del logits
 
-    return {"operation": "forward_preparation"}
+    return {"operation": "forward_with_gradients"}
 
 
 @memory_measurement
-def run_forward_and_backward(model, x, y):
-    """Run complete forward and backward pass and measure GPU memory usage.
+def run_training_step(model, x, y):
+    """Run complete training step and measure GPU memory usage.
 
     This function runs the full training step: forward pass, loss computation,
     backward pass, and optimizer step.
@@ -137,7 +132,7 @@ def run_forward_and_backward(model, x, y):
     # Clean up
     del loss
 
-    return {"operation": "forward_and_backward"}
+    return {"operation": "training_step"}
 
 
 def run_single_experiment(
@@ -146,7 +141,6 @@ def run_single_experiment(
     batch_size: int,
     sequence_length: int,
     model_config: dict,
-    mode: str = "training",
     num_iterations: int = 10,
     warmup_iterations: int = 5,
 ) -> dict:
@@ -158,7 +152,6 @@ def run_single_experiment(
         batch_size: Batch size to test.
         sequence_length: Sequence length to test.
         model_config: Model configuration dictionary.
-        mode: Either 'training' or 'evaluation'.
         num_iterations: Number of iterations to measure after warmup.
         warmup_iterations: Number of warmup iterations.
 
@@ -219,12 +212,13 @@ def run_single_experiment(
 
         # Measure memory over multiple iterations
         print(f"     Measuring memory ({num_iterations} iterations)...", flush=True)
-        # Instead of multiple separate lists:
         memory_readings = []
-        forward_memory_readings = []
-        backward_memory_readings = []
-        peak_forward_readings = []
-        peak_backward_readings = []
+        inf_memory_readings = []
+        fwd_memory_readings = []
+        ts_memory_readings = []
+        peak_inf_readings = []
+        peak_fwd_readings = []
+        peak_ts_readings = []
 
         # Just use one list of complete experiment results:
         experiment_results = []
@@ -235,72 +229,45 @@ def run_single_experiment(
             reset_model_state(model, optimizer)
             optimizer.zero_grad()
 
-            if mode == "evaluation":
-                # Evaluation mode: only forward pass
-                forward_result = run_forward_pass(model, x, mode="evaluation")
-                # Create unified structure for evaluation mode
-                experiment_result = {
-                    "forward": forward_result,
-                    "backward": None,  # No backward pass in evaluation
-                    "mode": mode,
-                }
-                experiment_results.append(experiment_result)
-                memory_readings.append(forward_result["memory_gb"])
-                forward_memory_readings.append(forward_result["memory_gb"])
-                backward_memory_readings.append(-1.0)  # Not applicable for evaluation
-                peak_forward_readings.append(forward_result["peak_memory_gb"])
-                peak_backward_readings.append(-1.0)  # Not applicable for evaluation
-            else:
-                # Training mode: forward + backward pass
-                forward_result = run_forward_in_preparation_for_backward(model, x, y)
-                backward_result = run_forward_and_backward(model, x, y)
-                # Create unified structure for training mode
-                experiment_result = {
-                    "forward": forward_result,
-                    "backward": backward_result,
-                    "mode": mode,
-                }
-                experiment_results.append(experiment_result)
-                memory_readings.append(backward_result["memory_gb"])
-                forward_memory_readings.append(forward_result["memory_gb"])
-                backward_memory_readings.append(backward_result["memory_gb"])
-                peak_forward_readings.append(forward_result["peak_memory_gb"])
-                peak_backward_readings.append(backward_result["peak_memory_gb"])
+            # Run all three measurements for every experiment
+            inf_result = run_inference(model, x)
+            fwd_result = run_forward_with_gradients(model, x, y)
+            ts_result = run_training_step(model, x, y)
+
+            # Create unified structure
+            experiment_result = {
+                "inf": inf_result,
+                "fwd": fwd_result,
+                "ts": ts_result,
+            }
+            experiment_results.append(experiment_result)
+
+            # Store memory readings
+            inf_memory_readings.append(inf_result["memory_gb"])
+            fwd_memory_readings.append(fwd_result["memory_gb"])
+            ts_memory_readings.append(ts_result["memory_gb"])
+            peak_inf_readings.append(inf_result["peak_memory_gb"])
+            peak_fwd_readings.append(fwd_result["peak_memory_gb"])
+            peak_ts_readings.append(ts_result["peak_memory_gb"])
 
         # Calculate statistics
-        avg_memory = statistics.mean(memory_readings)
-        std_memory = (
-            statistics.stdev(memory_readings) if len(memory_readings) > 1 else 0.0
+        avg_inf_memory = statistics.mean(inf_memory_readings)
+        avg_inf_net_memory = statistics.mean(
+            [r["inf"]["net_memory_gb"] for r in experiment_results]
         )
-        avg_forward_memory = statistics.mean(forward_memory_readings)
-        avg_forward_net_memory = statistics.mean(
-            [r["forward"]["net_memory_gb"] for r in experiment_results]
+        avg_inf_peak_memory = statistics.mean(peak_inf_readings)
+
+        avg_fwd_memory = statistics.mean(fwd_memory_readings)
+        avg_fwd_net_memory = statistics.mean(
+            [r["fwd"]["net_memory_gb"] for r in experiment_results]
         )
-        avg_forward_peak_memory = statistics.mean(peak_forward_readings)
-        avg_backward_memory = statistics.mean(backward_memory_readings)
+        avg_fwd_peak_memory = statistics.mean(peak_fwd_readings)
 
-        # Handle backward net memory - use backward result if available, otherwise -1
-        if mode == "evaluation":
-            avg_backward_net_memory = -1.0  # Not applicable for evaluation
-        else:
-            avg_backward_net_memory = statistics.mean(
-                [r["backward"]["net_memory_gb"] for r in experiment_results]
-            )
-
-        avg_backward_peak_memory = statistics.mean(peak_backward_readings)
-        avg_combined_memory = statistics.mean(memory_readings)
-
-        # For combined net memory, use backward result in training mode, forward in evaluation
-        if mode == "evaluation":
-            avg_combined_net_memory = statistics.mean(
-                [r["forward"]["net_memory_gb"] for r in experiment_results]
-            )
-        else:
-            avg_combined_net_memory = statistics.mean(
-                [r["backward"]["net_memory_gb"] for r in experiment_results]
-            )
-
-        avg_combined_peak_memory = statistics.mean(peak_forward_readings)
+        avg_ts_memory = statistics.mean(ts_memory_readings)
+        avg_ts_net_memory = statistics.mean(
+            [r["ts"]["net_memory_gb"] for r in experiment_results]
+        )
+        avg_ts_peak_memory = statistics.mean(peak_ts_readings)
 
         peak_memory = torch.cuda.max_memory_allocated() / 1e9
 
@@ -308,48 +275,36 @@ def run_single_experiment(
             "model_name": model_name,
             "batch_size": batch_size,
             "sequence_length": sequence_length,
-            "mode": mode,
             "config": model_config,
             "total_params": total_params,
-            "avg_memory_gb": avg_memory,
-            "std_memory_gb": std_memory,
-            "avg_forward_memory_gb": avg_forward_memory,
-            "avg_forward_net_memory_gb": avg_forward_net_memory,
-            "avg_forward_peak_memory_gb": avg_forward_peak_memory,
-            "avg_backward_memory_gb": avg_backward_memory,
-            "avg_backward_net_memory_gb": avg_backward_net_memory,
-            "avg_backward_peak_memory_gb": avg_backward_peak_memory,
-            "avg_combined_memory_gb": avg_combined_memory,
-            "avg_combined_net_memory_gb": avg_combined_net_memory,
-            "avg_combined_peak_memory_gb": avg_combined_peak_memory,
+            "avg_inf_memory_gb": avg_inf_memory,
+            "avg_inf_net_memory_gb": avg_inf_net_memory,
+            "avg_inf_peak_memory_gb": avg_inf_peak_memory,
+            "avg_fwd_memory_gb": avg_fwd_memory,
+            "avg_fwd_net_memory_gb": avg_fwd_net_memory,
+            "avg_fwd_peak_memory_gb": avg_fwd_peak_memory,
+            "avg_ts_memory_gb": avg_ts_memory,
+            "avg_ts_net_memory_gb": avg_ts_net_memory,
+            "avg_ts_peak_memory_gb": avg_ts_peak_memory,
             "peak_memory_gb": peak_memory,
-            "memory_readings": memory_readings,
-            "forward_memory_readings": forward_memory_readings,
-            "backward_memory_readings": backward_memory_readings,
-            "peak_forward_readings": peak_forward_readings,
-            "peak_backward_readings": peak_backward_readings,
+            "inf_memory_readings": inf_memory_readings,
+            "fwd_memory_readings": fwd_memory_readings,
+            "ts_memory_readings": ts_memory_readings,
+            "peak_inf_readings": peak_inf_readings,
+            "peak_fwd_readings": peak_fwd_readings,
+            "peak_ts_readings": peak_ts_readings,
             "status": "success",
         }
 
         elapsed_time = time.time() - start_time
-        if mode == "evaluation":
-            print(
-                f"       ✅ Completed in {elapsed_time:.1f}s - "
-                f"    (mem, net mem, peak mem) - "
-                f"Forward: {forward_result['memory_gb']:.2f}GB, {forward_result['net_memory_gb']:.2f}GB, {forward_result['peak_memory_gb']:.2f}GB, "
-                f"Backward: -1.00GB, -1.00GB, -1.00GB, "
-                f"Combined: {avg_memory:.2f}GB, {avg_memory:.2f}GB, {peak_memory:.2f}GB",
-                flush=True,
-            )
-        else:
-            print(
-                f"       ✅ Completed in {elapsed_time:.1f}s - "
-                f"    (mem, net mem, peak mem) - "
-                f"Forward: {forward_result['memory_gb']:.2f}GB, {forward_result['net_memory_gb']:.2f}GB, {forward_result['peak_memory_gb']:.2f}GB, "
-                f"Backward: {backward_result['memory_gb']:.2f}GB, {backward_result['net_memory_gb']:.2f}GB, {backward_result['peak_memory_gb']:.2f}GB, "
-                f"Combined: {avg_memory:.2f}GB, {avg_memory:.2f}GB, {peak_memory:.2f}GB",
-                flush=True,
-            )
+        print(
+            f"       ✅ Completed in {elapsed_time:.1f}s - "
+            f"    (mem, net mem, peak mem) - "
+            f"INF: {avg_inf_memory:.2f}GB, {avg_inf_net_memory:.2f}GB, {avg_inf_peak_memory:.2f}GB, "
+            f"FWD: {avg_fwd_memory:.2f}GB, {avg_fwd_net_memory:.2f}GB, {avg_fwd_peak_memory:.2f}GB, "
+            f"TS: {avg_ts_memory:.2f}GB, {avg_ts_net_memory:.2f}GB, {avg_ts_peak_memory:.2f}GB",
+            flush=True,
+        )
 
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
@@ -411,7 +366,6 @@ def run_experiment_grid(
     model_configs: list,
     batch_sizes: list,
     sequence_lengths: list,
-    modes: list = ["training", "evaluation"],
     num_iterations: int = 10,
     warmup_iterations: int = 5,
     max_experiments: int | None = None,
@@ -423,7 +377,6 @@ def run_experiment_grid(
         model_configs: List of model configuration dictionaries.
         batch_sizes: List of batch sizes to test (ordered from smallest to largest).
         sequence_lengths: List of sequence lengths to test (ordered from shortest to longest).
-        modes: List of modes to test ('training' and/or 'evaluation').
         num_iterations: Number of iterations to measure after warmup.
         warmup_iterations: Number of warmup iterations.
         max_experiments: Maximum number of experiments to run. If None, all combinations are run.
@@ -434,9 +387,7 @@ def run_experiment_grid(
     from datetime import datetime
 
     if max_experiments is None:
-        max_experiments = (
-            len(model_configs) * len(batch_sizes) * len(sequence_lengths) * len(modes)
-        )
+        max_experiments = len(model_configs) * len(batch_sizes) * len(sequence_lengths)
 
     if fabric.global_rank != 0:
         return {}
@@ -445,7 +396,6 @@ def run_experiment_grid(
     print(f"   Models: {[config['name'] for config in model_configs]}")
     print(f"   Batch sizes: {batch_sizes}")
     print(f"   Sequence lengths: {sequence_lengths}")
-    print(f"   Modes: {modes}")
     print(f"   Warmup iterations: {warmup_iterations}")
     print(f"   Measurement iterations: {num_iterations}", flush=True)
 
@@ -455,81 +405,45 @@ def run_experiment_grid(
         "experiments": {},
     }
 
-    total_experiments = (
-        len(model_configs) * len(batch_sizes) * len(sequence_lengths) * len(modes)
-    )
+    total_experiments = len(model_configs) * len(batch_sizes) * len(sequence_lengths)
     experiment_count = 0
 
-    for config in model_configs:
-        model_name = config["name"]
-        print(f"\n==> Testing model: {model_name}")
+    for model_config in model_configs:
+        model_name = model_config["name"]
+        print(f"\n🔬 Testing model: {model_name}")
 
-        for mode in modes:
-            print(f"   Testing mode: {mode}")
+        for sequence_length in sequence_lengths:
+            print(f"   Testing sequence length: {sequence_length}")
 
-            for sequence_length in sequence_lengths:
-                print(f"     Testing sequence length: {sequence_length}")
+            for batch_size in batch_sizes:
+                experiment_count += 1
+                if max_experiments and experiment_count > max_experiments:
+                    print(f"   ⏹️  Reached max experiments limit ({max_experiments})")
+                    return results
 
-                # Track OOM status for this model/mode/sequence_length combination
-                oom_detected = False
+                print(
+                    f"     [{experiment_count}/{total_experiments}] Testing: {model_name}, batch_size={batch_size}, seq_len={sequence_length}"
+                )
 
-                for batch_size in batch_sizes:
-                    # Skip if OOM was detected for a smaller batch size
-                    if oom_detected:
-                        print(
-                            f"       ⚠️  Skipping batch_size={batch_size} (OOM detected for smaller batch)"
-                        )
-                        continue
+                # Run experiment (no mode parameter needed)
+                experiment_result = run_single_experiment(
+                    fabric=fabric,
+                    model_name=model_name,
+                    batch_size=batch_size,
+                    sequence_length=sequence_length,
+                    model_config=model_config,
+                    num_iterations=num_iterations,
+                    warmup_iterations=warmup_iterations,
+                )
 
-                    experiment_count += 1
+                # Store result with tuple key
+                key = (model_name, batch_size, sequence_length)
+                results["experiments"][key] = experiment_result
+
+                # Check if we should stop for this sequence length
+                if experiment_result.get("status") != "success":
                     print(
-                        f"\n       [{experiment_count}/{total_experiments}] ",
-                        end="",
-                        flush=True,
-                    )
-
-                    # Create triplet key
-                    triplet = (model_name, batch_size, sequence_length)
-
-                    # Run experiment
-                    result = run_single_experiment(
-                        fabric,
-                        model_name,
-                        batch_size,
-                        sequence_length,
-                        config,
-                        mode,
-                        num_iterations,
-                        warmup_iterations,
-                    )
-
-                    # Store result with mode as part of the key
-                    mode_key = (*triplet, mode)
-                    results["experiments"][mode_key] = result
-
-                    # Check for OOM for this batch_size
-                    if result.get("status") == "out_of_memory":
-                        print(
-                            f"       ⚠️  OOM detected for batch_size={batch_size}, stopping larger batch sizes"
-                        )
-                        oom_detected = True
-                        break
-
-                # Early stopping for OOM at sequence length level
-                # If all batch sizes failed for this sequence length, skip larger sequence lengths
-                successful_batches = [
-                    batch_size
-                    for batch_size in batch_sizes
-                    if results["experiments"]
-                    .get((model_name, batch_size, sequence_length, mode), {})
-                    .get("status")
-                    == "success"
-                ]
-
-                if not successful_batches:
-                    print(
-                        f"       ⚠️  All batch sizes failed for seq_len={sequence_length}, stopping larger sequence lengths",
-                        flush=True,
+                        f"       ⚠️  All batch sizes failed for seq_len={sequence_length}, stopping larger sequence lengths"
                     )
                     break
 
@@ -549,28 +463,27 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
     if timestamp is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # Define CSV headers with mean and std dev for each metric
+    # CSV headers - update to use new naming scheme
     headers = [
         "model_name",
         "batch_size",
         "sequence_length",
-        "mode",
         "total_params_millions",
-        "RF_mem",
-        "RF_net_mem",
-        "RF_peak_mem",
-        "RB_mem",
-        "RB_net_mem",
-        "RB_peak_mem",
-        "RC_mem",
-        "RC_net_mem",
-        "RC_peak_mem",
+        "INF_mem",
+        "INF_net_mem",
+        "INF_peak_mem",
+        "FWD_mem",
+        "FWD_net_mem",
+        "FWD_peak_mem",
+        "TS_mem",
+        "TS_net_mem",
+        "TS_peak_mem",
         "status",
     ]
 
     csv_rows = []
 
-    for _, experiment in results["experiments"].items():
+    for key, experiment in results["experiments"].items():
         if experiment.get("status") == "success":
             # Calculate standard deviations from the raw readings
             import statistics
@@ -605,17 +518,16 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 experiment["model_name"],
                 experiment["batch_size"],
                 experiment["sequence_length"],
-                experiment["mode"],
                 f"{experiment['total_params'] / 1e6:.1f}",
-                f"{experiment['avg_forward_memory_gb']:.3f}",
-                f"{experiment['avg_forward_net_memory_gb']:.3f}",
-                f"{experiment['avg_forward_peak_memory_gb']:.3f}",
-                f"{experiment['avg_backward_memory_gb']:.3f}",
-                f"{experiment['avg_backward_net_memory_gb']:.3f}",
-                f"{experiment['avg_backward_peak_memory_gb']:.3f}",
-                f"{experiment['avg_combined_memory_gb']:.3f}",
-                f"{experiment['avg_combined_net_memory_gb']:.3f}",
-                f"{experiment['avg_combined_peak_memory_gb']:.3f}",
+                f"{experiment['avg_inf_memory_gb']:.3f}",
+                f"{experiment['avg_inf_net_memory_gb']:.3f}",
+                f"{experiment['avg_inf_peak_memory_gb']:.3f}",
+                f"{experiment['avg_fwd_memory_gb']:.3f}",
+                f"{experiment['avg_fwd_net_memory_gb']:.3f}",
+                f"{experiment['avg_fwd_peak_memory_gb']:.3f}",
+                f"{experiment['avg_ts_memory_gb']:.3f}",
+                f"{experiment['avg_ts_net_memory_gb']:.3f}",
+                f"{experiment['avg_ts_peak_memory_gb']:.3f}",
                 experiment["status"],
             ]
         else:
@@ -624,18 +536,17 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 experiment["model_name"],
                 experiment["batch_size"],
                 experiment["sequence_length"],
-                experiment["mode"],
-                "",  # total_params_millions
-                "",  # RF_mem
-                "",  # RF_net_mem
-                "",  # RF_peak_mem
-                "",  # RB_mem
-                "",  # RB_net_mem
-                "",  # RB_peak_mem
-                "",  # RC_mem
-                "",  # RC_net_mem
-                "",  # RC_peak_mem
-                "",  # status
+                f"{experiment['total_params'] / 1e6:.1f}",
+                "",  # INF_mem
+                "",  # INF_net_mem
+                "",  # INF_peak_mem
+                "",  # FWD_mem
+                "",  # FWD_net_mem
+                "",  # FWD_peak_mem
+                "",  # TS_mem
+                "",  # TS_net_mem
+                "",  # TS_peak_mem
+                experiment["status"],
             ]
 
         csv_rows.append(row)
@@ -702,17 +613,16 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "model_name": experiment["model_name"],
                 "batch_size": experiment["batch_size"],
                 "sequence_length": experiment["sequence_length"],
-                "mode": experiment["mode"],
                 "total_params_millions": experiment["total_params"] / 1e6,
-                "RF_mem": experiment["avg_forward_memory_gb"],
-                "RF_net_mem": experiment["avg_forward_net_memory_gb"],
-                "RF_peak_mem": experiment["avg_forward_peak_memory_gb"],
-                "RB_mem": experiment["avg_backward_memory_gb"],
-                "RB_net_mem": experiment["avg_backward_net_memory_gb"],
-                "RB_peak_mem": experiment["avg_backward_peak_memory_gb"],
-                "RC_mem": experiment["avg_combined_memory_gb"],
-                "RC_net_mem": experiment["avg_combined_net_memory_gb"],
-                "RC_peak_mem": experiment["avg_combined_peak_memory_gb"],
+                "INF_mem": experiment["avg_inf_memory_gb"],
+                "INF_net_mem": experiment["avg_inf_net_memory_gb"],
+                "INF_peak_mem": experiment["avg_inf_peak_memory_gb"],
+                "FWD_mem": experiment["avg_fwd_memory_gb"],
+                "FWD_net_mem": experiment["avg_fwd_net_memory_gb"],
+                "FWD_peak_mem": experiment["avg_fwd_peak_memory_gb"],
+                "TS_mem": experiment["avg_ts_memory_gb"],
+                "TS_net_mem": experiment["avg_ts_net_memory_gb"],
+                "TS_peak_mem": experiment["avg_ts_peak_memory_gb"],
                 "status": experiment["status"],
             }
         else:
@@ -842,7 +752,7 @@ def measure_memory_scaling_experiments(
     num_iterations: int = 10,
     warmup_iterations: int = 5,
 ) -> dict:
-    """Comprehensive memory scaling experiments using triplet-based structure.
+    """Run memory scaling experiments for different model configurations.
 
     Args:
         fabric: Lightning Fabric instance.
@@ -850,7 +760,7 @@ def measure_memory_scaling_experiments(
         warmup_iterations: Number of warmup iterations.
 
     Returns:
-        Dictionary containing all experiment results with triplet keys.
+        Dictionary containing all experiment results.
     """
     from datetime import datetime
 
@@ -882,16 +792,14 @@ def measure_memory_scaling_experiments(
 
     modes = ["training", "evaluation"]
 
-    # Run all experiments
+    # Run experiments (no modes parameter)
     results = run_experiment_grid(
-        fabric,
-        model_configs,
-        batch_sizes,
-        sequence_lengths,
-        modes,
-        num_iterations,
-        warmup_iterations,
-        max_experiments=10,
+        fabric=fabric,
+        model_configs=model_configs,
+        batch_sizes=batch_sizes,
+        sequence_lengths=sequence_lengths,
+        num_iterations=num_iterations,
+        warmup_iterations=warmup_iterations,
     )
 
     # Save results
