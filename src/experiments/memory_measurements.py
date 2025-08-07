@@ -13,7 +13,7 @@ def memory_measurement(func):
 
     def wrapper(*args, **kwargs):
         """Reset memory stats before function call."""
-        torch.cuda.empty_cache()
+        # Remove empty_cache() - let PyTorch manage memory naturally
         torch.cuda.reset_peak_memory_stats()
         start_mem = torch.cuda.memory_allocated()
 
@@ -27,8 +27,7 @@ def memory_measurement(func):
         # Calculate net memory allocation
         net_mem = end_mem - start_mem
 
-        # Clean up
-        torch.cuda.empty_cache()
+        # Don't call empty_cache() - let PyTorch manage cleanup
 
         # Return standardized memory measurements
         memory_measurements = {
