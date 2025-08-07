@@ -255,8 +255,8 @@ def run_experiment_grid(
     Args:
         fabric: Lightning Fabric instance.
         model_configs: List of model configuration dictionaries.
-        batch_sizes: List of batch sizes to test.
-        sequence_lengths: List of sequence lengths to test.
+        batch_sizes: List of batch sizes to test (ordered from smallest to largest).
+        sequence_lengths: List of sequence lengths to test (ordered from shortest to longest).
         modes: List of modes to test ('training' and/or 'evaluation').
         num_iterations: Number of iterations to measure after warmup.
         warmup_iterations: Number of warmup iterations.
@@ -292,11 +292,25 @@ def run_experiment_grid(
         model_name = config["name"]
         print(f"\n==> Testing model: {model_name}")
 
-        for batch_size in batch_sizes:
+        for mode in modes:
+            print(f"   Testing mode: {mode}")
+
             for sequence_length in sequence_lengths:
-                for mode in modes:
+                print(f"     Testing sequence length: {sequence_length}")
+
+                # Track OOM status for this model/mode/sequence_length combination
+                oom_detected = False
+
+                for batch_size in batch_sizes:
+                    # Skip if OOM was detected for a smaller batch size
+                    if oom_detected:
+                        print(
+                            f"       ⚠️  Skipping batch_size={batch_size} (OOM detected for smaller batch)"
+                        )
+                        continue
+
                     experiment_count += 1
-                    print(f"\n   [{experiment_count}/{total_experiments}] ", end="")
+                    print(f"\n       [{experiment_count}/{total_experiments}] ", end="")
 
                     # Create triplet key
                     triplet = (model_name, batch_size, sequence_length)
@@ -317,40 +331,30 @@ def run_experiment_grid(
                     mode_key = (*triplet, mode)
                     results["experiments"][mode_key] = result
 
-                    # Early stopping for OOM
+                    # Check for OOM for this batch_size
                     if result.get("status") == "out_of_memory":
                         print(
-                            f"     ⚠️  OOM detected, skipping larger configurations for this model"
+                            f"       ⚠️  OOM detected for batch_size={batch_size}, stopping larger batch sizes"
                         )
-                        # Skip larger batch sizes and sequence lengths for this model
+                        oom_detected = True
                         break
 
                 # Early stopping for OOM at sequence length level
-                if any(
-                    results["experiments"]
+                # If all batch sizes failed for this sequence length, skip larger sequence lengths
+                successful_batches = [
+                    batch_size
+                    for batch_size in batch_sizes
+                    if results["experiments"]
                     .get((model_name, batch_size, sequence_length, mode), {})
                     .get("status")
-                    == "out_of_memory"
-                    for mode in modes
-                ):
+                    == "success"
+                ]
+
+                if not successful_batches:
                     print(
-                        f"     ⚠️  OOM detected at seq_len={sequence_length}, stopping larger sequence lengths"
+                        f"       ⚠️  All batch sizes failed for seq_len={sequence_length}, stopping larger sequence lengths"
                     )
                     break
-
-            # Early stopping for OOM at batch size level
-            if any(
-                results["experiments"]
-                .get((model_name, batch_size, seq_len, mode), {})
-                .get("status")
-                == "out_of_memory"
-                for seq_len in sequence_lengths
-                for mode in modes
-            ):
-                print(
-                    f"     ⚠️  OOM detected at batch_size={batch_size}, stopping larger batch sizes"
-                )
-                break
 
     return results
 
@@ -369,19 +373,19 @@ def save_results_csv(results: dict, timestamp: str = None) -> None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     csv_filename = f"memory_results_{timestamp}.csv"
-    
+
     # Define CSV headers with mean and std dev for each metric
     headers = [
         "model_name",
-        "batch_size", 
+        "batch_size",
         "sequence_length",
         "mode",
         "total_params_millions",
         "total_mean_gb",
-        "total_std_gb", 
+        "total_std_gb",
         "forward_mean_gb",
         "forward_std_gb",
-        "backward_mean_gb", 
+        "backward_mean_gb",
         "backward_std_gb",
         "peak_forward_mean_gb",
         "peak_forward_std_gb",
@@ -389,7 +393,7 @@ def save_results_csv(results: dict, timestamp: str = None) -> None:
         "peak_backward_std_gb",
         "memory_per_sample_gb",
         "memory_per_token_gb",
-        "status"
+        "status",
     ]
 
     csv_rows = []
@@ -398,17 +402,37 @@ def save_results_csv(results: dict, timestamp: str = None) -> None:
         if experiment.get("status") == "success":
             # Calculate standard deviations from the raw readings
             import statistics
-            
-            total_std = statistics.stdev(experiment["memory_readings"]) if len(experiment["memory_readings"]) > 1 else 0.0
-            forward_std = statistics.stdev(experiment["forward_memory_readings"]) if len(experiment["forward_memory_readings"]) > 1 else 0.0
-            backward_std = statistics.stdev(experiment["backward_memory_readings"]) if len(experiment["backward_memory_readings"]) > 1 else 0.0
-            peak_forward_std = statistics.stdev(experiment["peak_forward_readings"]) if len(experiment["peak_forward_readings"]) > 1 else 0.0
-            peak_backward_std = statistics.stdev(experiment["peak_backward_readings"]) if len(experiment["peak_backward_readings"]) > 1 else 0.0
-            
+
+            total_std = (
+                statistics.stdev(experiment["memory_readings"])
+                if len(experiment["memory_readings"]) > 1
+                else 0.0
+            )
+            forward_std = (
+                statistics.stdev(experiment["forward_memory_readings"])
+                if len(experiment["forward_memory_readings"]) > 1
+                else 0.0
+            )
+            backward_std = (
+                statistics.stdev(experiment["backward_memory_readings"])
+                if len(experiment["backward_memory_readings"]) > 1
+                else 0.0
+            )
+            peak_forward_std = (
+                statistics.stdev(experiment["peak_forward_readings"])
+                if len(experiment["peak_forward_readings"]) > 1
+                else 0.0
+            )
+            peak_backward_std = (
+                statistics.stdev(experiment["peak_backward_readings"])
+                if len(experiment["peak_backward_readings"]) > 1
+                else 0.0
+            )
+
             row = [
                 experiment["model_name"],
                 experiment["batch_size"],
-                experiment["sequence_length"], 
+                experiment["sequence_length"],
                 experiment["mode"],
                 f"{experiment['total_params'] / 1e6:.1f}",
                 f"{experiment['avg_memory_gb']:.3f}",
@@ -423,7 +447,7 @@ def save_results_csv(results: dict, timestamp: str = None) -> None:
                 f"{peak_backward_std:.3f}",
                 f"{experiment['memory_per_sample_gb']:.3f}",
                 f"{experiment['memory_per_token_gb']:.3f}",
-                experiment["status"]
+                experiment["status"],
             ]
         else:
             # For failed experiments, fill with empty values
@@ -445,9 +469,9 @@ def save_results_csv(results: dict, timestamp: str = None) -> None:
                 "",  # peak_backward_std_gb
                 "",  # memory_per_sample_gb
                 "",  # memory_per_token_gb
-                experiment["status"]
+                experiment["status"],
             ]
-        
+
         csv_rows.append(row)
 
     # Write CSV file
@@ -478,7 +502,7 @@ def save_results(results: dict, timestamp: str = None) -> None:
         "device": results["device"],
         "experiments": {},
     }
-    
+
     for key, experiment in results["experiments"].items():
         # Convert tuple key to string key
         if isinstance(key, tuple):
@@ -505,7 +529,7 @@ def save_results(results: dict, timestamp: str = None) -> None:
             key_str = "_".join(str(k) for k in key)
         else:
             key_str = str(key)
-            
+
         if experiment.get("status") == "success":
             simplified_data["experiments"][key_str] = {
                 "model_name": experiment["model_name"],
@@ -666,11 +690,15 @@ def measure_memory_scaling_experiments(
         return {}
 
     # Define test configurations
-    batch_sizes = [1, 4]  # Ordered from smallest to largest
-    sequence_lengths = [128, 256]  # Ordered from shortest to longest
+    batch_sizes = [1, 4, 8, 16, 32, 64, 128]  # Ordered from smallest to largest
+    sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
     model_configs = [
-        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny"},
-        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small"},
+        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
+        {"n_layer": 1, "n_head": 2, "n_embd": 512, "name": "tiny512"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 1024, "name": "small1024"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
     ]
     modes = ["training", "evaluation"]
 
