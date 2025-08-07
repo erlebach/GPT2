@@ -50,9 +50,6 @@ def memory_measurement(func):
             "memory_gb": end_mem / 1e9,
             "net_memory_gb": net_mem / 1e9,
             "peak_memory_gb": peak_mem / 1e9,
-            "memory_bytes": end_mem,
-            "net_memory_bytes": net_mem,
-            "peak_memory_bytes": peak_mem,
         }
 
         # Combine original result with memory measurements
@@ -306,8 +303,6 @@ def run_single_experiment(
         avg_combined_peak_memory = statistics.mean(peak_forward_readings)
 
         peak_memory = torch.cuda.max_memory_allocated() / 1e9
-        memory_per_sample = avg_memory / batch_size
-        memory_per_token = avg_memory / (batch_size * sequence_length)
 
         result = {
             "model_name": model_name,
@@ -328,8 +323,6 @@ def run_single_experiment(
             "avg_combined_net_memory_gb": avg_combined_net_memory,
             "avg_combined_peak_memory_gb": avg_combined_peak_memory,
             "peak_memory_gb": peak_memory,
-            "memory_per_sample_gb": memory_per_sample,
-            "memory_per_token_gb": memory_per_token,
             "memory_readings": memory_readings,
             "forward_memory_readings": forward_memory_readings,
             "backward_memory_readings": backward_memory_readings,
@@ -566,14 +559,12 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
         "RF_mem",
         "RF_net_mem",
         "RF_peak_mem",
-        "RFPB_mem",
-        "RFPB_net_mem",
-        "RFPB_peak_mem",
-        "RFAB_mem",
-        "RFAB_net_mem",
-        "RFAB_peak_mem",
-        "memory_per_sample_gb",
-        "memory_per_token_gb",
+        "RB_mem",
+        "RB_net_mem",
+        "RB_peak_mem",
+        "RC_mem",
+        "RC_net_mem",
+        "RC_peak_mem",
         "status",
     ]
 
@@ -619,14 +610,12 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 f"{experiment['avg_forward_memory_gb']:.3f}",
                 f"{experiment['avg_forward_net_memory_gb']:.3f}",
                 f"{experiment['avg_forward_peak_memory_gb']:.3f}",
-                f"{experiment['avg_forward_prep_memory_gb']:.3f}",
-                f"{experiment['avg_forward_prep_net_memory_gb']:.3f}",
-                f"{experiment['avg_forward_prep_peak_memory_gb']:.3f}",
-                f"{experiment['avg_forward_backward_memory_gb']:.3f}",
-                f"{experiment['avg_forward_backward_net_memory_gb']:.3f}",
-                f"{experiment['avg_forward_backward_peak_memory_gb']:.3f}",
-                f"{experiment['memory_per_sample_gb']:.3f}",
-                f"{experiment['memory_per_token_gb']:.3f}",
+                f"{experiment['avg_backward_memory_gb']:.3f}",
+                f"{experiment['avg_backward_net_memory_gb']:.3f}",
+                f"{experiment['avg_backward_peak_memory_gb']:.3f}",
+                f"{experiment['avg_combined_memory_gb']:.3f}",
+                f"{experiment['avg_combined_net_memory_gb']:.3f}",
+                f"{experiment['avg_combined_peak_memory_gb']:.3f}",
                 experiment["status"],
             ]
         else:
@@ -640,15 +629,13 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 "",  # RF_mem
                 "",  # RF_net_mem
                 "",  # RF_peak_mem
-                "",  # RFPB_mem
-                "",  # RFPB_net_mem
-                "",  # RFPB_peak_mem
-                "",  # RFAB_mem
-                "",  # RFAB_net_mem
-                "",  # RFAB_peak_mem
-                "",  # memory_per_sample_gb
-                "",  # memory_per_token_gb
-                experiment["status"],
+                "",  # RB_mem
+                "",  # RB_net_mem
+                "",  # RB_peak_mem
+                "",  # RC_mem
+                "",  # RC_net_mem
+                "",  # RC_peak_mem
+                "",  # status
             ]
 
         csv_rows.append(row)
@@ -720,14 +707,12 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "RF_mem": experiment["avg_forward_memory_gb"],
                 "RF_net_mem": experiment["avg_forward_net_memory_gb"],
                 "RF_peak_mem": experiment["avg_forward_peak_memory_gb"],
-                "RFPB_mem": experiment["avg_forward_prep_memory_gb"],
-                "RFPB_net_mem": experiment["avg_forward_prep_net_memory_gb"],
-                "RFPB_peak_mem": experiment["avg_forward_prep_peak_memory_gb"],
-                "RFAB_mem": experiment["avg_forward_backward_memory_gb"],
-                "RFAB_net_mem": experiment["avg_forward_backward_net_memory_gb"],
-                "RFAB_peak_mem": experiment["avg_forward_backward_peak_memory_gb"],
-                "memory_per_sample_gb": experiment["memory_per_sample_gb"],
-                "memory_per_token_gb": experiment["memory_per_token_gb"],
+                "RB_mem": experiment["avg_backward_memory_gb"],
+                "RB_net_mem": experiment["avg_backward_net_memory_gb"],
+                "RB_peak_mem": experiment["avg_backward_peak_memory_gb"],
+                "RC_mem": experiment["avg_combined_memory_gb"],
+                "RC_net_mem": experiment["avg_combined_net_memory_gb"],
+                "RC_peak_mem": experiment["avg_combined_peak_memory_gb"],
                 "status": experiment["status"],
             }
         else:
