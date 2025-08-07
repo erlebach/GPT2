@@ -241,7 +241,13 @@ def run_single_experiment(
             if mode == "evaluation":
                 # Evaluation mode: only forward pass
                 forward_result = run_forward_pass(model, x, mode="evaluation")
-                experiment_results.append(forward_result.copy())  # Copy the dictionary
+                # Create unified structure for evaluation mode
+                experiment_result = {
+                    "forward": forward_result,
+                    "backward": None,  # No backward pass in evaluation
+                    "mode": mode,
+                }
+                experiment_results.append(experiment_result)
                 memory_readings.append(forward_result["memory_gb"])
                 forward_memory_readings.append(forward_result["memory_gb"])
                 backward_memory_readings.append(-1.0)  # Not applicable for evaluation
@@ -251,13 +257,13 @@ def run_single_experiment(
                 # Training mode: forward + backward pass
                 forward_result = run_forward_in_preparation_for_backward(model, x, y)
                 backward_result = run_forward_and_backward(model, x, y)
-                # Combine both results into one experiment record
-                combined_result = {
+                # Create unified structure for training mode
+                experiment_result = {
                     "forward": forward_result,
                     "backward": backward_result,
                     "mode": mode,
                 }
-                experiment_results.append(combined_result)
+                experiment_results.append(experiment_result)
                 memory_readings.append(backward_result["memory_gb"])
                 forward_memory_readings.append(forward_result["memory_gb"])
                 backward_memory_readings.append(backward_result["memory_gb"])
@@ -271,18 +277,32 @@ def run_single_experiment(
         )
         avg_forward_memory = statistics.mean(forward_memory_readings)
         avg_forward_net_memory = statistics.mean(
-            [r["net_memory_gb"] for r in experiment_results]
+            [r["forward"]["net_memory_gb"] for r in experiment_results]
         )
         avg_forward_peak_memory = statistics.mean(peak_forward_readings)
         avg_backward_memory = statistics.mean(backward_memory_readings)
-        avg_backward_net_memory = statistics.mean(
-            [r["net_memory_gb"] for r in experiment_results]
-        )
+
+        # Handle backward net memory - use backward result if available, otherwise -1
+        if mode == "evaluation":
+            avg_backward_net_memory = -1.0  # Not applicable for evaluation
+        else:
+            avg_backward_net_memory = statistics.mean(
+                [r["backward"]["net_memory_gb"] for r in experiment_results]
+            )
+
         avg_backward_peak_memory = statistics.mean(peak_backward_readings)
         avg_combined_memory = statistics.mean(memory_readings)
-        avg_combined_net_memory = statistics.mean(
-            [r["net_memory_gb"] for r in experiment_results]
-        )
+
+        # For combined net memory, use backward result in training mode, forward in evaluation
+        if mode == "evaluation":
+            avg_combined_net_memory = statistics.mean(
+                [r["forward"]["net_memory_gb"] for r in experiment_results]
+            )
+        else:
+            avg_combined_net_memory = statistics.mean(
+                [r["backward"]["net_memory_gb"] for r in experiment_results]
+            )
+
         avg_combined_peak_memory = statistics.mean(peak_forward_readings)
 
         peak_memory = torch.cuda.max_memory_allocated() / 1e9
