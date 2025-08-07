@@ -368,10 +368,25 @@ def save_results(results: dict, timestamp: str = None) -> None:
     if timestamp is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+    # Convert tuple keys to strings for JSON serialization
+    json_safe_results = {
+        "timestamp": results["timestamp"],
+        "device": results["device"],
+        "experiments": {},
+    }
+
+    for key, experiment in results["experiments"].items():
+        # Convert tuple key to string key
+        if isinstance(key, tuple):
+            key_str = "_".join(str(k) for k in key)
+        else:
+            key_str = str(key)
+        json_safe_results["experiments"][key_str] = experiment
+
     # Save full results
     full_filename = f"memory_results_full_{timestamp}.json"
     with open(full_filename, "w") as f:
-        json.dump(results, f, indent=2)
+        json.dump(json_safe_results, f, indent=2)
 
     # Create simplified results
     simplified_data = {
@@ -381,8 +396,14 @@ def save_results(results: dict, timestamp: str = None) -> None:
     }
 
     for key, experiment in results["experiments"].items():
+        # Convert tuple key to string key
+        if isinstance(key, tuple):
+            key_str = "_".join(str(k) for k in key)
+        else:
+            key_str = str(key)
+
         if experiment.get("status") == "success":
-            simplified_data["experiments"][key] = {
+            simplified_data["experiments"][key_str] = {
                 "model_name": experiment["model_name"],
                 "batch_size": experiment["batch_size"],
                 "sequence_length": experiment["sequence_length"],
@@ -399,7 +420,7 @@ def save_results(results: dict, timestamp: str = None) -> None:
                 "status": experiment["status"],
             }
         else:
-            simplified_data["experiments"][key] = {
+            simplified_data["experiments"][key_str] = {
                 "model_name": experiment["model_name"],
                 "batch_size": experiment["batch_size"],
                 "sequence_length": experiment["sequence_length"],
@@ -415,6 +436,38 @@ def save_results(results: dict, timestamp: str = None) -> None:
 
     print(f"✅ Full results saved to: {full_filename}")
     print(f"✅ Simplified results saved to: {simplified_filename}")
+
+
+def tuple_to_key(tuple_key: tuple) -> str:
+    """Convert a tuple key to a string key for JSON serialization.
+
+    Args:
+        tuple_key: Tuple key like ('tiny', 32, 128, 'training').
+
+    Returns:
+        String key like 'tiny_32_128_training'.
+    """
+    return "_".join(str(k) for k in tuple_key)
+
+
+def key_to_tuple(key_str: str) -> tuple:
+    """Convert a string key back to a tuple key.
+
+    Args:
+        key_str: String key like 'tiny_32_128_training'.
+
+    Returns:
+        Tuple key like ('tiny', 32, 128, 'training').
+    """
+    parts = key_str.split("_")
+    # Convert numeric parts back to integers
+    result = []
+    for part in parts:
+        try:
+            result.append(int(part))
+        except ValueError:
+            result.append(part)
+    return tuple(result)
 
 
 def get_experiments_by_model(results: dict, model_name: str) -> dict:
