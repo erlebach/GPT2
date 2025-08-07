@@ -35,14 +35,19 @@ def run_forward_pass(model, x, mode="training"):
     forward_mem = torch.cuda.memory_allocated()
     peak_forward_mem = torch.cuda.max_memory_allocated()
 
+    # Calculate net memory allocation
+    net_forward_mem = forward_mem - start_mem
+
     # Clean up forward pass
     del output
     torch.cuda.empty_cache()
 
     return {
         "forward_memory_gb": forward_mem / 1e9,
+        "net_forward_memory_gb": net_forward_mem / 1e9,
         "peak_forward_memory_gb": peak_forward_mem / 1e9,
         "forward_memory_bytes": forward_mem,
+        "net_forward_memory_bytes": net_forward_mem,
         "peak_forward_memory_bytes": peak_forward_mem,
     }
 
@@ -75,14 +80,19 @@ def run_forward_in_preparation_for_backward(model, x, y):
     forward_mem = torch.cuda.memory_allocated()
     peak_forward_mem = torch.cuda.max_memory_allocated()
 
+    # Calculate net memory allocation
+    net_forward_mem = forward_mem - start_mem
+
     # Clean up
     del logits
     torch.cuda.empty_cache()
 
     return {
         "forward_prep_memory_gb": forward_mem / 1e9,
+        "net_forward_prep_memory_gb": net_forward_mem / 1e9,
         "peak_forward_prep_memory_gb": peak_forward_mem / 1e9,
         "forward_prep_memory_bytes": forward_mem,
+        "net_forward_prep_memory_bytes": net_forward_mem,
         "peak_forward_prep_memory_bytes": peak_forward_mem,
     }
 
@@ -112,14 +122,19 @@ def run_forward_and_backward(model, x, y):
     total_mem = torch.cuda.memory_allocated()
     peak_total_mem = torch.cuda.max_memory_allocated()
 
+    # Calculate net memory allocation
+    net_total_mem = total_mem - start_mem
+
     # Clean up
     del loss
     torch.cuda.empty_cache()
 
     return {
         "total_memory_gb": total_mem / 1e9,
+        "net_total_memory_gb": net_total_mem / 1e9,
         "peak_total_memory_gb": peak_total_mem / 1e9,
         "total_memory_bytes": total_mem,
+        "net_total_memory_bytes": net_total_mem,
         "peak_total_memory_bytes": peak_total_mem,
     }
 
