@@ -196,19 +196,13 @@ def run_single_experiment(
         y = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)
 
         # Set model mode
-        if mode == "evaluation":
-            model.eval()
-        else:
-            model.train()
+        model.train()
 
         # Warmup
         print(f"     Warming up ({warmup_iterations} iterations)...")
         for _ in range(warmup_iterations):
             deep_gpu_reset()
-            if mode == "evaluation":
-                run_forward_pass(model, x, mode="evaluation")
-            else:
-                run_forward_in_preparation_for_backward(model, x, y)
+            run_forward_with_gradients(model, x, y)
 
         # Measure memory over multiple iterations
         print(f"     Measuring memory ({num_iterations} iterations)...", flush=True)
@@ -316,7 +310,6 @@ def run_single_experiment(
                 "model_name": model_name,
                 "batch_size": batch_size,
                 "sequence_length": sequence_length,
-                "mode": mode,
                 "config": model_config,
                 "status": "out_of_memory",
                 "error": str(e),
@@ -331,7 +324,6 @@ def run_single_experiment(
                 "model_name": model_name,
                 "batch_size": batch_size,
                 "sequence_length": sequence_length,
-                "mode": mode,
                 "config": model_config,
                 "status": "runtime_error",
                 "error": str(e),
@@ -345,7 +337,6 @@ def run_single_experiment(
             "model_name": model_name,
             "batch_size": batch_size,
             "sequence_length": sequence_length,
-            "mode": mode,
             "config": model_config,
             "status": "error",
             "error": str(e),
@@ -630,7 +621,7 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "model_name": experiment["model_name"],
                 "batch_size": experiment["batch_size"],
                 "sequence_length": experiment["sequence_length"],
-                "mode": experiment["mode"],
+                "config": experiment["config"],
                 "status": experiment["status"],
                 "error": experiment.get("error", ""),
             }
