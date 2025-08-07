@@ -9,7 +9,7 @@ from experiments.clean_palate import deep_gpu_reset, reset_model_state
 
 
 def memory_measurement(func):
-    """Decorator to measure GPU memory usage for any function.
+    """Measure GPU memory usage for any function via decorator.
 
     This decorator handles the common pattern of:
     1. Reset memory stats
@@ -27,7 +27,7 @@ def memory_measurement(func):
     """
 
     def wrapper(*args, **kwargs):
-        # Reset memory stats before function call
+        """Reset memory stats before function call."""
         torch.cuda.reset_peak_memory_stats()
         start_mem = torch.cuda.memory_allocated()
 
@@ -212,8 +212,7 @@ def run_single_experiment(
 
         # Warmup
         print(f"     Warming up ({warmup_iterations} iterations)...")
-        for i in range(warmup_iterations):
-            print(f"       Warmup {i+1}/{warmup_iterations}")
+        for _ in range(warmup_iterations):
             deep_gpu_reset()
             if mode == "evaluation":
                 run_forward_pass(model, x, mode="evaluation")
@@ -228,9 +227,8 @@ def run_single_experiment(
         peak_forward_readings = []
         peak_backward_readings = []
 
-        for i in range(num_iterations):
-            print(f"       Iteration {i+1}/{num_iterations}")
-
+        print(f"     Measuring memory ({num_iterations} iterations)...", flush=True)
+        for _ in range(num_iterations):
             # Clean palate before each measurement
             deep_gpu_reset()
             reset_model_state(model, optimizer)
@@ -301,9 +299,10 @@ def run_single_experiment(
         elapsed_time = time.time() - start_time
         print(
             f"       ✅ Completed in {elapsed_time:.1f}s - "
-            f"Total: {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
-            f"Forward: {avg_forward_memory:.2f}GB, Backward: {avg_backward_memory:.2f}GB, "
-            f"Peak F: {avg_peak_forward_memory:.2f}GB, Peak B: {avg_peak_backward_memory:.2f}GB",
+            f"    (mem, net mem, peak mem) - "
+            f"Forward: {forward_result['memory_gb']:.2f}GB, {forward_result['net_memory_gb']:.2f}GB, {forward_result['peak_memory_gb']:.2f}GB, "
+            f"Backward: {backward_result['memory_gb']:.2f}GB, {backward_result['net_memory_gb']:.2f}GB, {backward_result['peak_memory_gb']:.2f}GB, "
+            f"Combined: {avg_memory:.2f}GB, {avg_memory:.2f}GB, {peak_memory:.2f}GB",
             flush=True,
         )
 
@@ -370,6 +369,7 @@ def run_experiment_grid(
     modes: list = ["training", "evaluation"],
     num_iterations: int = 10,
     warmup_iterations: int = 5,
+    max_experiments: int | None = None,
 ) -> dict:
     """Run experiments for all combinations of (model, batch_size, sequence_length) triplets.
 
@@ -381,11 +381,17 @@ def run_experiment_grid(
         modes: List of modes to test ('training' and/or 'evaluation').
         num_iterations: Number of iterations to measure after warmup.
         warmup_iterations: Number of warmup iterations.
+        max_experiments: Maximum number of experiments to run. If None, all combinations are run.
 
     Returns:
         Dictionary with triplet keys and experiment results as values.
     """
     from datetime import datetime
+
+    if max_experiments is None:
+        max_experiments = (
+            len(model_configs) * len(batch_sizes) * len(sequence_lengths) * len(modes)
+        )
 
     if fabric.global_rank != 0:
         return {}
@@ -485,7 +491,7 @@ def run_experiment_grid(
     return results
 
 
-def save_results_csv(results: dict, timestamp: str = None) -> None:
+def save_results_csv(results: dict, timestamp: str | None = None) -> None:
     """Save experiment results in CSV format with detailed memory metrics.
 
     Args:
@@ -524,7 +530,7 @@ def save_results_csv(results: dict, timestamp: str = None) -> None:
 
     csv_rows = []
 
-    for key, experiment in results["experiments"].items():
+    for _, experiment in results["experiments"].items():
         if experiment.get("status") == "success":
             # Calculate standard deviations from the raw readings
             import statistics
@@ -609,7 +615,7 @@ def save_results_csv(results: dict, timestamp: str = None) -> None:
     print(f"✅ CSV results saved to: {csv_filename}")
 
 
-def save_results(results: dict, timestamp: str = None) -> None:
+def save_results(results: dict, timestamp: str | None = None) -> None:
     """Save experiment results in JSON and CSV formats.
 
     Args:
@@ -827,13 +833,15 @@ def measure_memory_scaling_experiments(
         {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
     ]
 
-    batch_sizes = [1, 8, 32]  # Ordered from smallest to largest
-    sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
+    # batch_sizes = [1, 8, 32]  # Ordered from smallest to largest
+    batch_sizes = [1, 32]  # Ordered from smallest to largest
+    # sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
+    sequence_lengths = [256, 1024]  # Ordered from shortest to longest
     model_configs = [
         {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
-        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
+        # {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
         {"n_layer": 2, "n_head": 4, "n_embd": 1024, "name": "small1024"},
-        {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
+        # {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
     ]
 
     modes = ["training", "evaluation"]
@@ -847,6 +855,7 @@ def measure_memory_scaling_experiments(
         modes,
         num_iterations,
         warmup_iterations,
+        max_experiments=10,
     )
 
     # Save results
