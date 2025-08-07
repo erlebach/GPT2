@@ -164,7 +164,7 @@ def run_single_experiment(
 
     start_time = time.time()
     print(
-        f"   Testing: {model_name}, batch_size={batch_size}, seq_len={sequence_length}, mode={mode}"
+        f"   Testing: {model_name}, batch_size={batch_size}, seq_len={sequence_length}"
     )
 
     try:
