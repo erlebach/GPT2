@@ -8,6 +8,86 @@ from lightning import Fabric
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
 
 
+def run_forward_pass(model, x, mode="training"):
+    """Run a forward pass and measure GPU memory usage.
+
+    Args:
+        model: The model to run forward pass on.
+        x: Input tensor.
+        mode: Either 'training' or 'evaluation'.
+
+    Returns:
+        dict: Memory measurements for the forward pass.
+    """
+    # Reset memory stats before forward pass
+    torch.cuda.reset_peak_memory_stats()
+    start_mem = torch.cuda.memory_allocated()
+
+    # Run forward pass
+    if mode == "evaluation":
+        with torch.no_grad():
+            output = model(x)
+    else:
+        # For training mode, we still use no_grad for forward pass measurement
+        with torch.no_grad():
+            output = model(x)
+
+    # Measure memory immediately after forward pass (before cleanup)
+    forward_mem = torch.cuda.memory_allocated()
+    peak_forward_mem = torch.cuda.max_memory_allocated()
+
+    # Clean up forward pass
+    del output
+    torch.cuda.empty_cache()
+
+    return {
+        "forward_memory_gb": forward_mem / 1e9,
+        "peak_forward_memory_gb": peak_forward_mem / 1e9,
+        "forward_memory_bytes": forward_mem,
+        "peak_forward_memory_bytes": peak_forward_mem,
+    }
+
+
+def run_backward_pass(model, x, y, batch_idx=0):
+    """Run a backward pass and measure GPU memory usage.
+
+    Args:
+        model: The model to run backward pass on.
+        x: Input tensor.
+        y: Target tensor.
+        batch_idx: Batch index for training step.
+
+    Returns:
+        dict: Memory measurements for the backward pass.
+    """
+    # Reset memory stats before backward pass
+    torch.cuda.reset_peak_memory_stats()
+    start_mem = torch.cuda.memory_allocated()
+
+    # Run training step (forward + backward)
+    loss = model.training_step((x, y), batch_idx=batch_idx)
+
+    # Measure memory after backward pass (before cleanup)
+    total_mem = torch.cuda.memory_allocated()
+    peak_total_mem = torch.cuda.max_memory_allocated()
+
+    # Calculate backward memory as additional memory beyond forward pass
+    backward_mem = total_mem - start_mem
+
+    # Clean up
+    del loss
+    torch.cuda.empty_cache()
+
+    return {
+        "total_memory_gb": total_mem / 1e9,
+        "backward_memory_gb": backward_mem / 1e9,
+        "peak_total_memory_gb": peak_total_mem / 1e9,
+        "total_memory_bytes": total_mem,
+        "backward_memory_bytes": backward_mem,
+        "peak_total_memory_bytes": peak_total_mem,
+    }
+
+
 def run_single_experiment(
     fabric: Fabric,
     model_name: str,
@@ -69,7 +149,6 @@ def run_single_experiment(
         print(f"     Creating test data...")
         x = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)
         y = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)
-        test_batch = (x, y)
 
         # Set model mode
         if mode == "evaluation":
@@ -77,20 +156,15 @@ def run_single_experiment(
         else:
             model.train()
 
-        # Warmup with clean palate between iterations
+        # Warmup
         print(f"     Warming up ({warmup_iterations} iterations)...")
         for i in range(warmup_iterations):
             print(f"       Warmup {i+1}/{warmup_iterations}")
             deep_gpu_reset()
             if mode == "evaluation":
-                with torch.no_grad():
-                    _ = model(x)
+                run_forward_pass(model, x, mode="evaluation")
             else:
-                _ = model.training_step(test_batch, batch_idx=0)
-
-        # Reset memory stats
-        torch.cuda.reset_peak_memory_stats()
-        start_mem = torch.cuda.memory_allocated()
+                run_backward_pass(model, x, y, batch_idx=0)
 
         # Measure memory over multiple iterations
         print(f"     Measuring memory ({num_iterations} iterations)...")
@@ -106,64 +180,27 @@ def run_single_experiment(
             # Clean palate before each measurement
             deep_gpu_reset()
             reset_model_state(model, optimizer)
-
-            # Clear gradients
             optimizer.zero_grad()
 
-            # Measure forward pass memory
-            torch.cuda.reset_peak_memory_stats()
-            start_mem = torch.cuda.memory_allocated()
+            if mode == "evaluation":
+                # Evaluation mode: only forward pass
+                forward_result = run_forward_pass(model, x, mode="evaluation")
 
-            with torch.no_grad():
-                _ = model(x)
-
-            # Measure memory BEFORE cleanup
-            forward_mem = torch.cuda.memory_allocated()
-            peak_forward_mem = torch.cuda.max_memory_allocated()
-            forward_memory_readings.append(forward_mem / 1e9)
-            peak_forward_readings.append(peak_forward_mem / 1e9)
-
-            if mode == "training":
-                # For training mode, measure memory after forward pass (before cleanup)
-                total_mem = forward_mem
-                memory_readings.append(total_mem / 1e9)
-
-                # Clean up forward pass
-                del _
-                torch.cuda.empty_cache()
-
-                # Measure backward pass only (with fresh forward pass)
-                torch.cuda.reset_peak_memory_stats()
-                start_mem = torch.cuda.memory_allocated()
-
-                # Do forward pass again (needed for backward)
-                with torch.no_grad():
-                    _ = model(x)
-
-                # Now do backward pass
-                loss = model.training_step(test_batch, batch_idx=i)
-
-                # Measure memory after backward pass (before cleanup)
-                backward_mem = torch.cuda.memory_allocated()
-                peak_backward_mem = torch.cuda.max_memory_allocated()
-
-                # Backward memory is the additional memory used beyond the forward pass
-                backward_memory_readings.append((backward_mem - start_mem) / 1e9)
-                peak_backward_readings.append(peak_backward_mem / 1e9)
-
-                # Clean up for next iteration
-                del _
-                torch.cuda.empty_cache()
+                memory_readings.append(forward_result["forward_memory_gb"])
+                forward_memory_readings.append(forward_result["forward_memory_gb"])
+                backward_memory_readings.append(-1.0)  # Not applicable for evaluation
+                peak_forward_readings.append(forward_result["peak_forward_memory_gb"])
+                peak_backward_readings.append(-1.0)  # Not applicable for evaluation
             else:
-                # For evaluation mode, measure memory after forward pass (before cleanup)
-                total_mem = forward_mem
-                memory_readings.append(total_mem / 1e9)
-                backward_memory_readings.append(0.0)
-                peak_backward_readings.append(0.0)
+                # Training mode: forward + backward pass
+                forward_result = run_forward_pass(model, x, mode="training")
+                backward_result = run_backward_pass(model, x, y, batch_idx=i)
 
-                # Clean up for next iteration
-                del _
-                torch.cuda.empty_cache()
+                memory_readings.append(backward_result["total_memory_gb"])
+                forward_memory_readings.append(forward_result["forward_memory_gb"])
+                backward_memory_readings.append(backward_result["backward_memory_gb"])
+                peak_forward_readings.append(forward_result["peak_forward_memory_gb"])
+                peak_backward_readings.append(backward_result["peak_total_memory_gb"])
 
         # Calculate statistics
         avg_memory = statistics.mean(memory_readings)
@@ -257,7 +294,7 @@ def run_single_experiment(
     finally:
         # Clean up
         try:
-            del model, optimizer, x, y, test_batch
+            del model, optimizer, x, y
         except NameError:
             pass  # Variables might not exist if error occurred early
         deep_gpu_reset()
