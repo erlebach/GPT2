@@ -13,8 +13,13 @@ def print_memory_status(label: str):
     allocated = torch.cuda.memory_allocated() / 1e9
     reserved = torch.cuda.memory_reserved() / 1e9
     max_allocated = torch.cuda.max_memory_allocated() / 1e9
+    max_reserved = torch.cuda.max_memory_reserved() / 1e9
+
+    # Calculate cached memory (reserved - allocated)
+    cached = reserved - allocated
+
     print(
-        f"{label:20s} | Allocated: {allocated:8.3f}GB | Reserved: {reserved:8.3f}GB | Max: {max_allocated:8.3f}GB"
+        f"{label:20s} | Allocated: {allocated:8.3f}GB | Reserved: {reserved:8.3f}GB | Cached: {cached:8.3f}GB | Max Alloc: {max_allocated:8.3f}GB | Max Reserved: {max_reserved:8.3f}GB"
     )
 
 
@@ -313,8 +318,132 @@ def test_without_deletion():
     print_memory_status("After medium tensor (no delete)")
 
 
+def test_gpu_functions():
+    """Test if GPU memory functions are working correctly."""
+    print("\n\n=== Testing GPU Memory Functions ===")
+
+    print("Testing basic GPU memory functions:")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    print(f"Device count: {torch.cuda.device_count()}")
+    print(f"Current device: {torch.cuda.current_device()}")
+    print(f"Device name: {torch.cuda.get_device_name()}")
+
+    # Test memory functions directly
+    print("\n--- Direct Memory Function Tests ---")
+
+    # Clear everything first
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
+
+    print("After clearing:")
+    print_memory_status("Cleared")
+
+    # Create a tensor and measure immediately
+    print("\nCreating tensor...")
+    tensor = torch.randn(100, 100, 100, device="cuda")
+
+    print("Immediately after creation:")
+    print_memory_status("After creation")
+
+    # Test individual functions
+    allocated = torch.cuda.memory_allocated()
+    reserved = torch.cuda.memory_reserved()
+    max_allocated = torch.cuda.max_memory_allocated()
+    max_reserved = torch.cuda.max_memory_reserved()
+
+    print(f"\nIndividual function results:")
+    print(f"memory_allocated(): {allocated} bytes ({allocated/1e9:.6f} GB)")
+    print(f"memory_reserved(): {reserved} bytes ({reserved/1e9:.6f} GB)")
+    print(f"max_memory_allocated(): {max_allocated} bytes ({max_allocated/1e9:.6f} GB)")
+    print(f"max_memory_reserved(): {max_reserved} bytes ({max_reserved/1e9:.6f} GB)")
+
+    # Calculate expected memory
+    expected_bytes = 100 * 100 * 100 * 4  # float32
+    print(f"Expected memory: {expected_bytes} bytes ({expected_bytes/1e9:.6f} GB)")
+
+    # Test if functions are returning reasonable values
+    print(f"\nFunction validation:")
+    print(f"allocated > 0: {allocated > 0}")
+    print(f"reserved >= allocated: {reserved >= allocated}")
+    print(f"max_allocated >= allocated: {max_allocated >= allocated}")
+    print(f"max_reserved >= reserved: {max_reserved >= reserved}")
+    print(f"allocated close to expected: {abs(allocated - expected_bytes) < 1000}")
+
+    # Clean up
+    del tensor
+    torch.cuda.empty_cache()
+
+    print("\nAfter cleanup:")
+    print_memory_status("After cleanup")
+
+
+def test_memory_measurement_with_cached():
+    """Test memory measurement including cached memory."""
+    print("\n\n=== Memory Measurement with Cached Memory ===")
+
+    def memory_measurement_with_cache(func):
+        """Enhanced memory measurement that tracks cached memory."""
+
+        def wrapper(*args, **kwargs):
+            # Reset stats
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+
+            start_allocated = torch.cuda.memory_allocated()
+            start_reserved = torch.cuda.memory_reserved()
+            print_memory_status("Start")
+
+            # Call function
+            result = func(*args, **kwargs)
+
+            # Measure after function
+            end_allocated = torch.cuda.memory_allocated()
+            end_reserved = torch.cuda.memory_reserved()
+            peak_allocated = torch.cuda.max_memory_allocated()
+            peak_reserved = torch.cuda.max_memory_reserved()
+            print_memory_status("End")
+
+            # Calculate differences
+            net_allocated = end_allocated - start_allocated
+            net_reserved = end_reserved - start_reserved
+
+            print(f"Net allocated: {net_allocated/1e9:.6f}GB")
+            print(f"Net reserved: {net_reserved/1e9:.6f}GB")
+            print(f"Peak allocated: {peak_allocated/1e9:.6f}GB")
+            print(f"Peak reserved: {peak_reserved/1e9:.6f}GB")
+
+            return {
+                "memory_gb": end_allocated / 1e9,
+                "reserved_gb": end_reserved / 1e9,
+                "net_memory_gb": net_allocated / 1e9,
+                "net_reserved_gb": net_reserved / 1e9,
+                "peak_memory_gb": peak_allocated / 1e9,
+                "peak_reserved_gb": peak_reserved / 1e9,
+            }
+
+        return wrapper
+
+    @memory_measurement_with_cache
+    def create_tensor_test():
+        """Create a tensor for testing."""
+        size = 500
+        expected_memory = calculate_tensor_memory(size)
+        print(
+            f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB)"
+        )
+
+        tensor = torch.randn(size, size, size, device="cuda")
+        return {"tensor": tensor, "expected": expected_memory}
+
+    # Run the test
+    result = create_tensor_test()
+    print(f"\nFinal result: {result}")
+
+
 if __name__ == "__main__":
+    test_gpu_functions()  # Test if GPU functions work
+    test_memory_measurement_with_cached()  # Test with cached memory
     test_single_measurement()
     test_multiple_iterations()
     test_without_deep_gpu_reset()
-    test_without_deletion()  # Add this new test
+    test_without_deletion()
