@@ -205,7 +205,8 @@ def test_single_measurement():
     result = create_medium_tensor()
     print(f"Result: {result}")
     print(
-        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
+        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB",
+        flush=True,
     )
     print_memory_status("After medium tensor")
 
@@ -216,7 +217,7 @@ def test_single_measurement():
     print(
         f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
     )
-    print_memory_status("After large tensor")
+    print_memory_status("After large tensor", flush=True)
 
 
 def test_multiple_iterations():

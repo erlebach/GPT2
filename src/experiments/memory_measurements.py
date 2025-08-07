@@ -9,22 +9,7 @@ from experiments.clean_palate import deep_gpu_reset, reset_model_state
 
 
 def memory_measurement(func):
-    """Measure GPU memory usage for any function via decorator.
-
-    This decorator handles the common pattern of:
-    1. Reset memory stats
-    2. Measure start memory
-    3. Call the function
-    4. Measure end memory
-    5. Calculate net allocation
-    6. Clean up
-
-    Args:
-        func: Function to measure memory for.
-
-    Returns:
-        Wrapped function that returns memory measurements.
-    """
+    """Measure GPU memory usage for any function via decorator."""
 
     def wrapper(*args, **kwargs):
         """Reset memory stats before function call."""
