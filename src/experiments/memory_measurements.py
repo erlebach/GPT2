@@ -50,73 +50,34 @@ def memory_measurement(func):
 
 @memory_measurement
 def run_inference(model, x):
-    """Run inference (forward pass without gradients) and measure GPU memory usage.
-
-    Args:
-        model: The model to run inference on.
-        x: Input tensor.
-
-    Returns:
-        dict: Memory measurements for inference.
-    """
+    """Run inference (forward pass without gradients) and measure GPU memory usage."""
     # Run forward pass without gradients
     with torch.no_grad():
         output = model(x)
 
-    # Clean up
-    del output
-
+    # Don't delete output - let the decorator handle cleanup
     return {"operation": "inference"}
 
 
 @memory_measurement
 def run_forward_with_gradients(model, x, y):
-    """Run forward pass with gradients enabled and measure GPU memory usage.
-
-    This function runs the forward pass with gradients enabled but does NOT
-    compute loss or run backward pass. It's used to measure the memory
-    required for the forward pass when preparing for backpropagation.
-
-    Args:
-        model: The model to run forward pass on.
-        x: Input tensor.
-        y: Target tensor.
-
-    Returns:
-        dict: Memory measurements for forward pass with gradients.
-    """
+    """Run forward pass with gradients enabled and measure GPU memory usage."""
     # Run forward pass with gradients enabled (no loss computation)
     logits, _ = model(
         x, y
     )  # This creates the computation graph but doesn't compute loss
 
-    # Clean up
-    del logits
-
+    # Don't delete logits - let the decorator handle cleanup
     return {"operation": "forward_with_gradients"}
 
 
 @memory_measurement
 def run_training_step(model, x, y):
-    """Run complete training step and measure GPU memory usage.
-
-    This function runs the full training step: forward pass, loss computation,
-    backward pass, and optimizer step.
-
-    Args:
-        model: The model to run training step on.
-        x: Input tensor.
-        y: Target tensor.
-
-    Returns:
-        dict: Memory measurements for the complete training step.
-    """
+    """Run complete training step and measure GPU memory usage."""
     # Run complete training step (forward + loss + backward)
     loss = model.training_step((x, y), batch_idx=0)
 
-    # Clean up
-    del loss
-
+    # Don't delete loss - let the decorator handle cleanup
     return {"operation": "training_step"}
 
 
