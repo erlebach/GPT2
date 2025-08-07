@@ -167,7 +167,7 @@ def run_single_experiment(
                 run_backward_pass(model, x, y, batch_idx=0)
 
         # Measure memory over multiple iterations
-        print(f"     Measuring memory ({num_iterations} iterations)...")
+        print(f"     Measuring memory ({num_iterations} iterations)...", flush=True)
         memory_readings = []
         forward_memory_readings = []
         backward_memory_readings = []
@@ -245,7 +245,8 @@ def run_single_experiment(
             f"       ✅ Completed in {elapsed_time:.1f}s - "
             f"Total: {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
             f"Forward: {avg_forward_memory:.2f}GB, Backward: {avg_backward_memory:.2f}GB, "
-            f"Peak F: {avg_peak_forward_memory:.2f}GB, Peak B: {avg_peak_backward_memory:.2f}GB"
+            f"Peak F: {avg_peak_forward_memory:.2f}GB, Peak B: {avg_peak_backward_memory:.2f}GB",
+            flush=True,
         )
 
     except RuntimeError as e:
@@ -266,7 +267,8 @@ def run_single_experiment(
         else:
             elapsed_time = time.time() - start_time
             print(
-                f"       ❌ Runtime error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}"
+                f"       ❌ Runtime error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}",
+                flush=True,
             )
             result = {
                 "model_name": model_name,
@@ -336,7 +338,7 @@ def run_experiment_grid(
     print(f"   Sequence lengths: {sequence_lengths}")
     print(f"   Modes: {modes}")
     print(f"   Warmup iterations: {warmup_iterations}")
-    print(f"   Measurement iterations: {num_iterations}")
+    print(f"   Measurement iterations: {num_iterations}", flush=True)
 
     results = {
         "timestamp": datetime.now().isoformat(),
@@ -371,7 +373,11 @@ def run_experiment_grid(
                         continue
 
                     experiment_count += 1
-                    print(f"\n       [{experiment_count}/{total_experiments}] ", end="")
+                    print(
+                        f"\n       [{experiment_count}/{total_experiments}] ",
+                        end="",
+                        flush=True,
+                    )
 
                     # Create triplet key
                     triplet = (model_name, batch_size, sequence_length)
@@ -413,7 +419,8 @@ def run_experiment_grid(
 
                 if not successful_batches:
                     print(
-                        f"       ⚠️  All batch sizes failed for seq_len={sequence_length}, stopping larger sequence lengths"
+                        f"       ⚠️  All batch sizes failed for seq_len={sequence_length}, stopping larger sequence lengths",
+                        flush=True,
                     )
                     break
 
