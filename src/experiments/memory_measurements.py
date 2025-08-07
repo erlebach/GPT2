@@ -35,13 +35,16 @@ def run_single_experiment(
     """
     import gc
     import statistics
+    import time
 
+    start_time = time.time()
     print(
         f"   Testing: {model_name}, batch_size={batch_size}, seq_len={sequence_length}, mode={mode}"
     )
 
     try:
         # Clean palate before starting
+        print(f"     Setting up model...")
         deep_gpu_reset()
 
         # Create fresh model
@@ -63,6 +66,7 @@ def run_single_experiment(
         total_params = sum(p.numel() for p in model.parameters())
 
         # Create test data
+        print(f"     Creating test data...")
         x = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)
         y = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)
         test_batch = (x, y)
@@ -74,7 +78,9 @@ def run_single_experiment(
             model.train()
 
         # Warmup with clean palate between iterations
-        for _ in range(warmup_iterations):
+        print(f"     Warming up ({warmup_iterations} iterations)...")
+        for i in range(warmup_iterations):
+            print(f"       Warmup {i+1}/{warmup_iterations}")
             deep_gpu_reset()
             if mode == "evaluation":
                 with torch.no_grad():
@@ -87,6 +93,7 @@ def run_single_experiment(
         start_mem = torch.cuda.memory_allocated()
 
         # Measure memory over multiple iterations
+        print(f"     Measuring memory ({num_iterations} iterations)...")
         memory_readings = []
         forward_memory_readings = []
         backward_memory_readings = []
@@ -94,6 +101,8 @@ def run_single_experiment(
         peak_backward_readings = []
 
         for i in range(num_iterations):
+            print(f"       Iteration {i+1}/{num_iterations}")
+
             # Clean palate before each measurement
             deep_gpu_reset()
             reset_model_state(model, optimizer)
@@ -184,16 +193,19 @@ def run_single_experiment(
             "status": "success",
         }
 
+        elapsed_time = time.time() - start_time
         print(
-            f"       Total: {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
+            f"       ✅ Completed in {elapsed_time:.1f}s - "
+            f"Total: {avg_memory:.2f}GB ± {std_memory:.2f}GB, "
             f"Forward: {avg_forward_memory:.2f}GB, Backward: {avg_backward_memory:.2f}GB, "
             f"Peak F: {avg_peak_forward_memory:.2f}GB, Peak B: {avg_peak_backward_memory:.2f}GB"
         )
 
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
+            elapsed_time = time.time() - start_time
             print(
-                f"       ❌ Out of memory for {model_name}, batch_size={batch_size}, seq_len={sequence_length}"
+                f"       ❌ Out of memory for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s)"
             )
             result = {
                 "model_name": model_name,
@@ -205,8 +217,9 @@ def run_single_experiment(
                 "error": str(e),
             }
         else:
+            elapsed_time = time.time() - start_time
             print(
-                f"       ❌ Runtime error for {model_name}, batch_size={batch_size}, seq_len={sequence_length}: {e}"
+                f"       ❌ Runtime error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}"
             )
             result = {
                 "model_name": model_name,
@@ -218,8 +231,9 @@ def run_single_experiment(
                 "error": str(e),
             }
     except Exception as e:
+        elapsed_time = time.time() - start_time
         print(
-            f"       ❌ Unexpected error for {model_name}, batch_size={batch_size}, seq_len={sequence_length}: {e}"
+            f"       ❌ Unexpected error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}"
         )
         result = {
             "model_name": model_name,
