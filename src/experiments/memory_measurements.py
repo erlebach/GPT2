@@ -221,13 +221,16 @@ def run_single_experiment(
 
         # Measure memory over multiple iterations
         print(f"     Measuring memory ({num_iterations} iterations)...", flush=True)
+        # Instead of multiple separate lists:
         memory_readings = []
         forward_memory_readings = []
         backward_memory_readings = []
         peak_forward_readings = []
         peak_backward_readings = []
 
-        print(f"     Measuring memory ({num_iterations} iterations)...", flush=True)
+        # Just use one list of complete experiment results:
+        experiment_results = []
+
         for _ in range(num_iterations):
             # Clean palate before each measurement
             deep_gpu_reset()
@@ -237,7 +240,7 @@ def run_single_experiment(
             if mode == "evaluation":
                 # Evaluation mode: only forward pass
                 forward_result = run_forward_pass(model, x, mode="evaluation")
-
+                experiment_results.append(forward_result.copy())  # Copy the dictionary
                 memory_readings.append(forward_result["memory_gb"])
                 forward_memory_readings.append(forward_result["memory_gb"])
                 backward_memory_readings.append(-1.0)  # Not applicable for evaluation
@@ -247,15 +250,17 @@ def run_single_experiment(
                 # Training mode: forward + backward pass
                 forward_result = run_forward_in_preparation_for_backward(model, x, y)
                 backward_result = run_forward_and_backward(model, x, y)
-
+                # Combine both results into one experiment record
+                combined_result = {
+                    "forward": forward_result,
+                    "backward": backward_result,
+                    "mode": mode,
+                }
+                experiment_results.append(combined_result)
                 memory_readings.append(backward_result["memory_gb"])
                 forward_memory_readings.append(forward_result["memory_gb"])
                 backward_memory_readings.append(backward_result["memory_gb"])
-                peak_forward_readings.append(
-                    forward_result[
-                        "memory_gb"
-                    ]  # This will be the peak of the forward pass
-                )
+                peak_forward_readings.append(forward_result["peak_memory_gb"])
                 peak_backward_readings.append(backward_result["peak_memory_gb"])
 
         # Calculate statistics
@@ -297,14 +302,24 @@ def run_single_experiment(
         }
 
         elapsed_time = time.time() - start_time
-        print(
-            f"       ✅ Completed in {elapsed_time:.1f}s - "
-            f"    (mem, net mem, peak mem) - "
-            f"Forward: {forward_result['memory_gb']:.2f}GB, {forward_result['net_memory_gb']:.2f}GB, {forward_result['peak_memory_gb']:.2f}GB, "
-            f"Backward: {backward_result['memory_gb']:.2f}GB, {backward_result['net_memory_gb']:.2f}GB, {backward_result['peak_memory_gb']:.2f}GB, "
-            f"Combined: {avg_memory:.2f}GB, {avg_memory:.2f}GB, {peak_memory:.2f}GB",
-            flush=True,
-        )
+        if mode == "evaluation":
+            print(
+                f"       ✅ Completed in {elapsed_time:.1f}s - "
+                f"    (mem, net mem, peak mem) - "
+                f"Forward: {forward_result['memory_gb']:.2f}GB, {forward_result['net_memory_gb']:.2f}GB, {forward_result['peak_memory_gb']:.2f}GB, "
+                f"Backward: -1.00GB, -1.00GB, -1.00GB, "
+                f"Combined: {avg_memory:.2f}GB, {avg_memory:.2f}GB, {peak_memory:.2f}GB",
+                flush=True,
+            )
+        else:
+            print(
+                f"       ✅ Completed in {elapsed_time:.1f}s - "
+                f"    (mem, net mem, peak mem) - "
+                f"Forward: {forward_result['memory_gb']:.2f}GB, {forward_result['net_memory_gb']:.2f}GB, {forward_result['peak_memory_gb']:.2f}GB, "
+                f"Backward: {backward_result['memory_gb']:.2f}GB, {backward_result['net_memory_gb']:.2f}GB, {backward_result['peak_memory_gb']:.2f}GB, "
+                f"Combined: {avg_memory:.2f}GB, {avg_memory:.2f}GB, {peak_memory:.2f}GB",
+                flush=True,
+            )
 
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
