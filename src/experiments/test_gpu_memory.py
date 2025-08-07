@@ -121,6 +121,42 @@ def create_large_tensor():
     }
 
 
+@memory_measurement
+def create_small_tensor_no_delete():
+    """Create a small tensor and DON'T delete it."""
+    size = 100
+    expected_memory = calculate_tensor_memory(size)
+    print(
+        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB) - NOT DELETING"
+    )
+
+    tensor = torch.randn(size, size, size, device="cuda")
+    # NO del tensor here!
+    return {
+        "operation": "small_tensor_no_delete",
+        "size": size,
+        "expected_memory_gb": expected_memory,
+    }
+
+
+@memory_measurement
+def create_medium_tensor_no_delete():
+    """Create a medium tensor and DON'T delete it."""
+    size = 500
+    expected_memory = calculate_tensor_memory(size)
+    print(
+        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB) - NOT DELETING"
+    )
+
+    tensor = torch.randn(size, size, size, device="cuda")
+    # NO del tensor here!
+    return {
+        "operation": "medium_tensor_no_delete",
+        "size": size,
+        "expected_memory_gb": expected_memory,
+    }
+
+
 def test_single_measurement():
     """Test a single memory measurement."""
     print("=== Single Memory Measurement Test ===")
@@ -234,7 +270,31 @@ def test_without_deep_gpu_reset():
     print(f"All net memory values: {[f'{x:.3f}' for x in net_memory_readings]}")
 
 
+def test_without_deletion():
+    """Test what happens when we DON'T delete tensors."""
+    print("\n\n=== Test Without Deleting Tensors ===")
+
+    # Test small tensor without deletion
+    print("\n--- Testing small tensor (no delete) ---")
+    result = create_small_tensor_no_delete()
+    print(f"Result: {result}")
+    print(
+        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
+    )
+    print_memory_status("After small tensor (no delete)")
+
+    # Test medium tensor without deletion
+    print("\n--- Testing medium tensor (no delete) ---")
+    result = create_medium_tensor_no_delete()
+    print(f"Result: {result}")
+    print(
+        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
+    )
+    print_memory_status("After medium tensor (no delete)")
+
+
 if __name__ == "__main__":
     test_single_measurement()
     test_multiple_iterations()
     test_without_deep_gpu_reset()
+    test_without_deletion()  # Add this new test
