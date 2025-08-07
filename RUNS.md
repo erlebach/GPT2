@@ -91,8 +91,20 @@ JOBID: 11192518
 - Output data in: memory_scaling_experiment_20250805_172941.json
 - Separate out forward and backward modes. 
 ----------------------------------------------------------------------
-JOBID: 
-- Output data in: 
+JOBID: 11196067
+- Output data in: results/memory*644.* (json, csv)
 - Implement eval mode (doubles output). Peak memory in training mode will be 
   much higher than peak memory in evaluation mode. This serves as a check. 
+- cases: 
+    batch_sizes = [1, 4, 8, 16, 32, 64, 128]  # Ordered from smallest to largest
+    sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
+    model_configs = [
+        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
+        {"n_layer": 1, "n_head": 2, "n_embd": 512, "name": "tiny512"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 1024, "name": "small1024"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
+    ]
+    modes = ["training", "evaluation"]
 ----------------------------------------------------------------------

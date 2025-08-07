@@ -117,16 +117,21 @@ def run_single_experiment(
             with torch.no_grad():
                 _ = model(x)
 
+            # Measure memory BEFORE cleanup
             forward_mem = torch.cuda.memory_allocated()
             peak_forward_mem = torch.cuda.max_memory_allocated()
             forward_memory_readings.append(forward_mem / 1e9)
             peak_forward_readings.append(peak_forward_mem / 1e9)
 
-            # Clean up forward pass
-            del _
-            torch.cuda.empty_cache()
-
             if mode == "training":
+                # For training mode, measure memory after forward pass (before cleanup)
+                total_mem = forward_mem
+                memory_readings.append(total_mem / 1e9)
+
+                # Clean up forward pass
+                del _
+                torch.cuda.empty_cache()
+
                 # Measure backward pass only (with fresh forward pass)
                 torch.cuda.reset_peak_memory_stats()
                 start_mem = torch.cuda.memory_allocated()
@@ -138,22 +143,27 @@ def run_single_experiment(
                 # Now do backward pass
                 loss = model.training_step(test_batch, batch_idx=i)
 
-                total_mem = torch.cuda.memory_allocated()
-                peak_total_mem = torch.cuda.max_memory_allocated()
+                # Measure memory after backward pass (before cleanup)
+                backward_mem = torch.cuda.memory_allocated()
+                peak_backward_mem = torch.cuda.max_memory_allocated()
 
                 # Backward memory is the additional memory used beyond the forward pass
-                backward_mem = total_mem - start_mem
-                peak_backward_mem = peak_total_mem
-
-                memory_readings.append(total_mem / 1e9)
-                backward_memory_readings.append(backward_mem / 1e9)
+                backward_memory_readings.append((backward_mem - start_mem) / 1e9)
                 peak_backward_readings.append(peak_backward_mem / 1e9)
+
+                # Clean up for next iteration
+                del _
+                torch.cuda.empty_cache()
             else:
-                # In evaluation mode, total memory is just forward memory
+                # For evaluation mode, measure memory after forward pass (before cleanup)
                 total_mem = forward_mem
                 memory_readings.append(total_mem / 1e9)
                 backward_memory_readings.append(0.0)
                 peak_backward_readings.append(0.0)
+
+                # Clean up for next iteration
+                del _
+                torch.cuda.empty_cache()
 
         # Calculate statistics
         avg_memory = statistics.mean(memory_readings)
@@ -714,6 +724,16 @@ def measure_memory_scaling_experiments(
         {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
         {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
     ]
+
+    batch_sizes = [1, 8, 32]  # Ordered from smallest to largest
+    sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
+    model_configs = [
+        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 1024, "name": "small1024"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
+    ]
+
     modes = ["training", "evaluation"]
 
     # Run all experiments
