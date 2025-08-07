@@ -157,6 +157,26 @@ def create_medium_tensor_no_delete():
     }
 
 
+@memory_measurement
+def create_tensor_with_reference():
+    """Create a tensor and keep a reference to it."""
+    size = 500
+    expected_memory = calculate_tensor_memory(size)
+    print(
+        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB) - KEEPING REFERENCE"
+    )
+
+    tensor = torch.randn(size, size, size, device="cuda")
+
+    # Return the tensor itself to keep a reference
+    return {
+        "operation": "tensor_with_reference",
+        "size": size,
+        "expected_memory_gb": expected_memory,
+        "tensor": tensor,  # Keep reference to prevent GC
+    }
+
+
 def test_single_measurement():
     """Test a single memory measurement."""
     print("=== Single Memory Measurement Test ===")
