@@ -355,8 +355,112 @@ def run_experiment_grid(
     return results
 
 
+def save_results_csv(results: dict, timestamp: str = None) -> None:
+    """Save experiment results in CSV format with detailed memory metrics.
+
+    Args:
+        results: Experiment results dictionary.
+        timestamp: Optional timestamp string for filenames.
+    """
+    import csv
+    from datetime import datetime
+
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    csv_filename = f"memory_results_{timestamp}.csv"
+    
+    # Define CSV headers with mean and std dev for each metric
+    headers = [
+        "model_name",
+        "batch_size", 
+        "sequence_length",
+        "mode",
+        "total_params_millions",
+        "total_mean_gb",
+        "total_std_gb", 
+        "forward_mean_gb",
+        "forward_std_gb",
+        "backward_mean_gb", 
+        "backward_std_gb",
+        "peak_forward_mean_gb",
+        "peak_forward_std_gb",
+        "peak_backward_mean_gb",
+        "peak_backward_std_gb",
+        "memory_per_sample_gb",
+        "memory_per_token_gb",
+        "status"
+    ]
+
+    csv_rows = []
+
+    for key, experiment in results["experiments"].items():
+        if experiment.get("status") == "success":
+            # Calculate standard deviations from the raw readings
+            import statistics
+            
+            total_std = statistics.stdev(experiment["memory_readings"]) if len(experiment["memory_readings"]) > 1 else 0.0
+            forward_std = statistics.stdev(experiment["forward_memory_readings"]) if len(experiment["forward_memory_readings"]) > 1 else 0.0
+            backward_std = statistics.stdev(experiment["backward_memory_readings"]) if len(experiment["backward_memory_readings"]) > 1 else 0.0
+            peak_forward_std = statistics.stdev(experiment["peak_forward_readings"]) if len(experiment["peak_forward_readings"]) > 1 else 0.0
+            peak_backward_std = statistics.stdev(experiment["peak_backward_readings"]) if len(experiment["peak_backward_readings"]) > 1 else 0.0
+            
+            row = [
+                experiment["model_name"],
+                experiment["batch_size"],
+                experiment["sequence_length"], 
+                experiment["mode"],
+                f"{experiment['total_params'] / 1e6:.1f}",
+                f"{experiment['avg_memory_gb']:.3f}",
+                f"{total_std:.3f}",
+                f"{experiment['avg_forward_memory_gb']:.3f}",
+                f"{forward_std:.3f}",
+                f"{experiment['avg_backward_memory_gb']:.3f}",
+                f"{backward_std:.3f}",
+                f"{experiment['avg_peak_forward_memory_gb']:.3f}",
+                f"{peak_forward_std:.3f}",
+                f"{experiment['avg_peak_backward_memory_gb']:.3f}",
+                f"{peak_backward_std:.3f}",
+                f"{experiment['memory_per_sample_gb']:.3f}",
+                f"{experiment['memory_per_token_gb']:.3f}",
+                experiment["status"]
+            ]
+        else:
+            # For failed experiments, fill with empty values
+            row = [
+                experiment["model_name"],
+                experiment["batch_size"],
+                experiment["sequence_length"],
+                experiment["mode"],
+                "",  # total_params_millions
+                "",  # total_mean_gb
+                "",  # total_std_gb
+                "",  # forward_mean_gb
+                "",  # forward_std_gb
+                "",  # backward_mean_gb
+                "",  # backward_std_gb
+                "",  # peak_forward_mean_gb
+                "",  # peak_forward_std_gb
+                "",  # peak_backward_mean_gb
+                "",  # peak_backward_std_gb
+                "",  # memory_per_sample_gb
+                "",  # memory_per_token_gb
+                experiment["status"]
+            ]
+        
+        csv_rows.append(row)
+
+    # Write CSV file
+    with open(csv_filename, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(csv_rows)
+
+    print(f"✅ CSV results saved to: {csv_filename}")
+
+
 def save_results(results: dict, timestamp: str = None) -> None:
-    """Save experiment results in JSON format.
+    """Save experiment results in JSON and CSV formats.
 
     Args:
         results: Experiment results dictionary.
@@ -374,7 +478,7 @@ def save_results(results: dict, timestamp: str = None) -> None:
         "device": results["device"],
         "experiments": {},
     }
-
+    
     for key, experiment in results["experiments"].items():
         # Convert tuple key to string key
         if isinstance(key, tuple):
@@ -401,7 +505,7 @@ def save_results(results: dict, timestamp: str = None) -> None:
             key_str = "_".join(str(k) for k in key)
         else:
             key_str = str(key)
-
+            
         if experiment.get("status") == "success":
             simplified_data["experiments"][key_str] = {
                 "model_name": experiment["model_name"],
@@ -433,6 +537,9 @@ def save_results(results: dict, timestamp: str = None) -> None:
     simplified_filename = f"memory_results_simplified_{timestamp}.json"
     with open(simplified_filename, "w") as f:
         json.dump(simplified_data, f, indent=2)
+
+    # Save CSV results
+    save_results_csv(results, timestamp)
 
     print(f"✅ Full results saved to: {full_filename}")
     print(f"✅ Simplified results saved to: {simplified_filename}")
