@@ -442,19 +442,18 @@ def run_experiment_grid(
 
 
 def save_results_csv(results: dict, timestamp: str | None = None) -> None:
-    """Save experiment results in CSV format with detailed memory metrics.
+    """Save experiment results to CSV file.
 
     Args:
         results: Experiment results dictionary.
-        timestamp: Optional timestamp string for filenames.
+        timestamp: Timestamp string for filename. If None, current timestamp is used.
     """
-    import csv
     from datetime import datetime
 
     if timestamp is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # CSV headers - update to use new naming scheme
+    # CSV headers
     headers = [
         "model_name",
         "batch_size",
@@ -472,39 +471,10 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
         "status",
     ]
 
-    csv_rows = []
+    rows = [headers]
 
     for key, experiment in results["experiments"].items():
         if experiment.get("status") == "success":
-            # Calculate standard deviations from the raw readings
-            import statistics
-
-            total_std = (
-                statistics.stdev(experiment["memory_readings"])
-                if len(experiment["memory_readings"]) > 1
-                else 0.0
-            )
-            forward_std = (
-                statistics.stdev(experiment["forward_memory_readings"])
-                if len(experiment["forward_memory_readings"]) > 1
-                else 0.0
-            )
-            backward_std = (
-                statistics.stdev(experiment["backward_memory_readings"])
-                if len(experiment["backward_memory_readings"]) > 1
-                else 0.0
-            )
-            peak_forward_std = (
-                statistics.stdev(experiment["peak_forward_readings"])
-                if len(experiment["peak_forward_readings"]) > 1
-                else 0.0
-            )
-            peak_backward_std = (
-                statistics.stdev(experiment["peak_backward_readings"])
-                if len(experiment["peak_backward_readings"]) > 1
-                else 0.0
-            )
-
             row = [
                 experiment["model_name"],
                 experiment["batch_size"],
@@ -522,7 +492,6 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 experiment["status"],
             ]
         else:
-            # For failed experiments, fill with empty values
             row = [
                 experiment["model_name"],
                 experiment["batch_size"],
@@ -539,17 +508,15 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 "",  # TS_peak_mem
                 experiment["status"],
             ]
-
-        csv_rows.append(row)
+        rows.append(row)
 
     # Write CSV file
-    csv_filename = f"memory_results_{timestamp}.csv"
-    with open(csv_filename, "w", newline="") as f:
+    filename = f"memory_results_{timestamp}.csv"
+    with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(headers)
-        writer.writerows(csv_rows)
+        writer.writerows(rows)
 
-    print(f"✅ CSV results saved to: {csv_filename}")
+    print(f"✅ CSV results saved to: {filename}")
 
 
 def save_results(results: dict, timestamp: str | None = None) -> None:
