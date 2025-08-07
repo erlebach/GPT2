@@ -72,265 +72,19 @@ def memory_measurement(func):
     return wrapper
 
 
-@memory_measurement
-def create_small_tensor():
-    """Create a small tensor."""
-    size = 100
-    expected_memory = calculate_tensor_memory(size)
-    print(
-        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB)"
-    )
-
-    tensor = torch.randn(size, size, size, device="cuda")
-    del tensor
-    return {
-        "operation": "small_tensor",
-        "size": size,
-        "expected_memory_gb": expected_memory,
-    }
-
-
-@memory_measurement
-def create_medium_tensor():
-    """Create a medium tensor."""
-    size = 500
-    expected_memory = calculate_tensor_memory(size)
-    print(
-        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB)"
-    )
-
-    tensor = torch.randn(size, size, size, device="cuda")
-    del tensor
-    return {
-        "operation": "medium_tensor",
-        "size": size,
-        "expected_memory_gb": expected_memory,
-    }
-
-
-@memory_measurement
-def create_large_tensor():
-    """Create a large tensor."""
-    size = 1000
-    expected_memory = calculate_tensor_memory(size)
-    print(
-        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB)"
-    )
-
-    tensor = torch.randn(size, size, size, device="cuda")
-    del tensor
-    return {
-        "operation": "large_tensor",
-        "size": size,
-        "expected_memory_gb": expected_memory,
-    }
-
-
-@memory_measurement
-def create_small_tensor_no_delete():
-    """Create a small tensor and DON'T delete it."""
-    size = 100
-    expected_memory = calculate_tensor_memory(size)
-    print(
-        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB) - NOT DELETING"
-    )
-
-    tensor = torch.randn(size, size, size, device="cuda")
-    # NO del tensor here!
-    return {
-        "operation": "small_tensor_no_delete",
-        "size": size,
-        "expected_memory_gb": expected_memory,
-    }
-
-
-@memory_measurement
-def create_medium_tensor_no_delete():
-    """Create a medium tensor and DON'T delete it."""
-    size = 500
-    expected_memory = calculate_tensor_memory(size)
-    print(
-        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB) - NOT DELETING"
-    )
-
-    tensor = torch.randn(size, size, size, device="cuda")
-    # NO del tensor here!
-    return {
-        "operation": "medium_tensor_no_delete",
-        "size": size,
-        "expected_memory_gb": expected_memory,
-    }
-
-
-@memory_measurement
-def create_tensor_with_reference():
-    """Create a tensor and keep a reference to it."""
-    size = 500
-    expected_memory = calculate_tensor_memory(size)
-    print(
-        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB) - KEEPING REFERENCE"
-    )
-
-    tensor = torch.randn(size, size, size, device="cuda")
-
-    # Return the tensor itself to keep a reference
-    return {
-        "operation": "tensor_with_reference",
-        "size": size,
-        "expected_memory_gb": expected_memory,
-        "tensor": tensor,  # Keep reference to prevent GC
-    }
-
-
-def test_single_measurement():
-    """Test a single memory measurement."""
-    print("=== Single Memory Measurement Test ===")
-    print("Device:", torch.cuda.get_device_name(0))
-    print()
-
-    # Initial state
-    print_memory_status("Initial")
-
-    # Test small tensor
-    print("\n--- Testing small tensor ---")
-    result = create_small_tensor()
-    print(f"Result: {result}")
-    print(
-        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
-    )
-    print_memory_status("After small tensor")
-
-    # Test medium tensor
-    print("\n--- Testing medium tensor ---")
-    result = create_medium_tensor()
-    print(f"Result: {result}")
-    print(
-        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB",
-        flush=True,
-    )
-    print_memory_status("After medium tensor")
-
-    # Test large tensor
-    print("\n--- Testing large tensor ---")
-    result = create_large_tensor()
-    print(f"Result: {result}")
-    print(
-        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
-    )
-    print_memory_status("After large tensor", flush=True)
-
-
-def test_multiple_iterations():
-    """Test multiple iterations like in memory_measurements.py."""
-    print("\n\n=== Multiple Iterations Test ===")
-
-    num_iterations = 5
-    memory_readings = []
-    net_memory_readings = []
-    peak_memory_readings = []
-
-    print(f"Running {num_iterations} iterations...")
-
-    for i in range(num_iterations):
-        print(f"\n--- Iteration {i+1} ---")
-
-        # Clean palate before each measurement (like in memory_measurements.py)
-        deep_gpu_reset()
-
-        # Run measurement
-        result = create_medium_tensor()
-
-        # Store readings
-        memory_readings.append(result["memory_gb"])
-        net_memory_readings.append(result["net_memory_gb"])
-        peak_memory_readings.append(result["peak_memory_gb"])
-
-        print(f"Expected: {result['expected_memory_gb']:.3f}GB")
-        print(f"Memory: {result['memory_gb']:.3f}GB")
-        print(f"Net memory: {result['net_memory_gb']:.3f}GB")
-        print(f"Peak memory: {result['peak_memory_gb']:.3f}GB")
-
-    # Calculate statistics
-    avg_memory = statistics.mean(memory_readings)
-    avg_net_memory = statistics.mean(net_memory_readings)
-    avg_peak_memory = statistics.mean(peak_memory_readings)
-
-    print(f"\n--- Statistics ---")
-    print(f"Average memory: {avg_memory:.3f}GB")
-    print(f"Average net memory: {avg_net_memory:.3f}GB")
-    print(f"Average peak memory: {avg_peak_memory:.3f}GB")
-    print(f"All net memory values: {[f'{x:.3f}' for x in net_memory_readings]}")
-
-
-def test_without_deep_gpu_reset():
-    """Test without deep_gpu_reset to see if that's the issue."""
-    print("\n\n=== Test Without Deep GPU Reset ===")
-
-    num_iterations = 3
-    memory_readings = []
-    net_memory_readings = []
-
-    print(f"Running {num_iterations} iterations WITHOUT deep_gpu_reset...")
-
-    for i in range(num_iterations):
-        print(f"\n--- Iteration {i+1} ---")
-
-        # Only do basic cleanup
-        torch.cuda.empty_cache()
-        torch.cuda.reset_peak_memory_stats()
-
-        # Run measurement
-        result = create_medium_tensor()
-
-        # Store readings
-        memory_readings.append(result["memory_gb"])
-        net_memory_readings.append(result["net_memory_gb"])
-
-        print(f"Expected: {result['expected_memory_gb']:.3f}GB")
-        print(f"Memory: {result['memory_gb']:.3f}GB")
-        print(f"Net memory: {result['net_memory_gb']:.3f}GB")
-
-    print(f"\n--- Statistics ---")
-    print(f"Average memory: {statistics.mean(memory_readings):.3f}GB")
-    print(f"Average net memory: {statistics.mean(net_memory_readings):.3f}GB")
-    print(f"All net memory values: {[f'{x:.3f}' for x in net_memory_readings]}")
-
-
-def test_without_deletion():
-    """Test what happens when we DON'T delete tensors."""
-    print("\n\n=== Test Without Deleting Tensors ===")
-
-    # Test small tensor without deletion
-    print("\n--- Testing small tensor (no delete) ---")
-    result = create_small_tensor_no_delete()
-    print(f"Result: {result}")
-    print(
-        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
-    )
-    print_memory_status("After small tensor (no delete)")
-
-    # Test medium tensor without deletion
-    print("\n--- Testing medium tensor (no delete) ---")
-    result = create_medium_tensor_no_delete()
-    print(f"Result: {result}")
-    print(
-        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
-    )
-    print_memory_status("After medium tensor (no delete)")
+# ============================================================================
+# TEST 1: Basic GPU Memory Function Validation
+# ============================================================================
 
 
 def test_gpu_functions():
-    """Test if GPU memory functions are working correctly."""
-    print("\n\n=== Testing GPU Memory Functions ===")
-
-    print("Testing basic GPU memory functions:")
-    print(f"CUDA available: {torch.cuda.is_available()}")
-    print(f"Device count: {torch.cuda.device_count()}")
-    print(f"Current device: {torch.cuda.current_device()}")
-    print(f"Device name: {torch.cuda.get_device_name()}")
+    """TEST 1: Test if GPU memory functions are working correctly."""
+    print("=== TEST 1: GPU Memory Function Validation ===")
+    print("Device:", torch.cuda.get_device_name(0))
+    print()
 
     # Test memory functions directly
-    print("\n--- Direct Memory Function Tests ---")
+    print("--- Direct Memory Function Tests ---")
 
     # Clear everything first
     torch.cuda.empty_cache()
@@ -378,9 +132,14 @@ def test_gpu_functions():
     print_memory_status("After cleanup")
 
 
+# ============================================================================
+# TEST 2: Memory Measurement with Cached Memory
+# ============================================================================
+
+
 def test_memory_measurement_with_cached():
-    """Test memory measurement including cached memory."""
-    print("\n\n=== Memory Measurement with Cached Memory ===")
+    """TEST 2: Test memory measurement including cached memory."""
+    print("\n\n=== TEST 2: Memory Measurement with Cached Memory ===")
 
     def memory_measurement_with_cache(func):
         """Enhanced memory measurement that tracks cached memory."""
@@ -441,10 +200,68 @@ def test_memory_measurement_with_cached():
     print(f"\nFinal result: {result}")
 
 
+# ============================================================================
+# TEST 3: Test Functions Without Deleting Tensors
+# ============================================================================
+
+
+@memory_measurement
+def create_tensor_no_delete():
+    """Create a tensor and DON'T delete it."""
+    size = 500
+    expected_memory = calculate_tensor_memory(size)
+    print(
+        f"Creating tensor of size {size}x{size}x{size} (expected: {expected_memory:.3f}GB) - NOT DELETING"
+    )
+
+    tensor = torch.randn(size, size, size, device="cuda")
+    # NO del tensor here!
+    return {
+        "operation": "tensor_no_delete",
+        "size": size,
+        "expected_memory_gb": expected_memory,
+    }
+
+
+def test_without_deletion():
+    """TEST 3: Test what happens when we DON'T delete tensors."""
+    print("\n\n=== TEST 3: Test Without Deleting Tensors ===")
+
+    # Test tensor without deletion
+    print("\n--- Testing tensor (no delete) ---")
+    result = create_tensor_no_delete()
+    print(f"Result: {result}")
+    print(
+        f"Expected: {result['expected_memory_gb']:.3f}GB, Measured: {result['memory_gb']:.3f}GB, Net: {result['net_memory_gb']:.3f}GB"
+    )
+    print_memory_status("After tensor (no delete)")
+
+
+# ============================================================================
+# COMMENTED OUT OLD TESTS - NO LONGER NEEDED
+# ============================================================================
+
+# def test_single_measurement():
+#     """OLD TEST: Test a single memory measurement."""
+#     # ... commented out ...
+
+# def test_multiple_iterations():
+#     """OLD TEST: Test multiple iterations like in memory_measurements.py."""
+#     # ... commented out ...
+
+# def test_without_deep_gpu_reset():
+#     """OLD TEST: Test without deep_gpu_reset to see if that's the issue."""
+#     # ... commented out ...
+
+
 if __name__ == "__main__":
-    test_gpu_functions()  # Test if GPU functions work
-    test_memory_measurement_with_cached()  # Test with cached memory
-    test_single_measurement()
-    test_multiple_iterations()
-    test_without_deep_gpu_reset()
-    test_without_deletion()
+    print(" Running GPU Memory Tests")
+    print("=" * 50)
+
+    # Run the three main tests
+    test_gpu_functions()  # Test 1: Validate GPU functions work
+    test_memory_measurement_with_cached()  # Test 2: Test with cached memory
+    test_without_deletion()  # Test 3: Test without deleting tensors
+
+    print("\n" + "=" * 50)
+    print("✅ All tests completed")
