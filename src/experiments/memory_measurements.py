@@ -224,6 +224,7 @@ def run_single_experiment(
             "sequence_length": sequence_length,
             "config": model_config,
             "total_params": total_params,
+            "total_params_millions": total_params / 1e6,  # Add this line
             "avg_inf_memory_gb": avg_inf_memory,
             "avg_inf_cached_memory_gb": avg_inf_cached_memory,
             "avg_inf_peak_memory_gb": avg_inf_peak_memory,
@@ -430,7 +431,7 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 experiment["model_name"],
                 experiment["batch_size"],
                 experiment["sequence_length"],
-                f"{experiment['total_params'] / 1e6:.1f}",
+                f"{experiment['total_params_millions']:.1f}",  # This now works
                 f"{experiment['avg_inf_memory_gb']:.3f} Gb",
                 f"{experiment['avg_inf_cached_memory_gb']:.3f}",
                 f"{experiment['avg_inf_peak_memory_gb']:.3f}",
@@ -447,7 +448,7 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 experiment["model_name"],
                 experiment["batch_size"],
                 experiment["sequence_length"],
-                f"{experiment['total_params'] / 1e6:.1f}",
+                f"{experiment['total_params_millions']:.1f}",
                 "",  # INF_mem
                 "",  # INF_net_mem
                 "",  # INF_peak_mem
@@ -516,7 +517,9 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "model_name": experiment["model_name"],
                 "batch_size": experiment["batch_size"],
                 "sequence_length": experiment["sequence_length"],
-                "total_params_millions": experiment["total_params"] / 1e6,
+                "total_params_millions": experiment[
+                    "total_params_millions"
+                ],  # This now works
                 "INF_mem": experiment["avg_inf_memory_gb"],
                 "INF_cached_mem": experiment["avg_inf_cached_memory_gb"],
                 "INF_peak_mem": experiment["avg_inf_peak_memory_gb"],
@@ -533,6 +536,7 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "model_name": experiment["model_name"],
                 "batch_size": experiment["batch_size"],
                 "sequence_length": experiment["sequence_length"],
+                "total_params": experiment["total_params"],
                 "config": experiment["config"],
                 "status": experiment["status"],
                 "error": experiment.get("error", ""),
@@ -646,8 +650,8 @@ def get_experiments_by_mode(results: dict, mode: str) -> dict:
 
 def measure_memory_scaling_experiments(
     fabric: Fabric,
-    num_iterations: int = 10,
-    warmup_iterations: int = 5,
+    num_iterations: int = 5,
+    warmup_iterations: int = 2,
 ) -> dict:
     """Run memory scaling experiments for different model configurations.
 
@@ -678,12 +682,14 @@ def measure_memory_scaling_experiments(
 
     # batch_sizes = [1, 8, 32]  # Ordered from smallest to largest
     batch_sizes = [1, 16, 32, 64, 128]  # Ordered from smallest to largest
+    batch_sizes = [1, 128]  # Ordered from smallest to largest
     # sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
     sequence_lengths = [256, 512, 1024, 2048]  # Ordered from shortest to longest
+    sequence_lengths = [256, 2048]  # Ordered from shortest to longest
     model_configs = [
         {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
-        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
-        {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
+        # {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
+        # {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
         {"n_layer": 8, "n_head": 16, "n_embd": 2048, "name": "large2048"},
     ]
 
