@@ -127,6 +127,11 @@ JOBID: 11200494
     ]
 - Code working well. 
 - Next: Replace memory measurements by timing measurements. Disable memory measurements. 
-- data is saved to lightning_logs/version
+- data is saved to lightning_logs/version_11200494/
 - Next: create some plots. 
+----------------------------------------------------------------------
+JOBID: 11200879
+- 80 test cases (same as previous run)
+- measure timings
+- saved to lightning_logs/version_11200879/
 ----------------------------------------------------------------------
