@@ -545,7 +545,7 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "sequence_length": experiment["sequence_length"],
                 "total_params_millions": experiment["total_params"] / 1e6,
                 "INF_mem": experiment["avg_inf_memory_gb"],
-                "INF_net_mem": experiment["avg_inf_net_memory_gb"],
+                "INF_cached_mem": experiment["avg_inf_cached_memory_gb"],
                 "INF_peak_mem": experiment["avg_inf_peak_memory_gb"],
                 "FWD_mem": experiment["avg_fwd_memory_gb"],
                 "FWD_net_mem": experiment["avg_fwd_net_memory_gb"],
