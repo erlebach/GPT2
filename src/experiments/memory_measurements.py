@@ -536,7 +536,8 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "model_name": experiment["model_name"],
                 "batch_size": experiment["batch_size"],
                 "sequence_length": experiment["sequence_length"],
-                "total_params": experiment["total_params"],
+                "total_params_millions": experiment.get("total_params", 0)
+                / 1e6,  # Fix this line
                 "config": experiment["config"],
                 "status": experiment["status"],
                 "error": experiment.get("error", ""),
