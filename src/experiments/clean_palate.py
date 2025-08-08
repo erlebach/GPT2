@@ -39,6 +39,10 @@ def reset_model_state(model, optimizer):
     optimizer.zero_grad()
 
     # Reset model to eval mode and back to train
+    # Setting the model to eval() then back to train() clears certain internal
+    # states (like running statistics in BatchNorm or Dropout layers) that may
+    # persist across training and evaluation. This ensures a "clean slate" for
+    # measurements or experiments, avoiding artifacts from previous runs.
     model.eval()
     model.train()
 

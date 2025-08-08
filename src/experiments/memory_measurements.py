@@ -23,19 +23,23 @@ def memory_measurement(func):
         result = func(*args, **kwargs)
 
         # Measure memory after function call
-        end_mem = torch.cuda.memory_allocated()
+        mem_allocated_bytes = torch.cuda.memory_allocated()
         peak_mem = torch.cuda.max_memory_allocated()
+        mem_reserved_bytes = torch.cuda.memory_reserved()
+        mem_cached_bytes = mem_reserved_bytes - mem_allocated_bytes
 
         # Calculate net memory allocation
-        net_mem = end_mem - start_mem
+        # net_mem = end_mem - start_mem
 
         # Don't call empty_cache() - let PyTorch manage cleanup
 
         # Return standardized memory measurements
         memory_measurements = {
-            "memory_gb": end_mem / 1e9,
-            "net_memory_gb": net_mem / 1e9,
-            "peak_memory_gb": peak_mem / 1e9,
+            "memory_gb": mem_allocated_bytes / 1e9,
+            "mem_alloc_gb": mem_allocated_bytes / 1e9,
+            # "net_memory_gb": net_mem / 1e9,
+            "mem_peak_gb": peak_mem / 1e9,
+            "mem_cached_gb": mem_cached_bytes / 1e9,
         }
 
         # Combine original result with memory measurements
@@ -152,14 +156,25 @@ def run_single_experiment(
             run_forward_with_gradients(model, x, y)
 
         # Measure memory over multiple iterations
+        # inf:inference, fwd:forward pass, ts:training step
         print(f"     Measuring memory ({num_iterations} iterations)...", flush=True)
-        memory_readings = []
-        inf_memory_readings = []
-        fwd_memory_readings = []
-        ts_memory_readings = []
-        peak_inf_readings = []
-        peak_fwd_readings = []
-        peak_ts_readings = []
+        # memory_readings = []
+        inf_alloc_memory = []
+        inf_peak_memory = []
+        inf_cached_memory = []
+        ts_alloc_memory = []
+        ts_peak_memory = []
+        ts_cached_memory = []
+        peak_alloc_memory = []
+        peak_peak_memory = []
+        peak_cached_memory = []
+
+        # inf_memory_readings = []
+        # fwd_memory_readings = []
+        # ts_memory_readings = []
+        # peak_inf_readings = []
+        # peak_fwd_readings = []
+        # peak_ts_readings = []
 
         # Just use one list of complete experiment results:
         experiment_results = []
@@ -184,31 +199,36 @@ def run_single_experiment(
             experiment_results.append(experiment_result)
 
             # Store memory readings
-            inf_memory_readings.append(inf_result["memory_gb"])
-            fwd_memory_readings.append(fwd_result["memory_gb"])
-            ts_memory_readings.append(ts_result["memory_gb"])
-            peak_inf_readings.append(inf_result["peak_memory_gb"])
-            peak_fwd_readings.append(fwd_result["peak_memory_gb"])
-            peak_ts_readings.append(ts_result["peak_memory_gb"])
+            inf_alloc_memory.append(inf_result["mem_alloc_gb"])
+            inf_peak_memory.append(inf_result["mem_peak_gb"])
+            inf_cached_memory.append(inf_result["mem_cached_gb"])
+            fwd_alloc_memory.append(fwd_result["mem_alloc_gb"])
+            fwd_peak_memory.append(fwd_result["mem_peak_gb"])
+            fwd_cached_memory.append(fwd_result["mem_cached_gb"])
+            ts_alloc_memory.append(ts_result["mem_alloc_gb"])
+            ts_peak_memory.append(ts_result["mem_peak_gb"])
+            ts_cached_memory.append(ts_result["mem_cached_gb"])
 
-        # Calculate statistics
-        avg_inf_memory = statistics.mean(inf_memory_readings)
+        # Calculate statistics using the correct lists populated above
+        import statistics
+
+        avg_inf_memory = statistics.mean(inf_alloc_memory)
         avg_inf_net_memory = statistics.mean(
-            [r["inf"]["net_memory_gb"] for r in experiment_results]
+            [r["inf"].get("net_memory_gb", 0.0) for r in experiment_results]
         )
-        avg_inf_peak_memory = statistics.mean(peak_inf_readings)
+        avg_inf_peak_memory = statistics.mean(inf_peak_memory)
 
-        avg_fwd_memory = statistics.mean(fwd_memory_readings)
+        avg_fwd_memory = statistics.mean(fwd_alloc_memory)
         avg_fwd_net_memory = statistics.mean(
-            [r["fwd"]["net_memory_gb"] for r in experiment_results]
+            [r["fwd"].get("net_memory_gb", 0.0) for r in experiment_results]
         )
-        avg_fwd_peak_memory = statistics.mean(peak_fwd_readings)
+        avg_fwd_peak_memory = statistics.mean(fwd_peak_memory)
 
-        avg_ts_memory = statistics.mean(ts_memory_readings)
+        avg_ts_memory = statistics.mean(ts_alloc_memory)
         avg_ts_net_memory = statistics.mean(
-            [r["ts"]["net_memory_gb"] for r in experiment_results]
+            [r["ts"].get("net_memory_gb", 0.0) for r in experiment_results]
         )
-        avg_ts_peak_memory = statistics.mean(peak_ts_readings)
+        avg_ts_peak_memory = statistics.mean(ts_peak_memory)
 
         peak_memory = torch.cuda.max_memory_allocated() / 1e9
 
