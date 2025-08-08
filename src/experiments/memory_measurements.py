@@ -1,5 +1,7 @@
 """Memory measurement experiments with triplet-based structure."""
 
+import csv
+
 import torch
 from gpt2_standalone.lightning_module import GPTLightningModule
 from gpt2_standalone.model import GPTConfig
