@@ -244,7 +244,7 @@ def run_single_experiment(
             "config": model_config,
             "total_params": total_params,
             "avg_inf_memory_gb": avg_inf_memory,
-            "avg_cached_memory_gb": avg_cached_memory,
+            "avg_inf_cached_memory_gb": avg_inf_cached_memory,
             # "avg_inf_net_memory_gb": avg_inf_net_memory,
             "avg_inf_peak_memory_gb": avg_inf_peak_memory,
             "avg_fwd_memory_gb": avg_fwd_memory,
