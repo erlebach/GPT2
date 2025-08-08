@@ -1,6 +1,8 @@
 """Memory measurement experiments with triplet-based structure."""
 
 import csv
+from collections.abc import Callable
+from contextlib import suppress
 
 import torch
 from gpt2_standalone.lightning_module import GPTLightningModule
@@ -10,10 +12,10 @@ from lightning import Fabric
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
 
 
-def memory_measurement(func):
+def memory_measurement(func) -> Callable:
     """Measure GPU memory usage for any function via decorator."""
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs) -> dict:
         """Reset memory stats before function call."""
         # Remove empty_cache() - let PyTorch manage memory naturally
         torch.cuda.reset_peak_memory_stats()
@@ -27,11 +29,6 @@ def memory_measurement(func):
         peak_mem = torch.cuda.max_memory_allocated()
         mem_reserved_bytes = torch.cuda.memory_reserved()
         mem_cached_bytes = mem_reserved_bytes - mem_allocated_bytes
-
-        # Calculate net memory allocation
-        # net_mem = end_mem - start_mem
-
-        # Don't call empty_cache() - let PyTorch manage cleanup
 
         # Return standardized memory measurements
         memory_measurements = {
@@ -53,7 +50,7 @@ def memory_measurement(func):
 
 
 @memory_measurement
-def run_inference(model, x):
+def run_inference(model: GPTLightningModule, x: torch.Tensor) -> dict:
     """Run inference (forward pass without gradients) and measure GPU memory usage."""
     # Run forward pass without gradients
     with torch.no_grad():
@@ -64,7 +61,9 @@ def run_inference(model, x):
 
 
 @memory_measurement
-def run_forward_with_gradients(model, x, y):
+def run_forward_with_gradients(
+    model: GPTLightningModule, x: torch.Tensor, y: torch.Tensor
+) -> dict:
     """Run forward pass with gradients enabled and measure GPU memory usage."""
     # Run forward pass with gradients enabled (no loss computation)
     logits, _ = model(
@@ -76,7 +75,9 @@ def run_forward_with_gradients(model, x, y):
 
 
 @memory_measurement
-def run_training_step(model, x, y):
+def run_training_step(
+    model: GPTLightningModule, x: torch.Tensor, y: torch.Tensor
+) -> dict:
     """Run complete training step and measure GPU memory usage."""
     # Run complete training step (forward + loss + backward)
     loss = model.training_step((x, y), batch_idx=0)
@@ -157,7 +158,6 @@ def run_single_experiment(
         # Measure memory over multiple iterations
         # inf:inference, fwd:forward pass, ts:training step
         print(f"     Measuring memory ({num_iterations} iterations)...", flush=True)
-        # memory_readings = []
         inf_alloc_memory = []
         inf_peak_memory = []
         inf_cached_memory = []
@@ -167,16 +167,6 @@ def run_single_experiment(
         ts_alloc_memory = []
         ts_peak_memory = []
         ts_cached_memory = []
-        peak_alloc_memory = []
-        peak_peak_memory = []
-        peak_cached_memory = []
-
-        # inf_memory_readings = []
-        # fwd_memory_readings = []
-        # ts_memory_readings = []
-        # peak_inf_readings = []
-        # peak_fwd_readings = []
-        # peak_ts_readings = []
 
         # Just use one list of complete experiment results:
         experiment_results = []
@@ -215,23 +205,14 @@ def run_single_experiment(
         import statistics
 
         avg_inf_memory = statistics.mean(inf_alloc_memory)
-        # avg_inf_net_memory = statistics.mean(
-        #     [r["inf"].get("net_memory_gb", 0.0) for r in experiment_results]
-        # )
         avg_inf_peak_memory = statistics.mean(inf_peak_memory)
         avg_inf_cached_memory = statistics.mean(inf_cached_memory)
 
         avg_fwd_memory = statistics.mean(fwd_alloc_memory)
-        # avg_fwd_net_memory = statistics.mean(
-        #     [r["fwd"].get("net_memory_gb", 0.0) for r in experiment_results]
-        # )
         avg_fwd_peak_memory = statistics.mean(fwd_peak_memory)
         avg_fwd_cached_memory = statistics.mean(fwd_cached_memory)
 
         avg_ts_memory = statistics.mean(ts_alloc_memory)
-        # avg_ts_net_memory = statistics.mean(
-        #     [r["ts"].get("net_memory_gb", 0.0) for r in experiment_results]
-        # )
         avg_ts_peak_memory = statistics.mean(ts_peak_memory)
         avg_ts_cached_memory = statistics.mean(ts_cached_memory)
 
@@ -245,23 +226,14 @@ def run_single_experiment(
             "total_params": total_params,
             "avg_inf_memory_gb": avg_inf_memory,
             "avg_inf_cached_memory_gb": avg_inf_cached_memory,
-            # "avg_inf_net_memory_gb": avg_inf_net_memory,
             "avg_inf_peak_memory_gb": avg_inf_peak_memory,
             "avg_fwd_memory_gb": avg_fwd_memory,
             "avg_fwd_cached_memory_gb": avg_fwd_cached_memory,
-            # "avg_fwd_net_memory_gb": avg_fwd_net_memory,
             "avg_fwd_peak_memory_gb": avg_fwd_peak_memory,
             "avg_ts_memory_gb": avg_ts_memory,
             "avg_ts_cached_memory_gb": avg_ts_cached_memory,
-            # "avg_ts_net_memory_gb": avg_ts_net_memory,
             "avg_ts_peak_memory_gb": avg_ts_peak_memory,
             "peak_memory_gb": peak_memory,
-            # "inf_memory_readings": inf_memory_readings,
-            # "fwd_memory_readings": fwd_memory_readings,
-            # "ts_memory_readings": ts_memory_readings,
-            # "peak_inf_readings": peak_inf_readings,
-            # "peak_fwd_readings": peak_fwd_readings,
-            # "peak_ts_readings": peak_ts_readings,
             "status": "success",
         }
 
@@ -318,10 +290,14 @@ def run_single_experiment(
         }
     finally:
         # Clean up
-        try:
-            del model, optimizer, x, y
-        except NameError:
-            pass  # Variables might not exist if error occurred early
+        with suppress(NameError):
+            del model
+        with suppress(NameError):
+            del optimizer
+        with suppress(NameError):
+            del x
+        with suppress(NameError):
+            del y
         deep_gpu_reset()
 
     return result
@@ -516,10 +492,7 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
 
     for key, experiment in results["experiments"].items():
         # Convert tuple key to string key
-        if isinstance(key, tuple):
-            key_str = "_".join(str(k) for k in key)
-        else:
-            key_str = str(key)
+        key_str = "_".join(str(k) for k in key) if isinstance(key, tuple) else str(key)
         json_safe_results["experiments"][key_str] = experiment
 
     # Save full results
@@ -600,13 +573,7 @@ def key_to_tuple(key_str: str) -> tuple:
     """
     parts = key_str.split("_")
     # Convert numeric parts back to integers
-    result = []
-    for part in parts:
-        try:
-            result.append(int(part))
-        except ValueError:
-            result.append(part)
-    return tuple(result)
+    return tuple(int(part) if part.isdigit() else part for part in parts)
 
 
 def get_experiments_by_model(results: dict, model_name: str) -> dict:
@@ -670,11 +637,11 @@ def get_experiments_by_mode(results: dict, mode: str) -> dict:
     Returns:
         Dictionary containing only experiments for the specified mode.
     """
-    filtered = {}
-    for key, experiment in results["experiments"].items():
-        if experiment["mode"] == mode:
-            filtered[key] = experiment
-    return filtered
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["mode"] == mode
+    }
 
 
 def measure_memory_scaling_experiments(
@@ -710,14 +677,14 @@ def measure_memory_scaling_experiments(
     ]
 
     # batch_sizes = [1, 8, 32]  # Ordered from smallest to largest
-    batch_sizes = [1, 32]  # Ordered from smallest to largest
+    batch_sizes = [1, 16, 32, 64]  # Ordered from smallest to largest
     # sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
-    sequence_lengths = [256, 1024]  # Ordered from shortest to longest
+    sequence_lengths = [256, 512 1024, 2048]  # Ordered from shortest to longest
     model_configs = [
         {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
-        # {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
-        {"n_layer": 2, "n_head": 4, "n_embd": 1024, "name": "small1024"},
-        # {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
+         {"n_layer": 8, "n_head": 16, "n_embd": 2048, "name": "large2048"},
     ]
 
     modes = ["training", "evaluation"]
