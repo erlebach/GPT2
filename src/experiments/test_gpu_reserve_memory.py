@@ -255,27 +255,36 @@ def test_detailed_gpu_mem_ops() -> None:
     print_gpu_info("\nBefore allocation")
     a = torch.randn(1000, 1000, 1000, device="cuda")
     print_gpu_info("\nAfter allocation of a = 10^9 floats")
+    a1 = torch.randn(1000, 1000, 1000, device="cuda")
+    print_gpu_info("\nAfter allocation of a1 = 10^9 floats")
     b = torch.randn(10, 10, 10, device="cuda")
     print_gpu_info("\nAfter allocation of b = 10^3 floats")
     c = torch.randn(1000, 1000, 1000, device="cuda")
     print_gpu_info("\nAfter allocation of c = 10^9 floats")
     del b
     print_gpu_info("\nAfter del b of 10^3 floats")
+    del a1
+    print_gpu_info("\nAfter del b of 10^3 floats")
 
 
 def test_detailed_gpu_mem_ops_empty_cache() -> None:
     """Test detailed GPU memory operations."""
-    torch.cuda.empty_cache()
     print("=== TEST 4: GPU Memory Function Validation ===")
     print("Device:", torch.cuda.get_device_name(0))
     print_gpu_info("\nBefore allocation")
+    torch.cuda.empty_cache()
+    print_gpu_info("\nAfter empty cache")
     a = torch.randn(1000, 1000, 1000, device="cuda")
     print_gpu_info("\nAfter allocation of a = 10^9 floats")
+    a1 = torch.randn(1000, 1000, 1000, device="cuda")
+    print_gpu_info("\nAfter allocation of a1 = 10^9 floats")
     b = torch.randn(10, 10, 10, device="cuda")
     print_gpu_info("\nAfter allocation of b = 10^3 floats")
     c = torch.randn(1000, 1000, 1000, device="cuda")
     print_gpu_info("\nAfter allocation of c = 10^9 floats")
     del b
+    print_gpu_info("\nAfter del b of 10^3 floats")
+    del a1
     print_gpu_info("\nAfter del b of 10^3 floats")
 
 
