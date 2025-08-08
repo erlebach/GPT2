@@ -86,6 +86,34 @@ def run_training_step(
     return {"operation": "training_step"}
 
 
+def calculate_params_from_config(model_config: dict, sequence_length: int) -> int:
+    """Calculate total parameters from model configuration.
+
+    Args:
+        model_config: Model configuration dictionary.
+        sequence_length: Sequence length.
+
+    Returns:
+        Total number of parameters.
+    """
+    # Create config object to calculate parameters
+    config_obj = GPTConfig(
+        block_size=sequence_length,
+        vocab_size=50304,
+        n_layer=model_config["n_layer"],
+        n_head=model_config["n_head"],
+        n_embd=model_config["n_embd"],
+        n_blocks_per_super=2,
+    )
+
+    # Create temporary model to count parameters
+    temp_model = GPTLightningModule(config_obj)
+    total_params = sum(p.numel() for p in temp_model.parameters())
+    del temp_model  # Clean up
+
+    return total_params
+
+
 def run_single_experiment(
     fabric: Fabric,
     model_name: str,
@@ -251,14 +279,14 @@ def run_single_experiment(
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
             elapsed_time = time.time() - start_time
-            print(
-                f"       ❌ Out of memory for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s)"
-            )
+            total_params = calculate_params_from_config(model_config, sequence_length)
             result = {
                 "model_name": model_name,
                 "batch_size": batch_size,
                 "sequence_length": sequence_length,
                 "config": model_config,
+                "total_params": total_params,
+                "total_params_millions": total_params / 1e6,
                 "status": "out_of_memory",
                 "error": str(e),
             }
@@ -268,11 +296,14 @@ def run_single_experiment(
                 f"       ❌ Runtime error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}",
                 flush=True,
             )
+            total_params = calculate_params_from_config(model_config, sequence_length)
             result = {
                 "model_name": model_name,
                 "batch_size": batch_size,
                 "sequence_length": sequence_length,
                 "config": model_config,
+                "total_params": total_params,
+                "total_params_millions": total_params / 1e6,
                 "status": "runtime_error",
                 "error": str(e),
             }
@@ -281,11 +312,14 @@ def run_single_experiment(
         print(
             f"       ❌ Unexpected error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}"
         )
+        total_params = calculate_params_from_config(model_config, sequence_length)
         result = {
             "model_name": model_name,
             "batch_size": batch_size,
             "sequence_length": sequence_length,
             "config": model_config,
+            "total_params": total_params,
+            "total_params_millions": total_params / 1e6,
             "status": "error",
             "error": str(e),
         }
@@ -444,11 +478,15 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 experiment["status"],
             ]
         else:
+            total_m = experiment.get(
+                "total_params_millions",
+                experiment.get("total_params", 0) / 1e6,
+            )
             row = [
                 experiment["model_name"],
                 experiment["batch_size"],
                 experiment["sequence_length"],
-                f"{experiment['total_params_millions']:.1f}",
+                f"{total_m:.1f}",
                 "",  # INF_mem
                 "",  # INF_net_mem
                 "",  # INF_peak_mem
@@ -536,8 +574,10 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "model_name": experiment["model_name"],
                 "batch_size": experiment["batch_size"],
                 "sequence_length": experiment["sequence_length"],
-                "total_params_millions": experiment.get("total_params", 0)
-                / 1e6,  # Fix this line
+                "total_params_millions": experiment.get(
+                    "total_params_millions",
+                    experiment.get("total_params", 0) / 1e6,
+                ),
                 "config": experiment["config"],
                 "status": experiment["status"],
                 "error": experiment.get("error", ""),
