@@ -251,12 +251,12 @@ def run_single_experiment(
             "avg_ts_net_memory_gb": avg_ts_net_memory,
             "avg_ts_peak_memory_gb": avg_ts_peak_memory,
             "peak_memory_gb": peak_memory,
-            "inf_memory_readings": inf_memory_readings,
-            "fwd_memory_readings": fwd_memory_readings,
-            "ts_memory_readings": ts_memory_readings,
-            "peak_inf_readings": peak_inf_readings,
-            "peak_fwd_readings": peak_fwd_readings,
-            "peak_ts_readings": peak_ts_readings,
+            # "inf_memory_readings": inf_memory_readings,
+            # "fwd_memory_readings": fwd_memory_readings,
+            # "ts_memory_readings": ts_memory_readings,
+            # "peak_inf_readings": peak_inf_readings,
+            # "peak_fwd_readings": peak_fwd_readings,
+            # "peak_ts_readings": peak_ts_readings,
             "status": "success",
         }
 
