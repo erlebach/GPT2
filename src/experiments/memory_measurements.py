@@ -548,10 +548,10 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
                 "INF_cached_mem": experiment["avg_inf_cached_memory_gb"],
                 "INF_peak_mem": experiment["avg_inf_peak_memory_gb"],
                 "FWD_mem": experiment["avg_fwd_memory_gb"],
-                "FWD_net_mem": experiment["avg_fwd_net_memory_gb"],
+                "FWD_cached_mem": experiment["avg_fwd_cached_memory_gb"],
                 "FWD_peak_mem": experiment["avg_fwd_peak_memory_gb"],
                 "TS_mem": experiment["avg_ts_memory_gb"],
-                "TS_net_mem": experiment["avg_ts_net_memory_gb"],
+                "TS_cached_mem": experiment["avg_ts_cached_memory_gb"],
                 "TS_peak_mem": experiment["avg_ts_peak_memory_gb"],
                 "status": experiment["status"],
             }
