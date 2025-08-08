@@ -677,14 +677,14 @@ def measure_memory_scaling_experiments(
     ]
 
     # batch_sizes = [1, 8, 32]  # Ordered from smallest to largest
-    batch_sizes = [1, 16, 32, 64]  # Ordered from smallest to largest
+    batch_sizes = [1, 16, 32, 64, 128]  # Ordered from smallest to largest
     # sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
-    sequence_lengths = [256, 512 1024, 2048]  # Ordered from shortest to longest
+    sequence_lengths = [256, 512, 1024, 2048]  # Ordered from shortest to longest
     model_configs = [
         {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
         {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
         {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
-         {"n_layer": 8, "n_head": 16, "n_embd": 2048, "name": "large2048"},
+        {"n_layer": 8, "n_head": 16, "n_embd": 2048, "name": "large2048"},
     ]
 
     modes = ["training", "evaluation"]
