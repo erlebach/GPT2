@@ -108,3 +108,10 @@ JOBID: 11196067
     ]
     modes = ["training", "evaluation"]
 ----------------------------------------------------------------------
+JOBID: 11200492 
+(saved to lightning_logs)
+- cleaned up code.
+- only track cache, allocted memory, peak memory
+- three functions per experiment (inference, forward, forward + backwards)
+- reduced number cases. 
+----------------------------------------------------------------------
