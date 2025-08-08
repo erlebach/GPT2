@@ -607,6 +607,132 @@ def analyze_strange_patterns(df: pd.DataFrame) -> None:
                 )
 
 
+def create_detailed_throughput_analysis(
+    df: pd.DataFrame, save_path: Optional[str] = None
+) -> None:
+    """Create detailed throughput analysis without averaging over sequence length.
+
+    Args:
+        df: DataFrame containing timing data.
+        save_path: Optional path to save the plot.
+
+    """
+    # Calculate tokens per second
+    df["tokens_per_second"] = (df["batch_size"] * df["sequence_length"]) / (
+        df["TS_time_ms"] / 1000
+    )
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+    # Plot 1: Throughput vs Batch Size for each model and sequence length
+    models = sorted(df["model_name"].unique())
+    seq_lengths = sorted(df["sequence_length"].unique())
+
+    for i, model in enumerate(models):
+        model_data = df[df["model_name"] == model]
+
+        for seq_len in seq_lengths:
+            seq_data = model_data[model_data["sequence_length"] == seq_len]
+            if len(seq_data) > 0:
+                grouped = seq_data.groupby("batch_size")["tokens_per_second"].mean()
+                axes[0, 0].plot(
+                    grouped.index,
+                    grouped.values,
+                    marker="o",
+                    label=f"{model}-{seq_len}",
+                    linewidth=2,
+                )
+
+    axes[0, 0].set_xlabel("Batch Size")
+    axes[0, 0].set_ylabel("Tokens per Second")
+    axes[0, 0].set_title("Throughput vs Batch Size (by model and sequence length)")
+    axes[0, 0].legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+    axes[0, 0].grid(True, alpha=0.3)
+    axes[0, 0].set_xscale("log")
+    axes[0, 0].set_yscale("log")
+
+    # Plot 2: Heatmap of throughput for each model
+    for i, model in enumerate(models):
+        model_data = df[df["model_name"] == model]
+        pivot_data = model_data.pivot_table(
+            values="tokens_per_second",
+            index="batch_size",
+            columns="sequence_length",
+            aggfunc="mean",
+        )
+
+        sns.heatmap(
+            pivot_data,
+            annot=True,
+            fmt=".0f",
+            cmap="YlOrRd",
+            ax=axes[0, 1],
+            cbar_kws={"label": "Tokens per Second"},
+        )
+        axes[0, 1].set_title(f"{model} - Throughput Heatmap")
+        axes[0, 1].set_xlabel("Sequence Length")
+        axes[0, 1].set_ylabel("Batch Size")
+
+    # Plot 3: Time per token vs batch size (no averaging)
+    for model in models:
+        model_data = df[df["model_name"] == model]
+        for seq_len in seq_lengths:
+            seq_data = model_data[model_data["sequence_length"] == seq_len]
+            if len(seq_data) > 0:
+                seq_data["time_per_token_ms"] = seq_data["TS_time_ms"] / (
+                    seq_data["batch_size"] * seq_data["sequence_length"]
+                )
+                grouped = seq_data.groupby("batch_size")["time_per_token_ms"].mean()
+                axes[1, 0].plot(
+                    grouped.index,
+                    grouped.values,
+                    marker="s",
+                    label=f"{model}-{seq_len}",
+                    linewidth=2,
+                )
+
+    axes[1, 0].set_xlabel("Batch Size")
+    axes[1, 0].set_ylabel("Time per Token (ms)")
+    axes[1, 0].set_title("Time per Token vs Batch Size (by model and sequence length)")
+    axes[1, 0].legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+    axes[1, 0].grid(True, alpha=0.3)
+    axes[1, 0].set_xscale("log")
+    axes[1, 0].set_yscale("log")
+
+    # Plot 4: Memory efficiency vs batch size (no averaging)
+    for model in models:
+        model_data = df[df["model_name"] == model]
+        for seq_len in seq_lengths:
+            seq_data = model_data[model_data["sequence_length"] == seq_len]
+            if len(seq_data) > 0:
+                seq_data["efficiency"] = (
+                    seq_data["tokens_per_second"] / seq_data["total_params_millions"]
+                )
+                grouped = seq_data.groupby("batch_size")["efficiency"].mean()
+                axes[1, 1].plot(
+                    grouped.index,
+                    grouped.values,
+                    marker="^",
+                    label=f"{model}-{seq_len}",
+                    linewidth=2,
+                )
+
+    axes[1, 1].set_xlabel("Batch Size")
+    axes[1, 1].set_ylabel("Efficiency (tokens/sec/million params)")
+    axes[1, 1].set_title(
+        "Memory Efficiency vs Batch Size (by model and sequence length)"
+    )
+    axes[1, 1].legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+    axes[1, 1].grid(True, alpha=0.3)
+    axes[1, 1].set_xscale("log")
+    axes[1, 1].set_yscale("log")
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
+
+
 def main():
     """Main function to generate all timing analysis plots."""
     # Load data
@@ -653,6 +779,9 @@ def main():
 
     # 8. Efficiency analysis (separate lines for each model)
     create_efficiency_analysis(df, "plots/efficiency_analysis.png")
+
+    # 9. Detailed throughput analysis (no averaging)
+    create_detailed_throughput_analysis(df, "plots/detailed_throughput_analysis.png")
 
     print("All plots generated successfully in the 'plots' directory!")
     print("Note: NO averaging across models was performed to avoid distortion.")
