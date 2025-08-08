@@ -224,25 +224,26 @@ def create_tensor_no_delete():
 
 
 def to_gb(mem):
-    return round(mem / (1024 * 1024 * 1024), 2)
+    return round(mem / (1024.0 * 1024.0 * 1024.0), 2)
 
 
 def print_gpu_info(msg: str = ""):
     print(f"{msg}")
-    mem_allocated = torch.cuda.memory_allocated()
-    mem_reserved = torch.cuda.memory_reserved()
-    mem_cached = mem_reserved - mem_allocated
-    torch.cuda.memory_stats()
-    memory_summary = torch.cuda.memory_summary()
-    print(f"""
-    =======================================================================================
-    memory summary: {memory_summary}
-    """)
+    mem_allocated_bytes = torch.cuda.memory_allocated()
+    mem_reserved_bytes = torch.cuda.memory_reserved()
+    mem_cached_bytes = mem_reserved_bytes - mem_allocated_bytes
+    # torch.cuda.memory_stats()
+    # memory_summary = torch.cuda.memory_summary()
+    # print(f"""
+    # =======================================================================================
+    # memory summary: {memory_summary}
+    # """)
     print(f"""
     ---------------------------------------------------------------------------------------
-    print("mem cached: ", mem_cached)
-    memory_allocated: {to_gb(torch.cuda.memory_allocated())}
-    max_memory_allocated: {to_gb(torch.cuda.max_memory_allocated())}
+    memory_allocated: {to_gb(mem_allocated_bytes)} Gb
+    max_memory_allocated: {to_gb(torch.cuda.max_memory_allocated())} Gb
+    max_memory_reserved: {to_gb(mem_reserved_bytes)} Gb
+    mem cached: {to-gb(mem_cached_bytes)} Gb
     =======================================================================================
     """)
 
@@ -252,14 +253,30 @@ def test_detailed_gpu_mem_ops() -> None:
     print("=== TEST 4: GPU Memory Function Validation ===")
     print("Device:", torch.cuda.get_device_name(0))
     print_gpu_info("\nBefore allocation")
-    a = torch.randn(100, 100, 100, device="cuda")
-    print_gpu_info("\nAfter allocation of a = 100^6 floats")
+    a = torch.randn(1000, 1000, 1000, device="cuda")
+    print_gpu_info("\nAfter allocation of a = 10^9 floats")
     b = torch.randn(10, 10, 10, device="cuda")
-    print_gpu_info("\nAfter allocation of b = 100^3 floats")
-    c = torch.randn(100, 100, 100, device="cuda")
-    print_gpu_info("\nAfter allocation of c = 100^6 floats")
+    print_gpu_info("\nAfter allocation of b = 10^3 floats")
+    c = torch.randn(1000, 1000, 1000, device="cuda")
+    print_gpu_info("\nAfter allocation of c = 10^9 floats")
     del b
-    print_gpu_info("\nAfter del b of 1000 floats")
+    print_gpu_info("\nAfter del b of 10^3 floats")
+
+
+def test_detailed_gpu_mem_ops_empty_cache() -> None:
+    """Test detailed GPU memory operations."""
+    torch.cuda.empty_cache()
+    print("=== TEST 4: GPU Memory Function Validation ===")
+    print("Device:", torch.cuda.get_device_name(0))
+    print_gpu_info("\nBefore allocation")
+    a = torch.randn(1000, 1000, 1000, device="cuda")
+    print_gpu_info("\nAfter allocation of a = 10^9 floats")
+    b = torch.randn(10, 10, 10, device="cuda")
+    print_gpu_info("\nAfter allocation of b = 10^3 floats")
+    c = torch.randn(1000, 1000, 1000, device="cuda")
+    print_gpu_info("\nAfter allocation of c = 10^9 floats")
+    del b
+    print_gpu_info("\nAfter del b of 10^3 floats")
 
 
 def test_without_deletion():
@@ -301,7 +318,9 @@ if __name__ == "__main__":
     # test_gpu_functions()  # Test 1: Validate GPU functions work
     # test_memory_measurement_with_cached()  # Test 2: Test with cached memory
     # test_without_deletion()  # Test 3: Test without deleting tensors
+    print("\n\ntest_detailed_gpu_mem_ops()")
     test_detailed_gpu_mem_ops()
-
+    print("\n\ntest_detailed_gpu_mem_ops_empty_cache()")
+    test_detailed_gpu_mem_ops_empty_cache()
     print("\n" + "=" * 50)
-    print("✅ All tests completed")
+    print("✅ All tests completed", flush=True)
