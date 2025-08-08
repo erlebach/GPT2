@@ -162,6 +162,9 @@ def run_single_experiment(
         inf_alloc_memory = []
         inf_peak_memory = []
         inf_cached_memory = []
+        fwd_alloc_memory = []
+        fwd_peak_memory = []
+        fwd_cached_memory = []
         ts_alloc_memory = []
         ts_peak_memory = []
         ts_cached_memory = []
@@ -440,14 +443,14 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
 
     rows = [headers]
 
-    for key, experiment in results["experiments"].items():
+    for experiment in results["experiments"].values():
         if experiment.get("status") == "success":
             row = [
                 experiment["model_name"],
                 experiment["batch_size"],
                 experiment["sequence_length"],
                 f"{experiment['total_params'] / 1e6:.1f}",
-                f"{experiment['avg_inf_memory_gb']:.3f}",
+                f"{experiment['avg_inf_memory_gb']:.3f} Gb",
                 f"{experiment['avg_inf_net_memory_gb']:.3f}",
                 f"{experiment['avg_inf_peak_memory_gb']:.3f}",
                 f"{experiment['avg_fwd_memory_gb']:.3f}",
@@ -528,10 +531,7 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
 
     for key, experiment in results["experiments"].items():
         # Convert tuple key to string key
-        if isinstance(key, tuple):
-            key_str = "_".join(str(k) for k in key)
-        else:
-            key_str = str(key)
+        key_str = "_".join(str(k) for k in key) if isinstance(key, tuple) else str(key)
 
         if experiment.get("status") == "success":
             simplified_data["experiments"][key_str] = {
@@ -614,11 +614,11 @@ def get_experiments_by_model(results: dict, model_name: str) -> dict:
     Returns:
         Dictionary containing only experiments for the specified model.
     """
-    filtered = {}
-    for key, experiment in results["experiments"].items():
-        if experiment["model_name"] == model_name:
-            filtered[key] = experiment
-    return filtered
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["model_name"] == model_name
+    }
 
 
 def get_experiments_by_batch_size(results: dict, batch_size: int) -> dict:
@@ -631,11 +631,11 @@ def get_experiments_by_batch_size(results: dict, batch_size: int) -> dict:
     Returns:
         Dictionary containing only experiments for the specified batch size.
     """
-    filtered = {}
-    for key, experiment in results["experiments"].items():
-        if experiment["batch_size"] == batch_size:
-            filtered[key] = experiment
-    return filtered
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["batch_size"] == batch_size
+    }
 
 
 def get_experiments_by_sequence_length(results: dict, sequence_length: int) -> dict:
@@ -648,11 +648,11 @@ def get_experiments_by_sequence_length(results: dict, sequence_length: int) -> d
     Returns:
         Dictionary containing only experiments for the specified sequence length.
     """
-    filtered = {}
-    for key, experiment in results["experiments"].items():
-        if experiment["sequence_length"] == sequence_length:
-            filtered[key] = experiment
-    return filtered
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["sequence_length"] == sequence_length
+    }
 
 
 def get_experiments_by_mode(results: dict, mode: str) -> dict:
