@@ -1,4 +1,9 @@
-"""Timing scaling experiments."""
+"""Timing measurement experiments with triplet-based structure."""
+
+import csv
+import time
+from collections.abc import Callable
+from contextlib import suppress
 
 import torch
 from gpt2_standalone.lightning_module import GPTLightningModule
@@ -8,519 +13,659 @@ from lightning import Fabric
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
 
 
-def run_batch_size_experiment(
+def timing_measurement(func) -> Callable:
+    """Measure execution time for any function via decorator."""
+
+    def wrapper(*args, **kwargs) -> dict:
+        """Measure timing before and after function call."""
+        # Synchronize GPU before timing
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        start_time = time.time()
+
+        # Call the original function
+        result = func(*args, **kwargs)
+
+        # Synchronize GPU after function execution
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        end_time = time.time()
+        execution_time = end_time - start_time
+
+        # Return standardized timing measurements
+        timing_measurements = {
+            "execution_time_ms": execution_time * 1000,
+            "execution_time_s": execution_time,
+        }
+
+        # Combine original result with timing measurements
+        if isinstance(result, dict):
+            result.update(timing_measurements)
+        else:
+            result = {"function_result": result, **timing_measurements}
+
+        return result
+
+    return wrapper
+
+
+@timing_measurement
+def run_inference(model: GPTLightningModule, x: torch.Tensor) -> dict:
+    """Run inference (forward pass without gradients) and measure execution time."""
+    # Run forward pass without gradients
+    with torch.no_grad():
+        output = model(x)
+
+    # Don't delete output - let the decorator handle cleanup
+    return {"operation": "inference"}
+
+
+@timing_measurement
+def run_forward_with_gradients(
+    model: GPTLightningModule, x: torch.Tensor, y: torch.Tensor
+) -> dict:
+    """Run forward pass with gradients enabled and measure execution time."""
+    # Run forward pass with gradients enabled (no loss computation)
+    logits, _ = model(
+        x, y
+    )  # This creates the computation graph but doesn't compute loss
+
+    # Don't delete logits - let the decorator handle cleanup
+    return {"operation": "forward_with_gradients"}
+
+
+@timing_measurement
+def run_training_step(
+    model: GPTLightningModule, x: torch.Tensor, y: torch.Tensor
+) -> dict:
+    """Run complete training step and measure execution time."""
+    # Run complete training step (forward + loss + backward)
+    loss = model.training_step((x, y), batch_idx=0)
+
+    # Don't delete loss - let the decorator handle cleanup
+    return {"operation": "training_step"}
+
+
+def calculate_params_from_config(model_config: dict, sequence_length: int) -> int:
+    """Calculate total parameters from model configuration.
+
+    Args:
+        model_config: Model configuration dictionary.
+        sequence_length: Sequence length.
+
+    Returns:
+        Total number of parameters.
+    """
+    # Create config object to calculate parameters
+    config_obj = GPTConfig(
+        block_size=sequence_length,
+        vocab_size=50304,
+        n_layer=model_config["n_layer"],
+        n_head=model_config["n_head"],
+        n_embd=model_config["n_embd"],
+        n_blocks_per_super=2,
+    )
+
+    # Create temporary model to count parameters
+    temp_model = GPTLightningModule(config_obj)
+    total_params = sum(p.numel() for p in temp_model.parameters())
+    del temp_model  # Clean up
+
+    return total_params
+
+
+def run_single_experiment(
     fabric: Fabric,
+    model_name: str,
     batch_size: int,
-    model_configs: list,
+    sequence_length: int,
+    model_config: dict,
     num_iterations: int = 10,
     warmup_iterations: int = 5,
 ) -> dict:
-    """Run batch size experiment for a specific batch size across all models.
+    """Run a single timing experiment for a specific (model, batch_size, sequence_length) triplet.
 
     Args:
         fabric: Lightning Fabric instance.
+        model_name: Name of the model (e.g., 'tiny', 'small').
         batch_size: Batch size to test.
-        model_configs: List of model configurations to test.
+        sequence_length: Sequence length to test.
+        model_config: Model configuration dictionary.
         num_iterations: Number of iterations to measure after warmup.
         warmup_iterations: Number of warmup iterations.
 
     Returns:
-        Dictionary containing experiment results for this batch size across all models.
+        Dictionary containing timing experiment results for this specific triplet.
     """
     import gc
     import statistics
     import time
 
-    print(f"   Testing batch size: {batch_size}")
+    start_time = time.time()
+    print(
+        f"   Testing: {model_name}, batch_size={batch_size}, seq_len={sequence_length}"
+    )
 
-    batch_results = {
-        "batch_size": batch_size,
-        "models": [],
-        "status": "success",
-    }
+    try:
+        # Clean palate before starting
+        print(f"     Setting up model...")
+        deep_gpu_reset()
 
-    for config in model_configs:
-        print(f"     Testing model: {config['name']}")
+        # Create fresh model
+        model_config_obj = GPTConfig(
+            block_size=sequence_length,
+            vocab_size=50304,
+            n_layer=model_config["n_layer"],
+            n_head=model_config["n_head"],
+            n_embd=model_config["n_embd"],
+            n_blocks_per_super=2,
+        )
 
-        try:
-            # Clean palate before starting
+        model = GPTLightningModule(model_config_obj)
+        model, optimizer = fabric.setup(
+            model, model.configure_optimizers()["optimizer"]
+        )
+
+        # Calculate model parameters
+        total_params = sum(p.numel() for p in model.parameters())
+
+        # Create test data
+        print(f"     Creating test data...")
+        x = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)
+        y = torch.randint(0, 50304, (batch_size, sequence_length), device=fabric.device)
+
+        # Set model mode
+        model.train()
+
+        # Warmup
+        print(f"     Warming up ({warmup_iterations} iterations)...")
+        for _ in range(warmup_iterations):
             deep_gpu_reset()
+            run_forward_with_gradients(model, x, y)
 
-            # Create fresh model
-            model_config = GPTConfig(
-                block_size=1024,
-                vocab_size=50304,
-                n_layer=config["n_layer"],
-                n_head=config["n_head"],
-                n_embd=config["n_embd"],
-                n_blocks_per_super=2,
-            )
+        # Measure timing over multiple iterations
+        # inf:inference, fwd:forward pass, ts:training step
+        print(f"     Measuring timing ({num_iterations} iterations)...", flush=True)
+        inf_times_ms = []
+        inf_times_s = []
+        fwd_times_ms = []
+        fwd_times_s = []
+        ts_times_ms = []
+        ts_times_s = []
 
-            model = GPTLightningModule(model_config)
-            model, optimizer = fabric.setup(
-                model, model.configure_optimizers()["optimizer"]
-            )
+        # Just use one list of complete experiment results:
+        experiment_results = []
 
-            # Calculate model parameters
-            total_params = sum(p.numel() for p in model.parameters())
+        for _ in range(num_iterations):
+            # Clean palate before each measurement
+            deep_gpu_reset()
+            reset_model_state(model, optimizer)
+            optimizer.zero_grad()
 
-            # Create test data
-            x = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            test_batch = (x, y)
+            # Run all three measurements for every experiment
+            inf_result = run_inference(model, x)
+            fwd_result = run_forward_with_gradients(model, x, y)
+            ts_result = run_training_step(model, x, y)
 
-            # Warmup with clean palate between iterations
-            model.train()
-            for _ in range(warmup_iterations):
-                deep_gpu_reset()
-                _ = model.training_step(test_batch, batch_idx=0)
-
-            # Synchronize GPU
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-
-            # Measure timing over multiple iterations
-            timings = []
-            for i in range(num_iterations):
-                # Clean palate before each measurement
-                deep_gpu_reset()
-                reset_model_state(model, optimizer)
-
-                # Synchronize before timing
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-
-                start_time = time.time()
-                loss = model.training_step(test_batch, batch_idx=i)
-
-                # Synchronize after timing
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-
-                end_time = time.time()
-                timings.append(end_time - start_time)
-
-            # Calculate statistics
-            avg_time = statistics.mean(timings)
-            std_time = statistics.stdev(timings) if len(timings) > 1 else 0.0
-            min_time = min(timings)
-            max_time = max(timings)
-            time_per_sample = avg_time / batch_size
-
-            model_result = {
-                "model_name": config["name"],
-                "config": config,
-                "total_params": total_params,
-                "avg_time_sec": avg_time,
-                "std_time_sec": std_time,
-                "min_time_sec": min_time,
-                "max_time_sec": max_time,
-                "time_per_sample_sec": time_per_sample,
-                "timings": timings,
-                "status": "success",
+            # Create unified structure
+            experiment_result = {
+                "inf": inf_result,
+                "fwd": fwd_result,
+                "ts": ts_result,
             }
+            experiment_results.append(experiment_result)
 
-            print(
-                f"       Params: {total_params/1e6:.1f}M, Time: {avg_time:.4f}s ± {std_time:.4f}s"
-            )
+            # Store timing readings
+            inf_times_ms.append(inf_result["execution_time_ms"])
+            inf_times_s.append(inf_result["execution_time_s"])
+            fwd_times_ms.append(fwd_result["execution_time_ms"])
+            fwd_times_s.append(fwd_result["execution_time_s"])
+            ts_times_ms.append(ts_result["execution_time_ms"])
+            ts_times_s.append(ts_result["execution_time_s"])
 
-        except RuntimeError as e:
-            if "out of memory" in str(e).lower():
-                print(f"       ❌ Out of memory for model {config['name']}")
-                model_result = {
-                    "model_name": config["name"],
-                    "config": config,
-                    "status": "out_of_memory",
-                    "error": str(e),
-                }
-            else:
-                print(f"       ❌ Runtime error for model {config['name']}: {e}")
-                model_result = {
-                    "model_name": config["name"],
-                    "config": config,
-                    "status": "runtime_error",
-                    "error": str(e),
-                }
-        except Exception as e:
-            print(f"       ❌ Unexpected error for model {config['name']}: {e}")
-            model_result = {
-                "model_name": config["name"],
-                "config": config,
-                "status": "error",
+        # Calculate statistics using the correct lists populated above
+        import statistics
+
+        avg_inf_time_ms = statistics.mean(inf_times_ms)
+        avg_inf_time_s = statistics.mean(inf_times_s)
+        avg_fwd_time_ms = statistics.mean(fwd_times_ms)
+        avg_fwd_time_s = statistics.mean(fwd_times_s)
+        avg_ts_time_ms = statistics.mean(ts_times_ms)
+        avg_ts_time_s = statistics.mean(ts_times_s)
+
+        result = {
+            "model_name": model_name,
+            "batch_size": batch_size,
+            "sequence_length": sequence_length,
+            "config": model_config,
+            "total_params": total_params,
+            "total_params_millions": total_params / 1e6,
+            "avg_inf_time_ms": avg_inf_time_ms,
+            "avg_inf_time_s": avg_inf_time_s,
+            "avg_fwd_time_ms": avg_fwd_time_ms,
+            "avg_fwd_time_s": avg_fwd_time_s,
+            "avg_ts_time_ms": avg_ts_time_ms,
+            "avg_ts_time_s": avg_ts_time_s,
+            "status": "success",
+        }
+
+        elapsed_time = time.time() - start_time
+        print(
+            f"       ✅ Completed in {elapsed_time:.1f}s - "
+            f"    (time ms, time s) - "
+            f"INF: {avg_inf_time_ms:.2f}ms, {avg_inf_time_s:.4f}s, "
+            f"FWD: {avg_fwd_time_ms:.2f}ms, {avg_fwd_time_s:.4f}s, "
+            f"TS: {avg_ts_time_ms:.2f}ms, {avg_ts_time_s:.4f}s",
+            flush=True,
+        )
+
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower():
+            elapsed_time = time.time() - start_time
+            total_params = calculate_params_from_config(model_config, sequence_length)
+            result = {
+                "model_name": model_name,
+                "batch_size": batch_size,
+                "sequence_length": sequence_length,
+                "config": model_config,
+                "total_params": total_params,
+                "total_params_millions": total_params / 1e6,
+                "status": "out_of_memory",
                 "error": str(e),
             }
-        finally:
-            # Clean up
-            try:
-                del model, optimizer, x, y, test_batch
-            except NameError:
-                pass  # Variables might not exist if error occurred early
-            deep_gpu_reset()
+        else:
+            elapsed_time = time.time() - start_time
+            print(
+                f"       ❌ Runtime error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}",
+                flush=True,
+            )
+            total_params = calculate_params_from_config(model_config, sequence_length)
+            result = {
+                "model_name": model_name,
+                "batch_size": batch_size,
+                "sequence_length": sequence_length,
+                "config": model_config,
+                "total_params": total_params,
+                "total_params_millions": total_params / 1e6,
+                "status": "runtime_error",
+                "error": str(e),
+            }
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(
+            f"       ❌ Unexpected error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}"
+        )
+        total_params = calculate_params_from_config(model_config, sequence_length)
+        result = {
+            "model_name": model_name,
+            "batch_size": batch_size,
+            "sequence_length": sequence_length,
+            "config": model_config,
+            "total_params": total_params,
+            "total_params_millions": total_params / 1e6,
+            "status": "error",
+            "error": str(e),
+        }
+    finally:
+        # Clean up
+        with suppress(NameError):
+            del model
+        with suppress(NameError):
+            del optimizer
+        with suppress(NameError):
+            del x
+        with suppress(NameError):
+            del y
+        deep_gpu_reset()
 
-        batch_results["models"].append(model_result)
-
-    return batch_results
+    return result
 
 
-def run_model_size_experiment(
+def run_experiment_grid(
     fabric: Fabric,
-    config: dict,
+    model_configs: list,
     batch_sizes: list,
-    num_iterations: int = 10,
-    warmup_iterations: int = 5,
-) -> dict:
-    """Run model size experiment for a specific model across all batch sizes.
-
-    Args:
-        fabric: Lightning Fabric instance.
-        config: Model configuration dictionary.
-        batch_sizes: List of batch sizes to test (assumed to be ordered from smallest to largest).
-        num_iterations: Number of iterations to measure after warmup.
-        warmup_iterations: Number of warmup iterations.
-
-    Returns:
-        Dictionary containing experiment results for this model across all batch sizes.
-    """
-    import gc
-    import statistics
-    import time
-
-    print(f"   Testing model: {config['name']}")
-
-    model_results = {
-        "model_name": config["name"],
-        "config": config,
-        "batch_sizes": [],
-        "status": "success",
-    }
-
-    for batch_size in batch_sizes:
-        print(f"     Testing batch size: {batch_size}")
-
-        try:
-            # Clean palate before starting
-            deep_gpu_reset()
-
-            # Create fresh model
-            model_config = GPTConfig(
-                block_size=1024,
-                vocab_size=50304,
-                n_layer=config["n_layer"],
-                n_head=config["n_head"],
-                n_embd=config["n_embd"],
-                n_blocks_per_super=2,
-            )
-
-            model = GPTLightningModule(model_config)
-            model, optimizer = fabric.setup(
-                model, model.configure_optimizers()["optimizer"]
-            )
-
-            # Calculate model parameters
-            total_params = sum(p.numel() for p in model.parameters())
-
-            # Create test data
-            x = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            y = torch.randint(0, 50304, (batch_size, 1024), device=fabric.device)
-            test_batch = (x, y)
-
-            # Warmup with clean palate between iterations
-            model.train()
-            for _ in range(warmup_iterations):
-                deep_gpu_reset()
-                _ = model.training_step(test_batch, batch_idx=0)
-
-            # Synchronize GPU
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-
-            # Measure timing over multiple iterations
-            timings = []
-            forward_timings = []
-            backward_timings = []
-
-            for i in range(num_iterations):
-                # Clean palate before each measurement
-                deep_gpu_reset()
-                reset_model_state(model, optimizer)
-
-                # Synchronize before timing
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-
-                # Measure forward pass separately
-                start_time = time.time()
-                with torch.no_grad():
-                    _ = model(x)
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                forward_time = time.time() - start_time
-
-                # Measure full training step
-                start_time = time.time()
-                loss = model.training_step(test_batch, batch_idx=i)
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                end_time = time.time()
-
-                total_time = end_time - start_time
-                backward_time = total_time - forward_time
-
-                timings.append(total_time)
-                forward_timings.append(forward_time)
-                backward_timings.append(backward_time)
-
-            # Calculate statistics
-            avg_time = statistics.mean(timings)
-            std_time = statistics.stdev(timings) if len(timings) > 1 else 0.0
-            avg_forward_time = statistics.mean(forward_timings)
-            avg_backward_time = statistics.mean(backward_timings)
-            time_per_sample = avg_time / batch_size
-
-            batch_result = {
-                "batch_size": batch_size,
-                "total_params": total_params,
-                "avg_time_sec": avg_time,
-                "std_time_sec": std_time,
-                "avg_forward_time_sec": avg_forward_time,
-                "avg_backward_time_sec": avg_backward_time,
-                "time_per_sample_sec": time_per_sample,
-                "timings": timings,
-                "forward_timings": forward_timings,
-                "backward_timings": backward_timings,
-                "status": "success",
-            }
-
-            print(
-                f"       Time: {avg_time:.4f}s ± {std_time:.4f}s, Forward: {avg_forward_time:.4f}s, Backward: {avg_backward_time:.4f}s"
-            )
-
-        except RuntimeError as e:
-            if "out of memory" in str(e).lower():
-                print(f"       ❌ Out of memory for batch size {batch_size}")
-                batch_result = {
-                    "batch_size": batch_size,
-                    "status": "out_of_memory",
-                    "error": str(e),
-                }
-                # Stop testing larger batch sizes since they will also fail
-                print(
-                    f"       ⚠️  Stopping batch size tests for model {config['name']} (will fail for larger batches)"
-                )
-                model_results["batch_sizes"].append(batch_result)
-                break
-            else:
-                print(f"       ❌ Runtime error for batch size {batch_size}: {e}")
-                batch_result = {
-                    "batch_size": batch_size,
-                    "status": "runtime_error",
-                    "error": str(e),
-                }
-        except Exception as e:
-            print(f"       ❌ Unexpected error for batch size {batch_size}: {e}")
-            batch_result = {
-                "batch_size": batch_size,
-                "status": "error",
-                "error": str(e),
-            }
-        finally:
-            # Clean up
-            try:
-                del model, optimizer, x, y, test_batch
-            except NameError:
-                pass  # Variables might not exist if error occurred early
-            deep_gpu_reset()
-
-        model_results["batch_sizes"].append(batch_result)
-
-    return model_results
-
-
-def run_sequence_length_experiment(
-    fabric: Fabric,
-    config: dict,
-    batch_size: int,
     sequence_lengths: list,
     num_iterations: int = 10,
     warmup_iterations: int = 5,
+    max_experiments: int | None = None,
 ) -> dict:
-    """Run sequence length experiment for a specific model and batch size.
+    """Run experiments for all combinations of (model, batch_size, sequence_length) triplets.
 
     Args:
         fabric: Lightning Fabric instance.
-        config: Model configuration dictionary.
-        batch_size: Batch size to use for testing.
+        model_configs: List of model configuration dictionaries.
+        batch_sizes: List of batch sizes to test (ordered from smallest to largest).
         sequence_lengths: List of sequence lengths to test (ordered from shortest to longest).
         num_iterations: Number of iterations to measure after warmup.
         warmup_iterations: Number of warmup iterations.
+        max_experiments: Maximum number of experiments to run. If None, all combinations are run.
 
     Returns:
-        Dictionary containing experiment results for this model across all sequence lengths.
+        Dictionary with triplet keys and experiment results as values.
     """
-    import gc
-    import statistics
-    import time
+    from datetime import datetime
 
-    print(f"   Testing model: {config['name']}, batch_size: {batch_size}")
+    if max_experiments is None:
+        max_experiments = len(model_configs) * len(batch_sizes) * len(sequence_lengths)
 
-    seq_results = {
-        "model_name": config["name"],
-        "config": config,
-        "batch_size": batch_size,
-        "sequence_lengths": [],
-        "status": "success",
+    if fabric.global_rank != 0:
+        return {}
+
+    print(f"\n🧪 Starting Timing Scaling Experiments")
+    print(f"   Models: {[config['name'] for config in model_configs]}")
+    print(f"   Batch sizes: {batch_sizes}")
+    print(f"   Sequence lengths: {sequence_lengths}")
+    print(f"   Warmup iterations: {warmup_iterations}")
+    print(f"   Measurement iterations: {num_iterations}", flush=True)
+
+    results = {
+        "timestamp": datetime.now().isoformat(),
+        "device": str(fabric.device),
+        "experiments": {},
     }
 
-    for seq_len in sequence_lengths:
-        print(f"     Testing sequence length: {seq_len}")
+    total_experiments = len(model_configs) * len(batch_sizes) * len(sequence_lengths)
+    experiment_count = 0
 
-        try:
-            # Clean palate before starting
-            deep_gpu_reset()
+    for model_config in model_configs:
+        model_name = model_config["name"]
+        print(f"\n🔬 Testing model: {model_name}")
 
-            # Create fresh model with current sequence length
-            model_config = GPTConfig(
-                block_size=seq_len,
-                vocab_size=50304,
-                n_layer=config["n_layer"],
-                n_head=config["n_head"],
-                n_embd=config["n_embd"],
-                n_blocks_per_super=2,
-            )
+        for sequence_length in sequence_lengths:
+            print(f"   Testing sequence length: {sequence_length}")
 
-            model = GPTLightningModule(model_config)
-            model, optimizer = fabric.setup(
-                model, model.configure_optimizers()["optimizer"]
-            )
+            for batch_size in batch_sizes:
+                experiment_count += 1
+                if max_experiments and experiment_count > max_experiments:
+                    print(f"   ⏹️  Reached max experiments limit ({max_experiments})")
+                    return results
 
-            # Calculate model parameters
-            total_params = sum(p.numel() for p in model.parameters())
-
-            # Create test data with current sequence length
-            x = torch.randint(0, 50304, (batch_size, seq_len), device=fabric.device)
-            y = torch.randint(0, 50304, (batch_size, seq_len), device=fabric.device)
-            test_batch = (x, y)
-
-            # Warmup with clean palate between iterations
-            model.train()
-            for _ in range(warmup_iterations):
-                deep_gpu_reset()
-                _ = model.training_step(test_batch, batch_idx=0)
-
-            # Synchronize GPU
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-
-            # Measure timing over multiple iterations
-            timings = []
-            forward_timings = []
-            backward_timings = []
-
-            for i in range(num_iterations):
-                # Clean palate before each measurement
-                deep_gpu_reset()
-                reset_model_state(model, optimizer)
-
-                # Synchronize before timing
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-
-                # Measure forward pass separately
-                start_time = time.time()
-                with torch.no_grad():
-                    _ = model(x)
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                forward_time = time.time() - start_time
-
-                # Measure full training step
-                start_time = time.time()
-                loss = model.training_step(test_batch, batch_idx=i)
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                end_time = time.time()
-
-                total_time = end_time - start_time
-                backward_time = total_time - forward_time
-
-                timings.append(total_time)
-                forward_timings.append(forward_time)
-                backward_timings.append(backward_time)
-
-            # Calculate statistics
-            avg_time = statistics.mean(timings)
-            std_time = statistics.stdev(timings) if len(timings) > 1 else 0.0
-            avg_forward_time = statistics.mean(forward_timings)
-            avg_backward_time = statistics.mean(backward_timings)
-            time_per_token = avg_time / (batch_size * seq_len)
-
-            seq_result = {
-                "sequence_length": seq_len,
-                "total_params": total_params,
-                "avg_time_sec": avg_time,
-                "std_time_sec": std_time,
-                "avg_forward_time_sec": avg_forward_time,
-                "avg_backward_time_sec": avg_backward_time,
-                "time_per_token_sec": time_per_token,
-                "timings": timings,
-                "forward_timings": forward_timings,
-                "backward_timings": backward_timings,
-                "status": "success",
-            }
-
-            print(
-                f"       Time: {avg_time:.4f}s ± {std_time:.4f}s, "
-                f"Forward: {avg_forward_time:.4f}s, Backward: {avg_backward_time:.4f}s, "
-                f"Per token: {time_per_token*1000:.3f}ms"
-            )
-
-        except RuntimeError as e:
-            if "out of memory" in str(e).lower():
-                print(f"       ❌ Out of memory for sequence length {seq_len}")
-                seq_result = {
-                    "sequence_length": seq_len,
-                    "status": "out_of_memory",
-                    "error": str(e),
-                }
-                # Stop testing longer sequences since they will also fail
                 print(
-                    f"       ⚠️  Stopping sequence length tests (will fail for longer sequences)"
+                    f"     [{experiment_count}/{total_experiments}] Testing: {model_name}, batch_size={batch_size}, seq_len={sequence_length}"
                 )
-                seq_results["sequence_lengths"].append(seq_result)
-                break
-            else:
-                print(f"       ❌ Runtime error for sequence length {seq_len}: {e}")
-                seq_result = {
-                    "sequence_length": seq_len,
-                    "status": "runtime_error",
-                    "error": str(e),
-                }
-        except Exception as e:
-            print(f"       ❌ Unexpected error for sequence length {seq_len}: {e}")
-            seq_result = {
-                "sequence_length": seq_len,
-                "status": "error",
-                "error": str(e),
+
+                # Run experiment (no mode parameter needed)
+                experiment_result = run_single_experiment(
+                    fabric=fabric,
+                    model_name=model_name,
+                    batch_size=batch_size,
+                    sequence_length=sequence_length,
+                    model_config=model_config,
+                    num_iterations=num_iterations,
+                    warmup_iterations=warmup_iterations,
+                )
+
+                # Store result with tuple key
+                key = (model_name, batch_size, sequence_length)
+                results["experiments"][key] = experiment_result
+
+                # Check if we should stop for this sequence length
+                if experiment_result.get("status") != "success":
+                    print(
+                        f"       ⚠️  All batch sizes failed for seq_len={sequence_length}, stopping larger sequence lengths"
+                    )
+                    break
+
+    return results
+
+
+def save_results_csv(results: dict, timestamp: str | None = None) -> None:
+    """Save experiment results to CSV file.
+
+    Args:
+        results: Experiment results dictionary.
+        timestamp: Timestamp string for filename. If None, current timestamp is used.
+    """
+    from datetime import datetime
+
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # CSV headers
+    headers = [
+        "model_name",
+        "batch_size",
+        "sequence_length",
+        "total_params_millions",
+        "INF_time_ms",
+        "INF_time_s",
+        "FWD_time_ms",
+        "FWD_time_s",
+        "TS_time_ms",
+        "TS_time_s",
+        "status",
+    ]
+
+    rows = [headers]
+
+    for experiment in results["experiments"].values():
+        if experiment.get("status") == "success":
+            row = [
+                experiment["model_name"],
+                experiment["batch_size"],
+                experiment["sequence_length"],
+                f"{experiment['total_params_millions']:.1f}",
+                f"{experiment['avg_inf_time_ms']:.3f}",
+                f"{experiment['avg_inf_time_s']:.6f}",
+                f"{experiment['avg_fwd_time_ms']:.3f}",
+                f"{experiment['avg_fwd_time_s']:.6f}",
+                f"{experiment['avg_ts_time_ms']:.3f}",
+                f"{experiment['avg_ts_time_s']:.6f}",
+                experiment["status"],
+            ]
+        else:
+            total_m = experiment.get(
+                "total_params_millions",
+                experiment.get("total_params", 0) / 1e6,
+            )
+            row = [
+                experiment["model_name"],
+                experiment["batch_size"],
+                experiment["sequence_length"],
+                f"{total_m:.1f}",
+                "",  # INF_time_ms
+                "",  # INF_time_s
+                "",  # FWD_time_ms
+                "",  # FWD_time_s
+                "",  # TS_time_ms
+                "",  # TS_time_s
+                experiment["status"],
+            ]
+        rows.append(row)
+
+    # Write CSV file
+    filename = f"timing_results_{timestamp}.csv"
+    with open(filename, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
+    print(f"✅ CSV results saved to: {filename}")
+
+
+def save_results(results: dict, timestamp: str | None = None) -> None:
+    """Save experiment results in JSON and CSV formats.
+
+    Args:
+        results: Experiment results dictionary.
+        timestamp: Optional timestamp string for filenames.
+    """
+    import json
+    from datetime import datetime
+
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Convert tuple keys to strings for JSON serialization
+    json_safe_results = {
+        "timestamp": results["timestamp"],
+        "device": results["device"],
+        "experiments": {},
+    }
+
+    for key, experiment in results["experiments"].items():
+        # Convert tuple key to string key
+        key_str = "_".join(str(k) for k in key) if isinstance(key, tuple) else str(key)
+        json_safe_results["experiments"][key_str] = experiment
+
+    # Save full results
+    full_filename = f"timing_results_full_{timestamp}.json"
+    with open(full_filename, "w") as f:
+        json.dump(json_safe_results, f, indent=2)
+
+    # Create simplified results
+    simplified_data = {
+        "timestamp": results["timestamp"],
+        "device": results["device"],
+        "experiments": {},
+    }
+
+    for key, experiment in results["experiments"].items():
+        # Convert tuple key to string key
+        key_str = "_".join(str(k) for k in key) if isinstance(key, tuple) else str(key)
+
+        if experiment.get("status") == "success":
+            simplified_data["experiments"][key_str] = {
+                "model_name": experiment["model_name"],
+                "batch_size": experiment["batch_size"],
+                "sequence_length": experiment["sequence_length"],
+                "total_params_millions": experiment["total_params_millions"],
+                "INF_time_ms": experiment["avg_inf_time_ms"],
+                "INF_time_s": experiment["avg_inf_time_s"],
+                "FWD_time_ms": experiment["avg_fwd_time_ms"],
+                "FWD_time_s": experiment["avg_fwd_time_s"],
+                "TS_time_ms": experiment["avg_ts_time_ms"],
+                "TS_time_s": experiment["avg_ts_time_s"],
+                "status": experiment["status"],
             }
-        finally:
-            # Clean up
-            try:
-                del model, optimizer, x, y, test_batch
-            except NameError:
-                pass  # Variables might not exist if error occurred early
-            deep_gpu_reset()
+        else:
+            simplified_data["experiments"][key_str] = {
+                "model_name": experiment["model_name"],
+                "batch_size": experiment["batch_size"],
+                "sequence_length": experiment["sequence_length"],
+                "total_params_millions": experiment.get(
+                    "total_params_millions",
+                    experiment.get("total_params", 0) / 1e6,
+                ),
+                "config": experiment["config"],
+                "status": experiment["status"],
+                "error": experiment.get("error", ""),
+            }
 
-        seq_results["sequence_lengths"].append(seq_result)
+    # Save simplified results
+    simplified_filename = f"timing_results_simplified_{timestamp}.json"
+    with open(simplified_filename, "w") as f:
+        json.dump(simplified_data, f, indent=2)
 
-    return seq_results
+    # Save CSV results
+    save_results_csv(results, timestamp)
+
+    print(f"✅ Full results saved to: {full_filename}")
+    print(f"✅ Simplified results saved to: {simplified_filename}")
+
+
+def tuple_to_key(tuple_key: tuple) -> str:
+    """Convert a tuple key to a string key for JSON serialization.
+
+    Args:
+        tuple_key: Tuple key like ('tiny', 32, 128, 'training').
+
+    Returns:
+        String key like 'tiny_32_128_training'.
+    """
+    return "_".join(str(k) for k in tuple_key)
+
+
+def key_to_tuple(key_str: str) -> tuple:
+    """Convert a string key back to a tuple key.
+
+    Args:
+        key_str: String key like 'tiny_32_128_training'.
+
+    Returns:
+        Tuple key like ('tiny', 32, 128, 'training').
+    """
+    parts = key_str.split("_")
+    # Convert numeric parts back to integers
+    return tuple(int(part) if part.isdigit() else part for part in parts)
+
+
+def get_experiments_by_model(results: dict, model_name: str) -> dict:
+    """Get all experiments for a specific model.
+
+    Args:
+        results: Experiment results dictionary.
+        model_name: Name of the model to filter by.
+
+    Returns:
+        Dictionary containing only experiments for the specified model.
+    """
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["model_name"] == model_name
+    }
+
+
+def get_experiments_by_batch_size(results: dict, batch_size: int) -> dict:
+    """Get all experiments for a specific batch size.
+
+    Args:
+        results: Experiment results dictionary.
+        batch_size: Batch size to filter by.
+
+    Returns:
+        Dictionary containing only experiments for the specified batch size.
+    """
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["batch_size"] == batch_size
+    }
+
+
+def get_experiments_by_sequence_length(results: dict, sequence_length: int) -> dict:
+    """Get all experiments for a specific sequence length.
+
+    Args:
+        results: Experiment results dictionary.
+        sequence_length: Sequence length to filter by.
+
+    Returns:
+        Dictionary containing only experiments for the specified sequence length.
+    """
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["sequence_length"] == sequence_length
+    }
+
+
+def get_experiments_by_mode(results: dict, mode: str) -> dict:
+    """Get all experiments for a specific mode.
+
+    Args:
+        results: Experiment results dictionary.
+        mode: Mode to filter by ('training' or 'evaluation').
+
+    Returns:
+        Dictionary containing only experiments for the specified mode.
+    """
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["mode"] == mode
+    }
 
 
 def measure_timing_scaling_experiments(
     fabric: Fabric,
-    num_iterations: int = 10,
-    warmup_iterations: int = 5,
+    num_iterations: int = 5,
+    warmup_iterations: int = 2,
 ) -> dict:
-    """Comprehensive timing scaling experiments.
+    """Run timing scaling experiments for different model configurations.
 
     Args:
         fabric: Lightning Fabric instance.
@@ -530,105 +675,49 @@ def measure_timing_scaling_experiments(
     Returns:
         Dictionary containing all experiment results.
     """
-    import json
     from datetime import datetime
 
     if fabric.global_rank != 0:
         return {}
 
-    print(f"\n⏱️  Starting Timing Scaling Experiments")
-    print(f"   Warmup iterations: {warmup_iterations}")
-    print(f"   Measurement iterations: {num_iterations}")
-
     # Define test configurations
-    batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]  # Ordered from smallest to largest
-    sequence_lengths = [
-        128,
-        256,
-        512,
-        1024,
-        2048,
-        4096,
-    ]  # Ordered from shortest to longest
+    batch_sizes = [1, 4, 8, 16, 32, 64, 128]  # Ordered from smallest to largest
+    sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
     model_configs = [
-        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny"},
-        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small"},
-        {"n_layer": 4, "n_head": 4, "n_embd": 1024, "name": "medium"},
-        {"n_layer": 6, "n_head": 6, "n_embd": 1024, "name": "large"},
-        {"n_layer": 8, "n_head": 8, "n_embd": 1024, "name": "xlarge"},
+        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
+        {"n_layer": 1, "n_head": 2, "n_embd": 512, "name": "tiny512"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 1024, "name": "small1024"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 2048, "name": "medium2048"},
     ]
 
-    results = {
-        "timestamp": datetime.now().isoformat(),
-        "device": str(fabric.device),
-        "batch_size_experiment": [],
-        "model_size_experiment": [],
-        "sequence_length_experiment": [],
-    }
+    # batch_sizes = [1, 8, 32]  # Ordered from smallest to largest
+    batch_sizes = [1, 16, 32, 64, 128]  # Ordered from smallest to largest
+    # batch_sizes = [1, 128]  # Ordered from smallest to largest
+    # sequence_lengths = [128, 256, 512, 1024]  # Ordered from shortest to longest
+    sequence_lengths = [256, 512, 1024, 2048]  # Ordered from shortest to longest
+    # sequence_lengths = [256, 2048]  # Ordered from shortest to longest
+    model_configs = [
+        {"n_layer": 1, "n_head": 2, "n_embd": 256, "name": "tiny256"},
+        {"n_layer": 2, "n_head": 4, "n_embd": 512, "name": "small512"},
+        {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
+        {"n_layer": 8, "n_head": 16, "n_embd": 2048, "name": "large2048"},
+    ]
 
-    # ----------------------------------------------------------------------
-    # Experiment 1: Batch Size vs Timing (for each batch size, test all models)
-    print(f"\n==> 📊 Experiment 1: Batch Size vs Timing")
-    print(f"   Testing each batch size across all models")
-
-    for batch_size in batch_sizes:
-        batch_result = run_batch_size_experiment(
-            fabric, batch_size, model_configs, num_iterations, warmup_iterations
-        )
-        results["batch_size_experiment"].append(batch_result)
-
-        # Check if all models failed for this batch size
-        successful_models = [
-            m for m in batch_result["models"] if m.get("status") == "success"
-        ]
-        if not successful_models:
-            print(
-                f"     ⚠️  All models failed for batch size {batch_size}, stopping batch size experiments"
-            )
-            break
-
-    # ----------------------------------------------------------------------
-    # Experiment 2: Model Size vs Timing (for each model, test all batch sizes)
-    print(f"\n==> 📊 Experiment 2: Model Size vs Timing")
-    print(
-        f"   Testing each model across all batch sizes (ordered from smallest to largest)"
+    # Run experiments (no modes parameter)
+    results = run_experiment_grid(
+        fabric=fabric,
+        model_configs=model_configs,
+        batch_sizes=batch_sizes,
+        sequence_lengths=sequence_lengths,
+        num_iterations=num_iterations,
+        warmup_iterations=warmup_iterations,
     )
-
-    for config in model_configs:
-        model_result = run_model_size_experiment(
-            fabric, config, batch_sizes, num_iterations, warmup_iterations
-        )
-        results["model_size_experiment"].append(model_result)
-
-    # ----------------------------------------------------------------------
-    # Experiment 3: Sequence Length vs Timing (for each model, test all sequence lengths)
-    print(f"\n==> 📊 Experiment 3: Sequence Length vs Timing")
-    print(
-        f"   Testing each model across all sequence lengths (ordered from shortest to longest)"
-    )
-
-    # Use a moderate batch size for sequence length experiments
-    moderate_batch_size = 16
-
-    for config in model_configs:
-        seq_result = run_sequence_length_experiment(
-            fabric,
-            config,
-            moderate_batch_size,
-            sequence_lengths,
-            num_iterations,
-            warmup_iterations,
-        )
-        results["sequence_length_experiment"].append(seq_result)
 
     # Save results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"timing_scaling_experiment_{timestamp}.json"
-
-    with open(filename, "w") as f:
-        json.dump(results, f, indent=2)
-
-    print(f"\n✅ Results saved to: {filename}")
+    save_results(results, timestamp)
 
     return results
 
