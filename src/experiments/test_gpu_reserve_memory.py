@@ -243,7 +243,7 @@ def print_gpu_info(msg: str = ""):
     memory_allocated: {to_gb(mem_allocated_bytes)} Gb
     max_memory_allocated: {to_gb(torch.cuda.max_memory_allocated())} Gb
     max_memory_reserved: {to_gb(mem_reserved_bytes)} Gb
-    mem cached: {to-gb(mem_cached_bytes)} Gb
+    mem cached: {to_gb(mem_cached_bytes)} Gb
     =======================================================================================
     """)
 
