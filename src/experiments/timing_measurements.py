@@ -725,3 +725,4 @@ def measure_timing_scaling_experiments(
 if __name__ == "__main__":
     fabric = Fabric(accelerator="cuda", devices=1)
     measure_timing_scaling_experiments(fabric)
+#
