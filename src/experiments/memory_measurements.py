@@ -37,7 +37,6 @@ def memory_measurement(func):
         memory_measurements = {
             "memory_gb": mem_allocated_bytes / 1e9,
             "mem_alloc_gb": mem_allocated_bytes / 1e9,
-            # "net_memory_gb": net_mem / 1e9,
             "mem_peak_gb": peak_mem / 1e9,
             "mem_cached_gb": mem_cached_bytes / 1e9,
         }
@@ -216,22 +215,25 @@ def run_single_experiment(
         import statistics
 
         avg_inf_memory = statistics.mean(inf_alloc_memory)
-        avg_inf_net_memory = statistics.mean(
-            [r["inf"].get("net_memory_gb", 0.0) for r in experiment_results]
-        )
+        # avg_inf_net_memory = statistics.mean(
+        #     [r["inf"].get("net_memory_gb", 0.0) for r in experiment_results]
+        # )
         avg_inf_peak_memory = statistics.mean(inf_peak_memory)
+        avg_inf_cached_memory = statistics.mean(inf_cached_memory)
 
         avg_fwd_memory = statistics.mean(fwd_alloc_memory)
-        avg_fwd_net_memory = statistics.mean(
-            [r["fwd"].get("net_memory_gb", 0.0) for r in experiment_results]
-        )
+        # avg_fwd_net_memory = statistics.mean(
+        #     [r["fwd"].get("net_memory_gb", 0.0) for r in experiment_results]
+        # )
         avg_fwd_peak_memory = statistics.mean(fwd_peak_memory)
+        avg_fwd_cached_memory = statistics.mean(fwd_cached_memory)
 
         avg_ts_memory = statistics.mean(ts_alloc_memory)
-        avg_ts_net_memory = statistics.mean(
-            [r["ts"].get("net_memory_gb", 0.0) for r in experiment_results]
-        )
+        # avg_ts_net_memory = statistics.mean(
+        #     [r["ts"].get("net_memory_gb", 0.0) for r in experiment_results]
+        # )
         avg_ts_peak_memory = statistics.mean(ts_peak_memory)
+        avg_ts_cached_memory = statistics.mean(ts_cached_memory)
 
         peak_memory = torch.cuda.max_memory_allocated() / 1e9
 
@@ -242,13 +244,16 @@ def run_single_experiment(
             "config": model_config,
             "total_params": total_params,
             "avg_inf_memory_gb": avg_inf_memory,
-            "avg_inf_net_memory_gb": avg_inf_net_memory,
+            "avg_cached_memory_gb": avg_cached_memory,
+            # "avg_inf_net_memory_gb": avg_inf_net_memory,
             "avg_inf_peak_memory_gb": avg_inf_peak_memory,
             "avg_fwd_memory_gb": avg_fwd_memory,
-            "avg_fwd_net_memory_gb": avg_fwd_net_memory,
+            "avg_fwd_cached_memory_gb": avg_fwd_cached_memory,
+            # "avg_fwd_net_memory_gb": avg_fwd_net_memory,
             "avg_fwd_peak_memory_gb": avg_fwd_peak_memory,
             "avg_ts_memory_gb": avg_ts_memory,
-            "avg_ts_net_memory_gb": avg_ts_net_memory,
+            "avg_ts_cached_memory_gb": avg_ts_cached_memory,
+            # "avg_ts_net_memory_gb": avg_ts_net_memory,
             "avg_ts_peak_memory_gb": avg_ts_peak_memory,
             "peak_memory_gb": peak_memory,
             # "inf_memory_readings": inf_memory_readings,
@@ -263,10 +268,10 @@ def run_single_experiment(
         elapsed_time = time.time() - start_time
         print(
             f"       ✅ Completed in {elapsed_time:.1f}s - "
-            f"    (mem, net mem, peak mem) - "
-            f"INF: {avg_inf_memory:.2f}GB, {avg_inf_net_memory:.2f}GB, {avg_inf_peak_memory:.2f}GB, "
-            f"FWD: {avg_fwd_memory:.2f}GB, {avg_fwd_net_memory:.2f}GB, {avg_fwd_peak_memory:.2f}GB, "
-            f"TS: {avg_ts_memory:.2f}GB, {avg_ts_net_memory:.2f}GB, {avg_ts_peak_memory:.2f}GB",
+            f"    (alloc mem, cached mem, peak mem) - "
+            f"INF: {avg_inf_memory:.2f}GB, {avg_inf_cached_memory:.2f}GB, {avg_inf_peak_memory:.2f}GB, "
+            f"FWD: {avg_fwd_memory:.2f}GB, {avg_fwd_cached_memory:.2f}GB, {avg_fwd_peak_memory:.2f}GB, "
+            f"TS: {avg_ts_memory:.2f}GB, {avg_ts_cached_memory:.2f}GB, {avg_ts_peak_memory:.2f}GB",
             flush=True,
         )
 
@@ -430,13 +435,13 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
         "sequence_length",
         "total_params_millions",
         "INF_mem",
-        "INF_net_mem",
+        "INF_cached_mem",
         "INF_peak_mem",
         "FWD_mem",
-        "FWD_net_mem",
+        "FWD_cached_mem",
         "FWD_peak_mem",
         "TS_mem",
-        "TS_net_mem",
+        "TS_cached_mem",
         "TS_peak_mem",
         "status",
     ]
@@ -451,13 +456,13 @@ def save_results_csv(results: dict, timestamp: str | None = None) -> None:
                 experiment["sequence_length"],
                 f"{experiment['total_params'] / 1e6:.1f}",
                 f"{experiment['avg_inf_memory_gb']:.3f} Gb",
-                f"{experiment['avg_inf_net_memory_gb']:.3f}",
+                f"{experiment['avg_inf_cached_memory_gb']:.3f}",
                 f"{experiment['avg_inf_peak_memory_gb']:.3f}",
                 f"{experiment['avg_fwd_memory_gb']:.3f}",
-                f"{experiment['avg_fwd_net_memory_gb']:.3f}",
+                f"{experiment['avg_fwd_cached_memory_gb']:.3f}",
                 f"{experiment['avg_fwd_peak_memory_gb']:.3f}",
                 f"{experiment['avg_ts_memory_gb']:.3f}",
-                f"{experiment['avg_ts_net_memory_gb']:.3f}",
+                f"{experiment['avg_ts_cached_memory_gb']:.3f}",
                 f"{experiment['avg_ts_peak_memory_gb']:.3f}",
                 experiment["status"],
             ]
