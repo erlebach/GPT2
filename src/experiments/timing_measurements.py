@@ -228,6 +228,7 @@ def run_single_experiment(
         avg_ts_time_ms = statistics.mean(ts_times_ms)
         avg_ts_time_s = statistics.mean(ts_times_s)
 
+        # replace the result dict assembly to add raw samples
         result = {
             "model_name": model_name,
             "batch_size": batch_size,
@@ -241,6 +242,11 @@ def run_single_experiment(
             "avg_fwd_time_s": avg_fwd_time_s,
             "avg_ts_time_ms": avg_ts_time_ms,
             "avg_ts_time_s": avg_ts_time_s,
+            "samples": {
+                "INF_time_ms": inf_times_ms,
+                "FWD_time_ms": fwd_times_ms,
+                "TS_time_ms": ts_times_ms,
+            },
             "status": "success",
         }
 

@@ -135,3 +135,10 @@ JOBID: 11200879
 - measure timings
 - saved to lightning_logs/version_11200879/
 ----------------------------------------------------------------------
+JOBID: 11201111 (not sure what this is)
+- 80 test cases (same as previous run)
+- measure timings
+- saved to lightning_logs/version_11200879/
+----------------------------------------------------------------------
+JOBID: 
+- run more batch sizes for medium1024 model only. 

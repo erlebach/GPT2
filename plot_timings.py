@@ -736,7 +736,8 @@ def create_detailed_throughput_analysis(
 def main():
     """Main function to generate all timing analysis plots."""
     # Load data
-    csv_path = "timing_results_20250808_160512.csv"
+    # csv_path = "timing_results_20250808_160512.csv"
+    csv_path = "timing_results_20250808_220829.csv"
     df = load_and_clean_data(csv_path)
 
     print(f"Loaded {len(df)} successful timing measurements")
