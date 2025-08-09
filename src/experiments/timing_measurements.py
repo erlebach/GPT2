@@ -13,39 +13,32 @@ from lightning import Fabric
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
 
 
-def timing_measurement(func) -> Callable:
-    """Measure execution time for any function via decorator."""
-
-    def wrapper(*args, **kwargs) -> dict:
-        """Measure timing before and after function call."""
-        # Synchronize GPU before timing
+def timing_measurement(func):
+    def wrapper(*args, **kwargs):
         if torch.cuda.is_available():
-            torch.cuda.synchronize()
-
-        start_time = time.time()
-
-        # Call the original function
-        result = func(*args, **kwargs)
-
-        # Synchronize GPU after function execution
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-
-        end_time = time.time()
-        execution_time = end_time - start_time
-
-        # Return standardized timing measurements
-        timing_measurements = {
-            "execution_time_ms": execution_time * 1000,
-            "execution_time_s": execution_time,
-        }
-
-        # Combine original result with timing measurements
-        if isinstance(result, dict):
-            result.update(timing_measurements)
+            stream = torch.cuda.current_stream()
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            stream.synchronize()  # clear prior work on this stream
+            start.record(stream)
+            result = func(*args, **kwargs)
+            end.record(stream)
+            end.synchronize()  # wait only for this stream
+            ms = start.elapsed_time(end)  # milliseconds
+            timing = {"execution_time_ms": ms, "execution_time_s": ms / 1000.0}
         else:
-            result = {"function_result": result, **timing_measurements}
+            import time
 
+            t0 = time.time()
+            result = func(*args, **kwargs)
+            timing = {
+                "execution_time_ms": (time.time() - t0) * 1000,
+                "execution_time_s": time.time() - t0,
+            }
+        if isinstance(result, dict):
+            result.update(timing)
+        else:
+            result = {"function_result": result, **timing}
         return result
 
     return wrapper
