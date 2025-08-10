@@ -12,6 +12,62 @@ from lightning import Fabric
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
 
 
+def create_model_from_yaml(
+    yaml_path: str,
+    model_key: str = "model",
+    optimizer_key: str = "optimizer",
+    block_size: int | None = None,
+    vocab_size: int | None = None,
+) -> tuple[GPTLightningModule, torch.optim.Optimizer]:
+    """Create a model and optimizer from a YAML configuration file.
+
+    This function is compatible with NeMo/Hydra-style configurations using the
+    _target_ format for dynamic class instantiation.
+
+    Args:
+        yaml_path: Path to YAML configuration file.
+        model_key: Key in YAML for model configuration.
+        optimizer_key: Key in YAML for optimizer configuration.
+        block_size: Sequence length to inject into model config.
+        vocab_size: Vocabulary size to inject into model config.
+
+    Returns:
+        Tuple of (model, optimizer).
+    """
+    import yaml
+
+    with open(yaml_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    # Extract model config
+    model_cfg = config[model_key].copy()  # Make a copy to avoid modifying original
+    model_target = model_cfg.pop("_target_")
+
+    # Inject block_size and vocab_size if provided
+    if block_size is not None:
+        model_cfg["block_size"] = block_size
+    if vocab_size is not None:
+        model_cfg["vocab_size"] = vocab_size
+
+    # Import and instantiate model
+    module_path, class_name = model_target.rsplit(".", 1)
+    module = __import__(module_path, fromlist=[class_name])
+    model_class = getattr(module, class_name)
+    model = model_class(**model_cfg)
+
+    # Extract optimizer config
+    opt_cfg = config[optimizer_key].copy()
+    opt_target = opt_cfg.pop("_target_")
+
+    # Import and instantiate optimizer
+    opt_module_path, opt_class_name = opt_target.rsplit(".", 1)
+    opt_module = __import__(opt_module_path, fromlist=[opt_class_name])
+    optimizer_class = getattr(opt_module, opt_class_name)
+    optimizer = optimizer_class(model.parameters(), **opt_cfg)
+
+    return model, optimizer
+
+
 def memory_measurement(func) -> Callable:
     """Measure GPU memory usage for any function via decorator."""
 
@@ -122,6 +178,7 @@ def run_single_experiment(
     model_config: dict,
     num_iterations: int = 10,
     warmup_iterations: int = 5,
+    yaml_path: str | None = None,
 ) -> dict:
     """Run a single memory experiment for a specific (model, batch_size, sequence_length) triplet.
 
@@ -152,19 +209,27 @@ def run_single_experiment(
         deep_gpu_reset()
 
         # Create fresh model
-        model_config_obj = GPTConfig(
-            block_size=sequence_length,
-            vocab_size=50304,
-            n_layer=model_config["n_layer"],
-            n_head=model_config["n_head"],
-            n_embd=model_config["n_embd"],
-            n_blocks_per_super=2,
-        )
+        if yaml_path:
+            # Use YAML-based model creation
+            model, optimizer = create_model_from_yaml(
+                yaml_path, block_size=sequence_length, vocab_size=50304
+            )
+            model, optimizer = fabric.setup(model, optimizer)
+        else:
+            # Use original hardcoded approach
+            model_config_obj = GPTConfig(
+                block_size=sequence_length,
+                vocab_size=50304,
+                n_layer=model_config["n_layer"],
+                n_head=model_config["n_head"],
+                n_embd=model_config["n_embd"],
+                n_blocks_per_super=2,
+            )
 
-        model = GPTLightningModule(model_config_obj)
-        model, optimizer = fabric.setup(
-            model, model.configure_optimizers()["optimizer"]
-        )
+            model = GPTLightningModule(model_config_obj)
+            model, optimizer = fabric.setup(
+                model, model.configure_optimizers()["optimizer"]
+            )
 
         # Calculate model parameters
         total_params = sum(p.numel() for p in model.parameters())
@@ -348,6 +413,7 @@ def run_experiment_grid(
     num_iterations: int = 10,
     warmup_iterations: int = 5,
     max_experiments: int | None = None,
+    yaml_path: str | None = None,
 ) -> dict:
     """Run experiments for all combinations of (model, batch_size, sequence_length) triplets.
 
@@ -413,6 +479,7 @@ def run_experiment_grid(
                     model_config=model_config,
                     num_iterations=num_iterations,
                     warmup_iterations=warmup_iterations,
+                    yaml_path=yaml_path,
                 )
 
                 # Store result with tuple key
@@ -695,6 +762,7 @@ def measure_memory_scaling_experiments(
     fabric: Fabric,
     num_iterations: int = 5,
     warmup_iterations: int = 2,
+    yaml_path: str | None = None,
 ) -> dict:
     """Run memory scaling experiments for different model configurations.
 
@@ -744,6 +812,7 @@ def measure_memory_scaling_experiments(
         sequence_lengths=sequence_lengths,
         num_iterations=num_iterations,
         warmup_iterations=warmup_iterations,
+        yaml_path=yaml_path,
     )
 
     # Save results
@@ -755,4 +824,14 @@ def measure_memory_scaling_experiments(
 
 if __name__ == "__main__":
     fabric = Fabric(accelerator="cuda", devices=1)
+
+    # Option 1: Use original hardcoded model configs (default)
     measure_memory_scaling_experiments(fabric)
+
+    # Option 2: Use YAML-based model loading (uncomment to use)
+    # yaml_path = "src/experiments/config/memory/my_model.yaml"  # NeMo/Hydra approach
+    # measure_memory_scaling_experiments(fabric, yaml_path=yaml_path)
+
+    # Option 3: Test with a specific YAML config
+    # yaml_path = "src/experiments/config/memory/my_model.yaml"
+    # measure_memory_scaling_experiments(fabric, yaml_path=yaml_path)
