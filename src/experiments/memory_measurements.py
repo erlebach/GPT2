@@ -836,21 +836,14 @@ def create_hydra_config_from_yaml(
 def hydra_runner(
     config_path: str = "config/memory", config_name: str = "my_model.yaml"
 ) -> callable:
-    """Run decorator with functions with Hydra configuration.
-
-    Args:
-        config_path: Path to configuration file relative to source file.
-        config_name: Name of the configuration file.
-
-    Returns:
-        Decorator function.
-    """
+    """Run decorator with functions with Hydra configuration."""
 
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
-            # Use __file__ from the current module to get the source file path
-            import os
+            # Load the YAML config
             from pathlib import Path
+
+            import yaml
 
             # Get the directory of the file where this decorator is defined
             source_file_dir = Path(__file__).parent
@@ -858,24 +851,15 @@ def hydra_runner(
             # Construct the full path to the YAML file
             full_yaml_path = source_file_dir / config_path / config_name
 
-            # Create Hydra config using the full path
-            hydra_config = create_hydra_config_from_yaml(
-                str(full_yaml_path), relative_to_file=None
-            )
+            # Load the YAML configuration
+            with open(full_yaml_path, "r") as f:
+                config = yaml.safe_load(f)
 
-            # Extract configuration values
-            experiment_config = hydra_config.get("experiment", {})
+            # Add the yaml path to the config
+            config["_yaml_path"] = str(full_yaml_path)
 
-            # Update function arguments with Hydra config
-            updated_kwargs = {
-                "num_iterations": experiment_config.get("num_iterations", 5),
-                "warmup_iterations": experiment_config.get("warmup_iterations", 2),
-                "yaml_path": str(full_yaml_path),
-                **kwargs,
-            }
-
-            # Call the original function with updated arguments
-            return func(*args, **updated_kwargs)
+            # Pass the entire config as the first argument
+            return func(config, *args, **kwargs)
 
         return wrapper
 
@@ -979,10 +963,19 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     # Extract configuration values
     model_config = config.get("model", {})
     optimizer_config = config.get("optimizer", {})
-    experiment_config = config.get("experiment", {})
 
     # Create Fabric instance
     fabric = Fabric(accelerator="cuda", devices=1)
+
+    # Create model using the config
+    yaml_path = config.get("_yaml_path")
+    model, optimizer = create_model_from_yaml_simple(
+        yaml_path=yaml_path,
+        block_size=1024,
+        vocab_size=50257,
+    )
+
+    # Now you have model and optimizer to use in your experiments
 
     # Extract experiment parameters with defaults
     num_iterations = experiment_config.get("num_iterations", 5)
