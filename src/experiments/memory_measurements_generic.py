@@ -267,6 +267,10 @@ def instantiate_from_target(target: str, kwargs: dict) -> Any:
     module_path, class_name = target.rsplit(".", 1)
     module = importlib.import_module(module_path)
     cls = getattr(module, class_name)
+    print(f"Module path: {module_path}")
+    print(f"module: {module}")
+    print(f"class_name: {class_name}")
+    print(f"Instantiating {cls} with kwargs {kwargs}")
     return cls(**kwargs)
 
 
