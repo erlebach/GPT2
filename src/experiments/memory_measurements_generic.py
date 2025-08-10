@@ -440,7 +440,7 @@ def run_single_experiment_generic(
         elapsed = time.time() - start_time
         print(
             f"       ❌ Runtime error for {spec.name}, batch={batch_size}, "
-            f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e}",
+            f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e} in file {__file__}",
             flush=True,
         )
         result = {
@@ -457,7 +457,7 @@ def run_single_experiment_generic(
         elapsed = time.time() - start_time
         print(
             f"       ❌ Unexpected error for {spec.name}, batch={batch_size}, "
-            f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e}",
+            f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e} in file {__file__}",
             flush=True,
         )
         result = {
