@@ -954,6 +954,8 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     Args:
         cfg: Hydra configuration object containing all experiment parameters.
     """
+    from datetime import datetime
+
     # Convert OmegaConf to regular dict for compatibility
     if isinstance(cfg, DictConfig):
         config = OmegaConf.to_container(cfg, resolve=True)
@@ -963,6 +965,7 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     # Extract configuration values
     model_config = config.get("model", {})
     optimizer_config = config.get("optimizer", {})
+    experiment_config = config.get("experiment", {})
 
     # Create Fabric instance
     fabric = Fabric(accelerator="cuda", devices=1)
@@ -975,8 +978,6 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
         vocab_size=50257,
     )
 
-    # Now you have model and optimizer to use in your experiments
-
     # Extract experiment parameters with defaults
     num_iterations = experiment_config.get("num_iterations", 5)
     warmup_iterations = experiment_config.get("warmup_iterations", 2)
@@ -986,17 +987,8 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     # Create model configs from YAML
     model_configs = []
     if "models" in experiment_config:
-        # Use models defined in YAML
-        for model_spec in experiment_config["models"]:
-            model_configs.append(
-                {
-                    "n_layer": model_spec.get("n_layer", 4),
-                    "n_head": model_spec.get("n_head", 8),
-                    "n_embd": model_spec.get("n_embd", 1024),
-                    "name": model_spec.get("name", "custom"),
-                    "n_blocks_per_super": model_spec.get("n_blocks_per_super", 2),
-                }
-            )
+        # Use models defined in YAML - just use them directly
+        model_configs = experiment_config["models"]
     else:
         # Fallback to hardcoded configs
         model_configs = [
@@ -1008,14 +1000,11 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     print(f"   Config: {config}")
 
     # Run experiments using the existing infrastructure
+    yaml_path = config.get("_yaml_path")
     results = run_experiment_grid(
         fabric=fabric,
-        model_configs=model_configs,
-        batch_sizes=batch_sizes,
-        sequence_lengths=sequence_lengths,
-        num_iterations=num_iterations,
-        warmup_iterations=warmup_iterations,
-        yaml_path=None,  # Not needed when using Hydra
+        **cfg.experiment,
+        yaml_path=yaml_path,
     )
 
     # Save results
@@ -1023,7 +1012,6 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     save_results(results, timestamp)
 
     print(f"✅ Hydra-based experiments completed successfully")
-    return results
 
 
 if __name__ == "__main__":
@@ -1047,4 +1035,4 @@ if __name__ == "__main__":
     #     print("   Continuing with hardcoded experiments only")
 
     # Option 3: Use hydra_runner decorator
-    measure_memory_scaling_experiments_hydra()  #
+    measure_memory_scaling_experiments_hydra()
