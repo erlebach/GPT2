@@ -1,10 +1,11 @@
-"""
-Run it:
+"""Run from a YAML file.
+
 ```
 python / Users / erlebach / src / 2025 / GPT2 / src / experiments / run_mem_from_yaml.py
 ```
 
 What this applies to:
+
 - The YAML route is for “another model” you want to measure by just
   pointing at a _target_. The small adapter above makes your existing
   LightningModule accept flat kwargs from YAML. If the “another model”
@@ -51,7 +52,7 @@ class GPTLMAdapter(lm.GPTLightningModule):
 
     """
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **kwargs: Any) -> None:
         block_size = kwargs.pop("block_size")
         vocab_size = kwargs.pop("vocab_size")
         n_layer = kwargs.pop("n_layer", 2)
