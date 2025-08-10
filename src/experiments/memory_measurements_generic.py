@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -13,6 +14,14 @@ from lightning import Fabric
 from torch import Tensor, nn
 
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
+
+
+class LineNo:
+    def __str__(self):
+        return str(inspect.currentframe().f_back.f_lineno)
+
+
+__line__ = LineNo()
 
 
 def _cuda_on() -> bool:
@@ -440,7 +449,7 @@ def run_single_experiment_generic(
         elapsed = time.time() - start_time
         print(
             f"       ❌ Runtime error for {spec.name}, batch={batch_size}, "
-            f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e} in file {__file__}",
+            f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e} in file {__file__}, line {__line__}",
             flush=True,
         )
         result = {
@@ -457,7 +466,7 @@ def run_single_experiment_generic(
         elapsed = time.time() - start_time
         print(
             f"       ❌ Unexpected error for {spec.name}, batch={batch_size}, "
-            f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e} in file {__file__}",
+            f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e} in file {__file__}, line {__line__}",
             flush=True,
         )
         result = {
