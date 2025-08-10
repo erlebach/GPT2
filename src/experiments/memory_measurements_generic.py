@@ -267,10 +267,12 @@ def instantiate_from_target(target: str, kwargs: dict) -> Any:
     module_path, class_name = target.rsplit(".", 1)
     module = importlib.import_module(module_path)
     cls = getattr(module, class_name)
+    # start DEBUG
     print(f"Module path: {module_path}")
     print(f"module: {module}")
     print(f"class_name: {class_name}")
-    print(f"Instantiating {cls} with kwargs {kwargs}")
+    print(f"Instantiating {cls=} with {kwargs=}")
+    # end DEBUG
     return cls(**kwargs)
 
 
@@ -317,9 +319,9 @@ def model_factory_from_yaml(
 
         opt_target = opt_cfg.pop("_target_")
         # Optimizers usually take params= first positional, but we pass as kw.
-        opt_kwargs = {**opt_cfg}
-        optimizer_cls = instantiate_from_target(opt_target, {})
-        optimizer = optimizer_cls(params=model.parameters(), **opt_kwargs)
+        opt_kwargs = {**opt_cfg, "params": model.parameters()}
+        # Instantiate the optimizer directly with all required arguments
+        optimizer = instantiate_from_target(opt_target, opt_kwargs)
         return model, optimizer
 
     return factory
