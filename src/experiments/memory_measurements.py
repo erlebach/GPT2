@@ -827,12 +827,25 @@ if __name__ == "__main__":
     fabric = Fabric(accelerator="cuda", devices=1)
 
     # Option 1: Use original hardcoded model configs (default)
-    measure_memory_scaling_experiments(fabric)
+    # measure_memory_scaling_experiments(fabric)
 
-    # Option 2: Use YAML-based model loading (uncomment to use)
-    # yaml_path = "src/experiments/config/memory/my_model.yaml"  # NeMo/Hydra approach
-    # measure_memory_scaling_experiments(fabric, yaml_path=yaml_path)
+    # Option 2: Use YAML-based model loading with NeMo/Hydra approach
+    print("\n🔧 Option 2: Using YAML-based model loading (NeMo/Hydra approach)")
+    yaml_path = "src/experiments/config/memory/my_model.yaml"
+    try:
+        measure_memory_scaling_experiments(fabric, yaml_path=yaml_path)
+    except FileNotFoundError:
+        print(f"⚠️  YAML file not found: {yaml_path}")
+        print("   Skipping YAML-based experiments")
+    except Exception as e:
+        print(f"❌ Error with YAML-based experiments: {e}")
 
-    # Option 3: Test with a specific YAML config
-    # yaml_path = "src/experiments/config/memory/my_model.yaml"
-    # measure_memory_scaling_experiments(fabric, yaml_path=yaml_path)
+    # Option 3: Test with custom YAML config (uncomment and modify as needed)
+    # print("\n🔧 Option 3: Using custom YAML configuration")
+    # custom_yaml_path = "src/experiments/config/memory/custom_model.yaml"
+    # try:
+    #     measure_memory_scaling_experiments(fabric, yaml_path=custom_yaml_path)
+    # except FileNotFoundError:
+    #     print(f"⚠️  Custom YAML file not found: {custom_yaml_path}")
+    # except Exception as e:
+    #     print(f"❌ Error with custom YAML experiments: {e}")
