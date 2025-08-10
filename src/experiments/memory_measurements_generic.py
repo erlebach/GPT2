@@ -1,6 +1,7 @@
 # src/experiments/memory_measurements_generic.py
 from __future__ import annotations
 
+import csv
 import importlib
 import inspect
 from collections.abc import Callable
@@ -67,7 +68,7 @@ def _cuda_mem_max_allocated() -> int:
 
 
 def memory_measurement(func: Callable[..., Any]) -> Callable[..., dict]:
-    """Decorator to measure GPU memory usage around a function call.
+    """Run decorator to measure GPU memory usage around a function call.
 
     Args:
         func: Function to wrap. Must return any value.
@@ -342,6 +343,107 @@ def model_factory_from_callable(
     return builder
 
 
+def get_experiments_by_model_generic(results: dict, model_name: str) -> dict:
+    """Get all experiments for a specific model.
+
+    Args:
+        results: Experiment results dictionary.
+        model_name: Name of the model to filter by.
+
+    Returns:
+        Dictionary containing only experiments for the specified model.
+    """
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["model_name"] == model_name
+    }
+
+
+def get_experiments_by_batch_size_generic(results: dict, batch_size: int) -> dict:
+    """Get all experiments for a specific batch size.
+
+    Args:
+        results: Experiment results dictionary.
+        batch_size: Batch size to filter by.
+
+    Returns:
+        Dictionary containing only experiments for the specified batch size.
+    """
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["batch_size"] == batch_size
+    }
+
+
+def get_experiments_by_sequence_length_generic(
+    results: dict, sequence_length: int
+) -> dict:
+    """Get all experiments for a specific sequence length.
+
+    Args:
+        results: Experiment results dictionary.
+        sequence_length: Sequence length to filter by.
+
+    Returns:
+        Dictionary containing only experiments for the specified sequence length.
+    """
+    return {
+        key: experiment
+        for key, experiment in results["experiments"].items()
+        if experiment["sequence_length"] == sequence_length
+    }
+
+
+def print_experiment_summary_generic(results: dict) -> None:
+    """Print a summary of all experiments.
+
+    Args:
+        results: Experiment results dictionary.
+    """
+    print(f"\n📊 Memory Experiment Summary")
+    print(f"   Device: {results['device']}")
+    print(f"   Timestamp: {results['timestamp']}")
+    print(f"   Total experiments: {len(results['experiments'])}")
+
+    successful = sum(
+        1 for exp in results["experiments"].values() if exp.get("status") == "success"
+    )
+    failed = len(results["experiments"]) - successful
+
+    print(f"   Successful: {successful}")
+    print(f"   Failed: {failed}")
+
+    if successful > 0:
+        print(f"\n   Memory Usage Summary (successful experiments):")
+        inf_memories = [
+            exp["avg_inf_memory_gb"]
+            for exp in results["experiments"].values()
+            if exp.get("status") == "success"
+        ]
+        fwd_memories = [
+            exp["avg_fwd_memory_gb"]
+            for exp in results["experiments"].values()
+            if exp.get("status") == "success"
+        ]
+        ts_memories = [
+            exp["avg_ts_memory_gb"]
+            for exp in results["experiments"].values()
+            if exp.get("status") == "success"
+        ]
+
+        print(
+            f"     INF: min={min(inf_memories):.2f}GB, max={max(inf_memories):.2f}GB, avg={sum(inf_memories)/len(inf_memories):.2f}GB"
+        )
+        print(
+            f"     FWD: min={min(fwd_memories):.2f}GB, max={max(fwd_memories):.2f}GB, avg={sum(fwd_memories)/len(fwd_memories):.2f}GB"
+        )
+        print(
+            f"     TS:  min={min(ts_memories):.2f}GB, max={max(ts_memories):.2f}GB, avg={sum(ts_memories)/len(ts_memories):.2f}GB"
+        )
+
+
 def run_single_experiment_generic(
     fabric: Fabric,
     spec: ModelBuildSpec,
@@ -515,6 +617,334 @@ def run_single_experiment_generic(
 # ----------------------------- Examples --------------------------------- #
 
 
+def run_experiment_grid_generic(
+    fabric: Fabric,
+    model_specs: list[ModelBuildSpec],
+    batch_sizes: list[int],
+    num_iterations: int = 10,
+    warmup_iterations: int = 5,
+    max_experiments: int | None = None,
+    factory: Optional[
+        Callable[[ModelBuildSpec], tuple[nn.Module, torch.optim.Optimizer]]
+    ] = None,
+) -> dict:
+    """Run experiments for all combinations of (model, batch_size) pairs.
+
+    Args:
+        fabric: Lightning Fabric instance.
+        model_specs: List of ModelBuildSpec objects.
+        batch_sizes: List of batch sizes to test (ordered from smallest to largest).
+        num_iterations: Number of iterations to measure after warmup.
+        warmup_iterations: Number of warmup iterations.
+        max_experiments: Maximum number of experiments to run. If None, all combinations are run.
+        factory: Model factory producing (model, optimizer).
+
+    Returns:
+        Dictionary with tuple keys and experiment results as values.
+    """
+    from datetime import datetime
+
+    if factory is None:
+        raise ValueError("A model factory must be provided.")
+
+    if max_experiments is None:
+        max_experiments = len(model_specs) * len(batch_sizes)
+
+    if fabric.global_rank != 0:
+        return {}
+
+    print(f"\n🧪 Starting Memory Scaling Experiments (Generic)")
+    print(f"   Models: {[spec.name for spec in model_specs]}")
+    print(f"   Batch sizes: {batch_sizes}")
+    print(f"   Warmup iterations: {warmup_iterations}")
+    print(f"   Measurement iterations: {num_iterations}", flush=True)
+
+    results = {
+        "timestamp": datetime.now().isoformat(),
+        "device": str(fabric.device),
+        "experiments": {},
+    }
+
+    total_experiments = len(model_specs) * len(batch_sizes)
+    experiment_count = 0
+
+    for model_spec in model_specs:
+        print(f"\n🔬 Testing model: {model_spec.name}")
+
+        for batch_size in batch_sizes:
+            experiment_count += 1
+            if max_experiments and experiment_count > max_experiments:
+                print(f"   ⏹️  Reached max experiments limit ({max_experiments})")
+                return results
+
+            print(
+                f"     [{experiment_count}/{total_experiments}] Testing: {model_spec.name}, batch_size={batch_size}, seq_len={model_spec.sequence_length}"
+            )
+
+            # Run experiment
+            experiment_result = run_single_experiment_generic(
+                fabric=fabric,
+                spec=model_spec,
+                batch_size=batch_size,
+                num_iterations=num_iterations,
+                warmup_iterations=warmup_iterations,
+                factory=factory,
+            )
+
+            # Store result with tuple key
+            key = (model_spec.name, batch_size, model_spec.sequence_length)
+            results["experiments"][key] = experiment_result
+
+            # Check if we should stop for this model
+            if experiment_result.get("status") != "success":
+                print(
+                    f"       ⚠️  All batch sizes failed for {model_spec.name}, stopping larger batch sizes"
+                )
+                break
+
+    return results
+
+
+def save_results_csv_generic(results: dict, timestamp: str | None = None) -> None:
+    """Save experiment results to CSV file.
+
+    Args:
+        results: Experiment results dictionary.
+        timestamp: Timestamp string for filename. If None, current timestamp is used.
+    """
+    from datetime import datetime
+
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # CSV headers
+    headers = [
+        "model_name",
+        "batch_size",
+        "sequence_length",
+        "total_params_millions",
+        "INF_mem",
+        "INF_cached_mem",
+        "INF_peak_mem",
+        "FWD_mem",
+        "FWD_cached_mem",
+        "FWD_peak_mem",
+        "TS_mem",
+        "TS_cached_mem",
+        "TS_peak_mem",
+        "status",
+    ]
+
+    rows = [headers]
+
+    for experiment in results["experiments"].values():
+        if experiment.get("status") == "success":
+            row = [
+                experiment["model_name"],
+                experiment["batch_size"],
+                experiment["sequence_length"],
+                f"{experiment['total_params_millions']:.1f}",
+                f"{experiment['avg_inf_memory_gb']:.3f} Gb",
+                f"{experiment['avg_inf_cached_memory_gb']:.3f}",
+                f"{experiment['avg_inf_peak_memory_gb']:.3f}",
+                f"{experiment['avg_fwd_memory_gb']:.3f}",
+                f"{experiment['avg_fwd_cached_memory_gb']:.3f}",
+                f"{experiment['avg_fwd_peak_memory_gb']:.3f}",
+                f"{experiment['avg_ts_memory_gb']:.3f}",
+                f"{experiment['avg_ts_cached_memory_gb']:.3f}",
+                f"{experiment['avg_ts_peak_memory_gb']:.3f}",
+                experiment["status"],
+            ]
+        else:
+            total_m = experiment.get(
+                "total_params_millions",
+                experiment.get("total_params", 0) / 1e6,
+            )
+            row = [
+                experiment["model_name"],
+                experiment["batch_size"],
+                experiment["sequence_length"],
+                f"{total_m:.1f}",
+                "",  # INF_mem
+                "",  # INF_cached_mem
+                "",  # INF_peak_mem
+                "",  # FWD_mem
+                "",  # FWD_cached_mem
+                "",  # FWD_peak_mem
+                "",  # TS_mem
+                "",  # TS_cached_mem
+                "",  # TS_peak_mem
+                experiment["status"],
+            ]
+        rows.append(row)
+
+    # Write CSV file
+    filename = f"memory_results_generic_{timestamp}.csv"
+    with open(filename, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
+    print(f"✅ CSV results saved to: {filename}")
+
+
+def save_results_generic(results: dict, timestamp: str | None = None) -> None:
+    """Save experiment results in JSON and CSV formats.
+
+    Args:
+        results: Experiment results dictionary.
+        timestamp: Optional timestamp string for filenames.
+    """
+    import json
+    from datetime import datetime
+
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Convert tuple keys to strings for JSON serialization
+    json_safe_results = {
+        "timestamp": results["timestamp"],
+        "device": results["device"],
+        "experiments": {},
+    }
+
+    for key, experiment in results["experiments"].items():
+        # Convert tuple key to string key
+        key_str = "_".join(str(k) for k in key) if isinstance(key, tuple) else str(key)
+        json_safe_results["experiments"][key_str] = experiment
+
+    # Save full results
+    full_filename = f"memory_results_generic_full_{timestamp}.json"
+    with open(full_filename, "w") as f:
+        json.dump(json_safe_results, f, indent=2)
+
+    # Create simplified results
+    simplified_data = {
+        "timestamp": results["timestamp"],
+        "device": results["device"],
+        "experiments": {},
+    }
+
+    for key, experiment in results["experiments"].items():
+        # Convert tuple key to string key
+        key_str = "_".join(str(k) for k in key) if isinstance(key, tuple) else str(key)
+
+        if experiment.get("status") == "success":
+            simplified_data["experiments"][key_str] = {
+                "model_name": experiment["model_name"],
+                "batch_size": experiment["batch_size"],
+                "sequence_length": experiment["sequence_length"],
+                "total_params_millions": experiment["total_params_millions"],
+                "INF_mem": experiment["avg_inf_memory_gb"],
+                "INF_cached_mem": experiment["avg_inf_cached_memory_gb"],
+                "INF_peak_mem": experiment["avg_inf_peak_memory_gb"],
+                "FWD_mem": experiment["avg_fwd_memory_gb"],
+                "FWD_cached_mem": experiment["avg_fwd_cached_memory_gb"],
+                "FWD_peak_mem": experiment["avg_fwd_peak_memory_gb"],
+                "TS_mem": experiment["avg_ts_memory_gb"],
+                "TS_cached_mem": experiment["avg_ts_cached_memory_gb"],
+                "TS_peak_mem": experiment["avg_ts_peak_memory_gb"],
+                "status": experiment["status"],
+            }
+        else:
+            simplified_data["experiments"][key_str] = {
+                "model_name": experiment["model_name"],
+                "batch_size": experiment["batch_size"],
+                "sequence_length": experiment["sequence_length"],
+                "total_params_millions": experiment.get(
+                    "total_params_millions",
+                    experiment.get("total_params", 0) / 1e6,
+                ),
+                "config": experiment["config"],
+                "status": experiment["status"],
+                "error": experiment.get("error", ""),
+            }
+
+    # Save simplified results
+    simplified_filename = f"memory_results_generic_simplified_{timestamp}.json"
+    with open(simplified_filename, "w") as f:
+        json.dump(simplified_data, f, indent=2)
+
+    # Save CSV results
+    save_results_csv_generic(results, timestamp)
+
+    print(f"✅ Full results saved to: {full_filename}")
+    print(f"✅ Simplified results saved to: {simplified_filename}")
+
+
+def measure_memory_scaling_experiments_generic(
+    fabric: Fabric,
+    num_iterations: int = 5,
+    warmup_iterations: int = 2,
+    factory: Optional[
+        Callable[[ModelBuildSpec], tuple[nn.Module, torch.optim.Optimizer]]
+    ] = None,
+) -> dict:
+    """Run memory scaling experiments for different model configurations.
+
+    Args:
+        fabric: Lightning Fabric instance.
+        num_iterations: Number of iterations to measure after warmup.
+        warmup_iterations: Number of warmup iterations.
+        factory: Model factory producing (model, optimizer).
+
+    Returns:
+        Dictionary containing all experiment results.
+    """
+    from datetime import datetime
+
+    if fabric.global_rank != 0:
+        return {}
+
+    if factory is None:
+        # Use the example factory if none provided
+        factory = example_callable_factory()
+
+    # Define test configurations
+    batch_sizes = [1, 4, 8, 16, 32, 64, 128]  # Ordered from smallest to largest
+    model_specs = [
+        ModelBuildSpec(
+            name="tiny256",
+            vocab_size=50304,
+            sequence_length=256,
+            config={"n_layer": 1, "n_head": 2, "n_embd": 256},
+        ),
+        ModelBuildSpec(
+            name="small512",
+            vocab_size=50304,
+            sequence_length=512,
+            config={"n_layer": 2, "n_head": 4, "n_embd": 512},
+        ),
+        ModelBuildSpec(
+            name="medium1024",
+            vocab_size=50304,
+            sequence_length=1024,
+            config={"n_layer": 4, "n_head": 8, "n_embd": 1024},
+        ),
+        ModelBuildSpec(
+            name="large2048",
+            vocab_size=50304,
+            sequence_length=2048,
+            config={"n_layer": 8, "n_head": 16, "n_embd": 2048},
+        ),
+    ]
+
+    # Run experiments
+    results = run_experiment_grid_generic(
+        fabric=fabric,
+        model_specs=model_specs,
+        batch_sizes=batch_sizes,
+        num_iterations=num_iterations,
+        warmup_iterations=warmup_iterations,
+        factory=factory,
+    )
+
+    # Save results
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_results_generic(results, timestamp)
+
+    return results
+
+
 def example_callable_factory() -> (
     Callable[[ModelBuildSpec], tuple[nn.Module, torch.optim.Optimizer]]
 ):
@@ -585,4 +1015,39 @@ if __name__ == "__main__":
         assert k in out
     print(f"Test 2 passed: decorator memory keys present on CPU")
 
-    print(f"All tests passed.")
+    # Test the grid experiment runner
+    print(f"\nTesting grid experiment runner...")
+    grid_results = run_experiment_grid_generic(
+        fabric=fab,
+        model_specs=[spec],
+        batch_sizes=[1, 2],
+        num_iterations=1,
+        warmup_iterations=1,
+        factory=fac,
+    )
+
+    assert "experiments" in grid_results
+    assert len(grid_results["experiments"]) > 0
+    print(f"Test 3 passed: grid experiment runner OK")
+
+    # Test data saving functions
+    print(f"\nTesting data saving functions...")
+    save_results_generic(grid_results, "test")
+    print(f"Test 4 passed: data saving functions OK")
+
+    # Test utility functions
+    print(f"\nTesting utility functions...")
+    model_exps = get_experiments_by_model_generic(grid_results, "tinylm")
+    assert len(model_exps) > 0
+    print(f"Test 5 passed: utility functions OK")
+
+    print_experiment_summary_generic(grid_results)
+    print(f"Test 6 passed: summary printing OK")
+
+    print(f"\nAll tests passed.")
+
+    # Example of running full experiments (commented out for safety)
+    # print(f"\nTo run full experiments on GPU, uncomment the following lines:")
+    # print(f"# fabric = Fabric(accelerator='cuda', devices=1)")
+    # print(f"# results = measure_memory_scaling_experiments_generic(fabric)")
+    # print(f"# print_experiment_summary_generic(results)")
