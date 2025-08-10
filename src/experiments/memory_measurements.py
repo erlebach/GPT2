@@ -293,7 +293,8 @@ def run_single_experiment(
         else:
             elapsed_time = time.time() - start_time
             print(
-                f"       ❌ Runtime error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}",
+                f"       ❌ Runtime error for {model_name}, batch_size={batch_size}, "
+                f" seq_len={sequence_length} (after {elapsed_time:.1f}s): {e} in file {__file__}",
                 flush=True,
             )
             total_params = calculate_params_from_config(model_config, sequence_length)
@@ -310,7 +311,8 @@ def run_single_experiment(
     except Exception as e:
         elapsed_time = time.time() - start_time
         print(
-            f"       ❌ Unexpected error for {model_name}, batch_size={batch_size}, seq_len={sequence_length} (after {elapsed_time:.1f}s): {e}"
+            f"       ❌ Unexpected error for {model_name}, batch_size={batch_size}, "
+            f" seq_len={sequence_length} (after {elapsed_time:.1f}s): {e} in file {__file__}"
         )
         total_params = calculate_params_from_config(model_config, sequence_length)
         result = {
