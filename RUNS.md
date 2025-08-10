@@ -140,5 +140,8 @@ JOBID: 11201111 (not sure what this is)
 - measure timings
 - saved to lightning_logs/version_11200879/
 ----------------------------------------------------------------------
-JOBID: 
+JOBID: 11201189
 - run more batch sizes for medium1024 model only. 
+- csv file: timing_results_20250808_230015.csv
+- run time_line_plots.py to generatea plots in plots/
+----------------------------------------------------------------------
