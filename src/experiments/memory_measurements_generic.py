@@ -21,7 +21,18 @@ class LineNo:
         return str(inspect.currentframe().f_back.f_lineno)
 
 
-__line__ = LineNo()
+# __line__ = LineNo()
+
+
+class ExceptionLine:
+    def __init__(self, exc):
+        tb = exc.__traceback__
+        while tb.tb_next:
+            tb = tb.tb_next
+        self.lineno = tb.tb_lineno
+
+    def __str__(self):
+        return str(self.lineno)
 
 
 def _cuda_on() -> bool:
@@ -447,6 +458,7 @@ def run_single_experiment_generic(
         )
     except RuntimeError as e:
         elapsed = time.time() - start_time
+        __line__ = ExceptionLine(e)
         print(
             f"       ❌ Runtime error for {spec.name}, batch={batch_size}, "
             f"seq={spec.sequence_length} (after {elapsed:.1f}s): {e} in file {__file__}, line {__line__}",
@@ -463,6 +475,7 @@ def run_single_experiment_generic(
             "error": str(e),
         }
     except Exception as e:
+        __line__ = ExceptionLine(e)
         elapsed = time.time() - start_time
         print(
             f"       ❌ Unexpected error for {spec.name}, batch={batch_size}, "
