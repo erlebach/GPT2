@@ -834,13 +834,13 @@ def create_hydra_config_from_yaml(
 
 
 def hydra_runner(
-    config_path: str = "config/memory/my_model.yaml", config_name: str = "my_model"
+    config_path: str = "config/memory", config_name: str = "my_model.yaml"
 ) -> callable:
     """Run decorator with functions with Hydra configuration.
 
     Args:
-        config_path: Path to configuration file relative to calling file.
-        config_name: Name of the configuration.
+        config_path: Path to configuration file relative to source file.
+        config_name: Name of the configuration file.
 
     Returns:
         Decorator function.
@@ -848,14 +848,19 @@ def hydra_runner(
 
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
-            # Get the calling file's path for relative path resolution
-            import inspect
+            # Use __file__ from the current module to get the source file path
+            import os
+            from pathlib import Path
 
-            calling_file = inspect.currentframe().f_back.f_code.co_filename
+            # Get the directory of the file where this decorator is defined
+            source_file_dir = Path(__file__).parent
 
-            # Create Hydra config
+            # Construct the full path to the YAML file
+            full_yaml_path = source_file_dir / config_path / config_name
+
+            # Create Hydra config using the full path
             hydra_config = create_hydra_config_from_yaml(
-                config_path, relative_to_file=calling_file
+                str(full_yaml_path), relative_to_file=None
             )
 
             # Extract configuration values
@@ -865,7 +870,7 @@ def hydra_runner(
             updated_kwargs = {
                 "num_iterations": experiment_config.get("num_iterations", 5),
                 "warmup_iterations": experiment_config.get("warmup_iterations", 2),
-                "yaml_path": config_path,
+                "yaml_path": str(full_yaml_path),
                 **kwargs,
             }
 
