@@ -57,8 +57,29 @@ def create_model_from_yaml_simple(
         n_blocks_per_super=model_cfg.get("n_blocks_per_super", 2),
     )
 
-    # Create optimizer exactly like the original
-    optimizer = model.configure_optimizers()["optimizer"]
+    # Extract optimizer configuration from YAML
+    optimizer_cfg = config.get("optimizer", {})
+
+    # Create optimizer based on YAML configuration
+    if optimizer_cfg:
+        # Get optimizer class from YAML
+        opt_target = optimizer_cfg.get("_target_", "torch.optim.AdamW")
+        opt_params = optimizer_cfg.get("params", {})
+
+        # Dynamically import optimizer class if it's a custom path
+        if "." in opt_target:
+            opt_module_path, opt_class_name = opt_target.rsplit(".", 1)
+            opt_module = importlib.import_module(opt_module_path)
+            opt_class = getattr(opt_module, opt_class_name)
+        else:
+            # Use built-in PyTorch optimizers
+            opt_class = getattr(torch.optim, opt_target)
+
+        # Create optimizer with model parameters and config from YAML
+        optimizer = opt_class(model.parameters(), **opt_params)
+    else:
+        # Fallback to model's default optimizer configuration
+        optimizer = model.configure_optimizers()["optimizer"]
 
     return model, optimizer
 
@@ -211,6 +232,18 @@ def run_single_experiment(
                 yaml_path, block_size=sequence_length, vocab_size=50304
             )
             model, optimizer = fabric.setup(model, optimizer)
+            # Print optimizer parameters
+            if hasattr(optimizer, "param_groups"):
+                for idx, group in enumerate(optimizer.param_groups):
+                    print(f"     ==> Optimizer param group {idx}:")
+                    for key, value in group.items():
+                        # Avoid printing the full list of params (can be huge)
+                        if key == "params":
+                            print(f"       {key}: [Tensor list of length {len(value)}]")
+                        else:
+                            print(f"       {key}: {value}")
+            else:
+                print("     Optimizer has no param_groups attribute.")
         else:
             # Use original hardcoded approach
             model_config_obj = GPTConfig(
