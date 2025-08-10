@@ -1,16 +1,16 @@
 """
-    Run it:
-    ```
-    python /Users/erlebach/src/2025/GPT2/src/experiments/run_mem_from_yaml.py
-    ```
-    
-    What this applies to:
-    - The YAML route is for “another model” you want to measure by just
-      pointing at a _target_. The small adapter above makes your existing
-      LightningModule accept flat kwargs from YAML. If the “another model”
-      is a plain nn.Module that already takes kwargs directly, you don’t need
-      an adapter—point _target_ to that class, and it will work with
-      model_factory_from_yaml as-is.
+Run it:
+```
+python / Users / erlebach / src / 2025 / GPT2 / src / experiments / run_mem_from_yaml.py
+```
+
+What this applies to:
+- The YAML route is for “another model” you want to measure by just
+  pointing at a _target_. The small adapter above makes your existing
+  LightningModule accept flat kwargs from YAML. If the “another model”
+  is a plain nn.Module that already takes kwargs directly, you don’t need
+  an adapter—point _target_ to that class, and it will work with
+  model_factory_from_yaml as-is.
 """
 
 # src/experiments/run_mem_from_yaml.py
@@ -30,19 +30,18 @@ if str(__file__).endswith("run_mem_from_yaml.py"):
     root = pathlib.Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(root / "src"))
 
+# Because our YAML refers to the LightningModule, but that module's constructor
+# expects a GPTConfig, we provide a thin wrapper that adapts kwargs.
+# If your `_target_` is a plain nn.Module that accepts kwargs directly,
+# you can skip this adapter and use the YAML factory as-is.
+import gpt2_standalone.lightning_module as lm  # noqa: E402
+from gpt2_standalone.model import GPTConfig  # noqa: E402
+
 from experiments.memory_measurements_generic import (  # noqa: E402
     ModelBuildSpec,
     model_factory_from_yaml,
     run_single_experiment_generic,
 )
-
-# Because our YAML refers to the LightningModule, but that module's constructor
-# expects a GPTConfig, we provide a thin wrapper that adapts kwargs.
-# If your `_target_` is a plain nn.Module that accepts kwargs directly,
-# you can skip this adapter and use the YAML factory as-is.
-
-import gpt2_standalone.lightning_module as lm  # noqa: E402
-from gpt2_standalone.model import GPTConfig  # noqa: E402
 
 
 class GPTLMAdapter(lm.GPTLightningModule):
@@ -86,6 +85,12 @@ if __name__ == "__main__":
     accelerator = "cuda" if torch.cuda.is_available() else "cpu"
     fab = Fabric(accelerator=accelerator, devices=1)
 
+    # Use Hydra to resolve the path to the YAML file relative to the
+    # current file
+
+    # Get the script's directory to resolve relative paths correctly
+    script_dir = pathlib.Path(__file__).resolve().parent
+
     # Use the adapter in YAML:
     # model:
     #   _target_: gpt2_standalone.lightning_module_adapter.GPTLMAdapter
@@ -93,7 +98,7 @@ if __name__ == "__main__":
     #   n_head: 8
     #   n_embd: 1024
     factory = model_factory_from_yaml(
-        yaml_path="config/memory/my_model.yaml",
+        yaml_path=str(script_dir / "config/memory/my_model.yaml"),
         model_key="model",
         optimizer_key="optimizer",
     )
