@@ -108,7 +108,8 @@ if __name__ == "__main__":
         name="yaml_medium1024",
         vocab_size=50304,
         sequence_length=1024,
-        config={"n_layer": 4, "n_head": 8, "n_embd": 1024},
+        # config={"n_layer": 4, "n_head": 8, "n_embd": 1024},
+        config={},
     )
 
     result = run_single_experiment_generic(

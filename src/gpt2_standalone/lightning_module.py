@@ -64,6 +64,8 @@ class GPTLightningModule(pl.LightningModule):
         warmup_steps: int = 10,
         max_steps: int = 500,
         min_lr_ratio: float = 0.1,
+        *args,
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["config"])
