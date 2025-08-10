@@ -9,6 +9,7 @@ import torch
 from gpt2_standalone.lightning_module import GPTLightningModule
 from gpt2_standalone.model import GPTConfig
 from lightning import Fabric
+from omegaconf import DictConfig, OmegaConf
 
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
 from experiments.lightning_module_adapter import GPTLMAdapter
@@ -957,15 +958,13 @@ def measure_memory_scaling_experiments(
 
 
 # Option 3: Use NeMo's hydra_runner decorator
-@hydra_runner(config_path="src/experiments/config", config_name="memory/my_model")
-def measure_memory_scaling_experiments_hydra(cfg) -> None:
+@hydra_runner(config_path="config/memory", config_name="my_model.yaml")
+def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     """Hydra-enabled version of memory scaling experiments using NeMo's hydra_runner.
 
     Args:
         cfg: Hydra configuration object containing all experiment parameters.
     """
-    from omegaconf import DictConfig, OmegaConf
-
     # Convert OmegaConf to regular dict for compatibility
     if isinstance(cfg, DictConfig):
         config = OmegaConf.to_container(cfg, resolve=True)
