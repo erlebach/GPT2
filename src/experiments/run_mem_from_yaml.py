@@ -45,6 +45,7 @@ from experiments.memory_measurements_generic import (  # noqa: E402
 )
 
 
+"""
 class GPTLMAdapter(lm.GPTLightningModule):
     """Adapter that lets us pass config fields directly via kwargs.
 
@@ -69,10 +70,13 @@ class GPTLMAdapter(lm.GPTLightningModule):
             n_blocks_per_super=n_blocks_per_super,
         )
         super().__init__(cfg, **kwargs)
+"""
 
 
 # Expose the adapter via a stable path so YAML can reference it
 # Path to reference in YAML: gpt2_standalone.lightning_module_adapter.GPTLMAdapter
+
+import experiments.lightning_module_adapter  # noqa: E402
 sys.modules["gpt2_standalone.lightning_module_adapter"] = types.ModuleType(
     "gpt2_standalone.lightning_module_adapter"
 )
