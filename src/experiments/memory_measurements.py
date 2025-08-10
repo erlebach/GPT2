@@ -997,6 +997,7 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
         ]
 
     print(f"\n Option 3: Using NeMo Hydra configuration")
+    print(f"{type(cfg)=}, {type(config)=}")
     print(f"   {cfg=}")
     print(f"   {cfg['experiment']=}")
     print(f"   {config=}")
