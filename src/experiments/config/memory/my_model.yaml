@@ -1,4 +1,5 @@
 model:
+  _target_: experiments.lightning_module_adapter.GPTLMAdapter
   n_layer: 4
   n_head: 8
   n_embd: 1024

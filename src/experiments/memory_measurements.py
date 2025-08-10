@@ -11,12 +11,13 @@ from gpt2_standalone.model import GPTConfig
 from lightning import Fabric
 
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
+from experiments.lightning_module_adapter import GPTLMAdapter
 
 
 def create_model_from_yaml_simple(
     yaml_path: str, block_size: int, vocab_size: int
 ) -> tuple[GPTLightningModule, torch.optim.Optimizer]:
-    """Simple YAML model loader - minimal change from original approach.
+    """Simple YAML model loader using the adapter with _target_ pattern.
 
     Args:
         yaml_path: Path to YAML file.
@@ -26,6 +27,8 @@ def create_model_from_yaml_simple(
     Returns:
         Tuple of (model, optimizer).
     """
+    import importlib
+
     import yaml
 
     with open(yaml_path, "r") as f:
@@ -33,22 +36,26 @@ def create_model_from_yaml_simple(
 
     # Extract model parameters from YAML
     model_cfg = config.get("model", {})
-    n_layer = model_cfg.get("n_layer", 4)
-    n_head = model_cfg.get("n_head", 8)
-    n_embd = model_cfg.get("n_embd", 1024)
-    n_blocks_per_super = model_cfg.get("n_blocks_per_super", 2)
 
-    # Create model exactly like the original hardcoded approach
-    model_config_obj = GPTConfig(
+    # Get the target class from YAML
+    target_path = model_cfg.get("_target_")
+    if not target_path:
+        raise ValueError("YAML must contain '_target_' field in model section")
+
+    # Dynamically import and instantiate the target class
+    module_path, class_name = target_path.rsplit(".", 1)
+    module = importlib.import_module(module_path)
+    target_class = getattr(module, class_name)
+
+    # Create model using the target class with parameters from YAML
+    model = target_class(
         block_size=block_size,
         vocab_size=vocab_size,
-        n_layer=n_layer,
-        n_head=n_head,
-        n_embd=n_embd,
-        n_blocks_per_super=n_blocks_per_super,
+        n_layer=model_cfg.get("n_layer", 4),
+        n_head=model_cfg.get("n_head", 8),
+        n_embd=model_cfg.get("n_embd", 1024),
+        n_blocks_per_super=model_cfg.get("n_blocks_per_super", 2),
     )
-
-    model = GPTLightningModule(model_config_obj)
 
     # Create optimizer exactly like the original
     optimizer = model.configure_optimizers()["optimizer"]
@@ -178,6 +185,7 @@ def run_single_experiment(
         model_config: Model configuration dictionary.
         num_iterations: Number of iterations to measure after warmup.
         warmup_iterations: Number of warmup iterations.
+        yaml_path: Optional path to YAML config file.
 
     Returns:
         Dictionary containing memory experiment results for this specific triplet.
@@ -198,7 +206,7 @@ def run_single_experiment(
 
         # Create fresh model
         if yaml_path:
-            # Use YAML-based model creation
+            # Use YAML-based model creation with adapter
             model, optimizer = create_model_from_yaml_simple(
                 yaml_path, block_size=sequence_length, vocab_size=50304
             )
@@ -815,8 +823,8 @@ if __name__ == "__main__":
     fabric = Fabric(accelerator="cuda", devices=1)
 
     # Option 1: Use original hardcoded model configs (default)
-    print("🔧 Option 1: Using hardcoded model configurations")
-    measure_memory_scaling_experiments(fabric)
+    # print("🔧 Option 1: Using hardcoded model configurations")
+    # measure_memory_scaling_experiments(fabric)
 
     # Option 2: Use YAML-based configuration (optional)
     print("\n🔧 Option 2: Using YAML-based configuration (optional)")
