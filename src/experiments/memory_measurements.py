@@ -1034,19 +1034,17 @@ if __name__ == "__main__":
     # measure_memory_scaling_experiments(fabric)
 
     # Option 2: Use YAML-based configuration (optional)
-    print("\n🔧 Option 2: Using YAML-based configuration (optional)")
-    yaml_path = "src/experiments/config/memory/my_model.yaml"
-    try:
-        measure_memory_scaling_experiments(fabric, yaml_path=yaml_path)
-        print(f"✅ YAML-based experiments completed successfully")
-    except FileNotFoundError:
-        print(f"⚠️  YAML file not found: {yaml_path}")
-        print("   Skipping YAML-based experiments")
-    except Exception as e:
-        print(f"❌ Error with YAML-based experiments: {e}")
-        print("   Continuing with hardcoded experiments only")
+    # print("\n🔧 Option 2: Using YAML-based configuration (optional)")
+    # yaml_path = "src/experiments/config/memory/my_model.yaml"
+    # try:
+    #     measure_memory_scaling_experiments(fabric, yaml_path=yaml_path)
+    #     print(f"✅ YAML-based experiments completed successfully")
+    # except FileNotFoundError:
+    #     print(f"⚠️  YAML file not found: {yaml_path}")
+    #     print("   Skipping YAML-based experiments")
+    # except Exception as e:
+    #     print(f"❌ Error with YAML-based experiments: {e}")
+    #     print("   Continuing with hardcoded experiments only")
 
-    # Option 3: Use NeMo's hydra_runner (commented out - requires command line execution)
-    # print("\n Option 3: Using NeMo Hydra configuration")
-    # print("   To use this option, run: python -m src.experiments.memory_measurements")
-    # print("   with appropriate Hydra command line arguments")
+    # Option 3: Use hydra_runner decorator
+    measure_memory_scaling_experiments_hydra()  #
