@@ -3,6 +3,7 @@
 import csv
 from collections.abc import Callable
 from contextlib import suppress
+from typing import Any
 
 import torch
 from gpt2_standalone.lightning_module import GPTLightningModule
@@ -12,24 +13,15 @@ from lightning import Fabric
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
 
 
-def create_model_from_yaml(
-    yaml_path: str,
-    model_key: str = "model",
-    optimizer_key: str = "optimizer",
-    block_size: int | None = None,
-    vocab_size: int | None = None,
+def create_model_from_yaml_simple(
+    yaml_path: str, block_size: int, vocab_size: int
 ) -> tuple[GPTLightningModule, torch.optim.Optimizer]:
-    """Create a model and optimizer from a YAML configuration file.
-
-    This function is compatible with NeMo/Hydra-style configurations using the
-    _target_ format for dynamic class instantiation.
+    """Simple YAML model loader - minimal change from original approach.
 
     Args:
-        yaml_path: Path to YAML configuration file.
-        model_key: Key in YAML for model configuration.
-        optimizer_key: Key in YAML for optimizer configuration.
-        block_size: Sequence length to inject into model config.
-        vocab_size: Vocabulary size to inject into model config.
+        yaml_path: Path to YAML file.
+        block_size: Sequence length.
+        vocab_size: Vocabulary size.
 
     Returns:
         Tuple of (model, optimizer).
@@ -39,31 +31,27 @@ def create_model_from_yaml(
     with open(yaml_path, "r") as f:
         config = yaml.safe_load(f)
 
-    # Extract model config
-    model_cfg = config[model_key].copy()  # Make a copy to avoid modifying original
-    model_target = model_cfg.pop("_target_")
+    # Extract model parameters from YAML
+    model_cfg = config.get("model", {})
+    n_layer = model_cfg.get("n_layer", 4)
+    n_head = model_cfg.get("n_head", 8)
+    n_embd = model_cfg.get("n_embd", 1024)
+    n_blocks_per_super = model_cfg.get("n_blocks_per_super", 2)
 
-    # Inject block_size and vocab_size if provided
-    if block_size is not None:
-        model_cfg["block_size"] = block_size
-    if vocab_size is not None:
-        model_cfg["vocab_size"] = vocab_size
+    # Create model exactly like the original hardcoded approach
+    model_config_obj = GPTConfig(
+        block_size=block_size,
+        vocab_size=vocab_size,
+        n_layer=n_layer,
+        n_head=n_head,
+        n_embd=n_embd,
+        n_blocks_per_super=n_blocks_per_super,
+    )
 
-    # Import and instantiate model
-    module_path, class_name = model_target.rsplit(".", 1)
-    module = __import__(module_path, fromlist=[class_name])
-    model_class = getattr(module, class_name)
-    model = model_class(**model_cfg)
+    model = GPTLightningModule(model_config_obj)
 
-    # Extract optimizer config
-    opt_cfg = config[optimizer_key].copy()
-    opt_target = opt_cfg.pop("_target_")
-
-    # Import and instantiate optimizer
-    opt_module_path, opt_class_name = opt_target.rsplit(".", 1)
-    opt_module = __import__(opt_module_path, fromlist=[opt_class_name])
-    optimizer_class = getattr(opt_module, opt_class_name)
-    optimizer = optimizer_class(model.parameters(), **opt_cfg)
+    # Create optimizer exactly like the original
+    optimizer = model.configure_optimizers()["optimizer"]
 
     return model, optimizer
 
@@ -211,7 +199,7 @@ def run_single_experiment(
         # Create fresh model
         if yaml_path:
             # Use YAML-based model creation
-            model, optimizer = create_model_from_yaml(
+            model, optimizer = create_model_from_yaml_simple(
                 yaml_path, block_size=sequence_length, vocab_size=50304
             )
             model, optimizer = fabric.setup(model, optimizer)
@@ -827,25 +815,18 @@ if __name__ == "__main__":
     fabric = Fabric(accelerator="cuda", devices=1)
 
     # Option 1: Use original hardcoded model configs (default)
-    # measure_memory_scaling_experiments(fabric)
+    print("🔧 Option 1: Using hardcoded model configurations")
+    measure_memory_scaling_experiments(fabric)
 
-    # Option 2: Use YAML-based model loading with NeMo/Hydra approach
-    print("\n🔧 Option 2: Using YAML-based model loading (NeMo/Hydra approach)")
+    # Option 2: Use YAML-based configuration (optional)
+    print("\n🔧 Option 2: Using YAML-based configuration (optional)")
     yaml_path = "src/experiments/config/memory/my_model.yaml"
     try:
         measure_memory_scaling_experiments(fabric, yaml_path=yaml_path)
+        print(f"✅ YAML-based experiments completed successfully")
     except FileNotFoundError:
         print(f"⚠️  YAML file not found: {yaml_path}")
         print("   Skipping YAML-based experiments")
     except Exception as e:
         print(f"❌ Error with YAML-based experiments: {e}")
-
-    # Option 3: Test with custom YAML config (uncomment and modify as needed)
-    # print("\n🔧 Option 3: Using custom YAML configuration")
-    # custom_yaml_path = "src/experiments/config/memory/custom_model.yaml"
-    # try:
-    #     measure_memory_scaling_experiments(fabric, yaml_path=custom_yaml_path)
-    # except FileNotFoundError:
-    #     print(f"⚠️  Custom YAML file not found: {custom_yaml_path}")
-    # except Exception as e:
-    #     print(f"❌ Error with custom YAML experiments: {e}")
+        print("   Continuing with hardcoded experiments only")
