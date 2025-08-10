@@ -997,7 +997,10 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
         ]
 
     print(f"\n Option 3: Using NeMo Hydra configuration")
-    print(f"   Config: {config}")
+    print(f"   {cfg=}")
+    print(f"   {cfg.experiment=}")
+    print(f"   {config=}")
+    print(f"   {config.experiment=}")
 
     # Run experiments using the existing infrastructure
     yaml_path = config.get("_yaml_path")
