@@ -247,20 +247,56 @@ def run_single_experiment(
             else:
                 print("     Optimizer has no param_groups attribute.")
         else:
-            # Use original hardcoded approach
-            model_config_obj = GPTConfig(
-                block_size=sequence_length,
-                vocab_size=50304,
-                n_layer=model_config["n_layer"],
-                n_head=model_config["n_head"],
-                n_embd=model_config["n_embd"],
-                n_blocks_per_super=2,
-            )
+            # Flexible instantiation from model_config dict
+            # 1) If the spec provides a NeMo/_target_ style entry, instantiate that class
+            if "_target_" in model_config:
+                import importlib
 
-            model = GPTLightningModule(model_config_obj)
-            model, optimizer = fabric.setup(
-                model, model.configure_optimizers()["optimizer"]
-            )
+                target_path = model_config["_target_"]
+                module_path, class_name = target_path.rsplit(".", 1)
+                module = importlib.import_module(module_path)
+                target_class = getattr(module, class_name)
+
+                # Pass all model-specific fields as ctor kwargs except metadata
+                ctor_kwargs = {
+                    k: v
+                    for k, v in model_config.items()
+                    if k not in ("name", "_target_")
+                }
+                # Provide block_size and vocab_size defaults if not provided
+                ctor_kwargs.setdefault("block_size", sequence_length)
+                ctor_kwargs.setdefault("vocab_size", 50304)
+
+                model = target_class(**ctor_kwargs)
+
+                # Try to get an optimizer from the model, otherwise fall back
+                try:
+                    opt_from_model = model.configure_optimizers()
+                    optimizer = (
+                        opt_from_model["optimizer"]
+                        if isinstance(opt_from_model, dict)
+                        and "optimizer" in opt_from_model
+                        else opt_from_model
+                    )
+                except Exception:
+                    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+
+                model, optimizer = fabric.setup(model, optimizer)
+
+            else:
+                # Legacy: build a GPTConfig using any keys present in model_config
+                ctor_kwargs = {
+                    k: model_config[k]
+                    for k in ("n_layer", "n_head", "n_embd", "n_blocks_per_super")
+                    if k in model_config
+                }
+                config_obj = GPTConfig(
+                    block_size=sequence_length, vocab_size=50304, **ctor_kwargs
+                )
+                model = GPTLightningModule(config_obj)
+                model, optimizer = fabric.setup(
+                    model, model.configure_optimizers()["optimizer"]
+                )
 
         # Calculate model parameters
         total_params = sum(p.numel() for p in model.parameters())
