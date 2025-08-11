@@ -9,7 +9,7 @@ import torch
 from gpt2_standalone.lightning_module import GPTLightningModule
 from gpt2_standalone.model import GPTConfig
 from lightning import Fabric
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
 
 from experiments.clean_palate import deep_gpu_reset, reset_model_state
 from experiments.lightning_module_adapter import GPTLMAdapter
@@ -629,9 +629,16 @@ def save_results(results: dict, timestamp: str | None = None) -> None:
     }
 
     for key, experiment in results["experiments"].items():
+        # Convert each experiment value that is a DictConfig/ListConfig to native containers
+        exp_copy = {}
+        for k, v in experiment.items():
+            if isinstance(v, DictConfig | ListConfig):
+                exp_copy[k] = OmegaConf.to_container(v, resolve=True)
+            else:
+                exp_copy[k] = v
         # Convert tuple key to string key
         key_str = "_".join(str(k) for k in key) if isinstance(key, tuple) else str(key)
-        json_safe_results["experiments"][key_str] = experiment
+        json_safe_results["experiments"][key_str] = exp_copy
 
     # Save full results
     full_filename = f"memory_results_full_{timestamp}.json"
