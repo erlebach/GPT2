@@ -843,23 +843,20 @@ def hydra_runner(
             # Load the YAML config
             from pathlib import Path
 
-            import yaml
-
             # Get the directory of the file where this decorator is defined
             source_file_dir = Path(__file__).parent
 
             # Construct the full path to the YAML file
             full_yaml_path = source_file_dir / config_path / config_name
 
-            # Load the YAML configuration
-            with open(full_yaml_path, "r") as f:
-                config = yaml.safe_load(f)
+            # Load as DictConfig (OmegaConf) rather than dict (yaml)
+            cfg = OmegaConf.load(full_yaml_path)
 
             # Add the yaml path to the config
-            config["_yaml_path"] = str(full_yaml_path)
+            cfg._yaml_path = str(full_yaml_path)
 
-            # Pass the entire config as the first argument
-            return func(config, *args, **kwargs)
+            # Pass DictConfig to the function
+            return func(cfg, *args, **kwargs)
 
         return wrapper
 
@@ -956,68 +953,92 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     """
     from datetime import datetime
 
-    # Convert OmegaConf to regular dict for compatibility
-    if isinstance(cfg, DictConfig):
-        config = OmegaConf.to_container(cfg, resolve=True)
-    else:
-        config = cfg
+    from omegaconf import DictConfig, OmegaConf
 
-    # Extract configuration values
-    model_config = config.get("model", {})
-    optimizer_config = config.get("optimizer", {})
-    experiment_config = config.get("experiment", {})
+    # Keep cfg as DictConfg; do not convert the whole config
+    assert isinstance(cfg, DictConfig)
+
+    # # Convert OmegaConf to regular dict for compatibility
+    # if isinstance(cfg, DictConfig):
+    #     config = OmegaConf.to_container(cfg, resolve=True)
+    # else:
+    #     config = cfg
+
+    # # Extract configuration values
+    # model_config = config.get("model", {})
+    # optimizer_config = config.get("optimizer", {})
+    # experiment_config = config.get("experiment", {})
+
+    # Build experiment kwargs from cfg.experiment
+    exp: DictConfig = cfg.experiment
+    if "models" in exp:
+        exp["model_configs"] = exp.pop("models")
 
     # Create Fabric instance
     fabric = Fabric(accelerator="cuda", devices=1)
 
     # Create model using the config
     yaml_path = config.get("_yaml_path")
-    model, optimizer = create_model_from_yaml_simple(
-        yaml_path=yaml_path,
-        block_size=1024,
-        vocab_size=50257,
-    )
 
-    # Extract experiment parameters with defaults
-    num_iterations = experiment_config.get("num_iterations", 5)
-    warmup_iterations = experiment_config.get("warmup_iterations", 2)
-    batch_sizes = experiment_config.get("batch_sizes", [1, 16])
-    sequence_lengths = experiment_config.get("sequence_lengths", [256])
-
-    # Create model configs from YAML
-    model_configs = []
-    if "models" in experiment_config:
-        # Use models defined in YAML - just use them directly
-        model_configs = experiment_config["models"]
-    else:
-        # Fallback to hardcoded configs
-        model_configs = [
-            {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
-            {"n_layer": 8, "n_head": 16, "n_embd": 2048, "name": "large2048"},
-        ]
-
-    print(f"\n Option 3: Using NeMo Hydra configuration")
-    print(f"{type(cfg)=}, {type(config)=}")
-    print(f"   {cfg=}")
-    print(f"   {cfg['experiment']=}")
-    print(f"   {config=}")
-    print(f"   {config['experiment']=}")
-    print(f"   {cfg.experiment=}")
-    print(f"   {config.experiment=}")
-
-    # Run experiments using the existing infrastructure
-    yaml_path = config.get("_yaml_path")
+    # Run experiments with kwargs expansion
     results = run_experiment_grid(
         fabric=fabric,
-        **cfg.experiment,
+        **exp,
         yaml_path=yaml_path,
     )
 
-    # Save results
+    # Save resutls
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     save_results(results, timestamp)
 
     print(f"✅ Hydra-based experiments completed successfully")
+
+    # model, optimizer = create_model_from_yaml_simple(
+    #     yaml_path=yaml_path,
+    #     block_size=1024,
+    #     vocab_size=50257,
+    # )
+
+    # # Extract experiment parameters with defaults
+    # num_iterations = experiment_config.get("num_iterations", 5)
+    # warmup_iterations = experiment_config.get("warmup_iterations", 2)
+    # batch_sizes = experiment_config.get("batch_sizes", [1, 16])
+    # sequence_lengths = experiment_config.get("sequence_lengths", [256])
+
+    # # Create model configs from YAML
+    # model_configs = []
+    # if "models" in experiment_config:
+    #     # Use models defined in YAML - just use them directly
+    #     model_configs = experiment_config["models"]
+    # else:
+    #     # Fallback to hardcoded configs
+    #     model_configs = [
+    #         {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
+    #         {"n_layer": 8, "n_head": 16, "n_embd": 2048, "name": "large2048"},
+    #     ]
+
+    # print(f"\n Option 3: Using NeMo Hydra configuration")
+    # print(f"{type(cfg)=}, {type(config)=}")
+    # print(f"   {cfg=}")
+    # print(f"   {cfg['experiment']=}")
+    # print(f"   {config=}")
+    # print(f"   {config['experiment']=}")
+    # print(f"   {cfg.experiment=}")
+    # print(f"   {config.experiment=}")
+
+    # # Run experiments using the existing infrastructure
+    # yaml_path = config.get("_yaml_path")
+    # results = run_experiment_grid(
+    #     fabric=fabric,
+    #     **cfg.experiment,
+    #     yaml_path=yaml_path,
+    # )
+
+    # # Save results
+    # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # save_results(results, timestamp)
+
+    # print(f"✅ Hydra-based experiments completed successfully")
 
 
 if __name__ == "__main__":
