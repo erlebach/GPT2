@@ -978,7 +978,7 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     fabric = Fabric(accelerator="cuda", devices=1)
 
     # Create model using the config
-    yaml_path = config.get("_yaml_path")
+    yaml_path = cfg._yaml_path
 
     # Run experiments with kwargs expansion
     results = run_experiment_grid(
