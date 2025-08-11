@@ -18,15 +18,16 @@ from experiments.lightning_module_adapter import GPTLMAdapter
 def create_model_from_yaml_simple(
     yaml_path: str, block_size: int, vocab_size: int
 ) -> tuple[GPTLightningModule, torch.optim.Optimizer]:
-    """Simple YAML model loader using the adapter with _target_ pattern.
+    """Load a model and optimizer from a YAML file using the adapter with the _target_ pattern.
 
     Args:
-        yaml_path: Path to YAML file.
+        yaml_path: Path to the YAML file.
         block_size: Sequence length.
         vocab_size: Vocabulary size.
 
     Returns:
-        Tuple of (model, optimizer).
+        Tuple containing the model and optimizer.
+
     """
     import importlib
 
@@ -936,20 +937,6 @@ def measure_memory_scaling_experiments(
     return results
 
 
-# Example usage with Hydra decorator (commented out for now)
-# @hydra_runner("config/memory/my_model.yaml", "my_model")
-# def measure_memory_scaling_experiments_hydra(
-#     fabric: Fabric,
-#     num_iterations: int = 5,
-#     warmup_iterations: int = 2,
-#     yaml_path: str | None = None,
-# ) -> dict:
-#     """Hydra-enabled version of memory scaling experiments."""
-#     return measure_memory_scaling_experiments(
-#         fabric, num_iterations, warmup_iterations, yaml_path
-#     )
-
-
 # Option 3: Use NeMo's hydra_runner decorator
 @hydra_runner(config_path="config/memory", config_name="my_model.yaml")
 def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
@@ -964,17 +951,6 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
 
     # Keep cfg as DictConfg; do not convert the whole config
     assert isinstance(cfg, DictConfig)
-
-    # # Convert OmegaConf to regular dict for compatibility
-    # if isinstance(cfg, DictConfig):
-    #     config = OmegaConf.to_container(cfg, resolve=True)
-    # else:
-    #     config = cfg
-
-    # # Extract configuration values
-    # model_config = config.get("model", {})
-    # optimizer_config = config.get("optimizer", {})
-    # experiment_config = config.get("experiment", {})
 
     # Build experiment kwargs from cfg.experiment
     exp: DictConfig = cfg.experiment
@@ -999,53 +975,6 @@ def measure_memory_scaling_experiments_hydra(cfg: DictConfig) -> None:
     save_results(results, timestamp)
 
     print(f"✅ Hydra-based experiments completed successfully")
-
-    # model, optimizer = create_model_from_yaml_simple(
-    #     yaml_path=yaml_path,
-    #     block_size=1024,
-    #     vocab_size=50257,
-    # )
-
-    # # Extract experiment parameters with defaults
-    # num_iterations = experiment_config.get("num_iterations", 5)
-    # warmup_iterations = experiment_config.get("warmup_iterations", 2)
-    # batch_sizes = experiment_config.get("batch_sizes", [1, 16])
-    # sequence_lengths = experiment_config.get("sequence_lengths", [256])
-
-    # # Create model configs from YAML
-    # model_configs = []
-    # if "models" in experiment_config:
-    #     # Use models defined in YAML - just use them directly
-    #     model_configs = experiment_config["models"]
-    # else:
-    #     # Fallback to hardcoded configs
-    #     model_configs = [
-    #         {"n_layer": 4, "n_head": 8, "n_embd": 1024, "name": "medium1024"},
-    #         {"n_layer": 8, "n_head": 16, "n_embd": 2048, "name": "large2048"},
-    #     ]
-
-    # print(f"\n Option 3: Using NeMo Hydra configuration")
-    # print(f"{type(cfg)=}, {type(config)=}")
-    # print(f"   {cfg=}")
-    # print(f"   {cfg['experiment']=}")
-    # print(f"   {config=}")
-    # print(f"   {config['experiment']=}")
-    # print(f"   {cfg.experiment=}")
-    # print(f"   {config.experiment=}")
-
-    # # Run experiments using the existing infrastructure
-    # yaml_path = config.get("_yaml_path")
-    # results = run_experiment_grid(
-    #     fabric=fabric,
-    #     **cfg.experiment,
-    #     yaml_path=yaml_path,
-    # )
-
-    # # Save results
-    # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # save_results(results, timestamp)
-
-    # print(f"✅ Hydra-based experiments completed successfully")
 
 
 if __name__ == "__main__":
